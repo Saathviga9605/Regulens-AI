@@ -33,6 +33,7 @@ React 18, Vite 6, TypeScript (strict), Tailwind CSS v4, React Router 7, lucide-r
 # backend
 cd backend; python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements.lock.txt; pip install -e ".[dev]"
+python -m app.cli migrate; python -m app.cli seed  # schema + synthetic data
 python -m pytest                                   # tests
 python -m uvicorn app.main:app --reload --port 8000  # run
 
@@ -47,7 +48,9 @@ npm test; npm run typecheck; npm run build; npm run dev
   lives in `services/`, DB access via injected `Session` (`api/deps.get_db`). Never read env vars outside
   `core/config.py`; get settings from `request.app.state.settings` / `get_app_settings`.
 - Frontend: strict TS, no `any`. Shared API types in `src/types/api.ts` mirror backend schemas — update both.
-  Components never call `fetch` directly. Tailwind utility classes; slate/navy + restrained blue palette.
+  Enum display labels live in `src/app/labels.ts`. Components never call `fetch` directly: add methods to
+  `services/apiClient.ts` and load data with `useApiQuery`. Reuse `components/ui.tsx` primitives (fields,
+  states, table styles). Never render hardcoded records; tests mock `fetch` with `tests/helpers.tsx:mockApi`. Tailwind utility classes; slate/navy + restrained blue palette.
 - Keep new modules out of the tree until they have real code. No empty placeholders claiming functionality.
 
 ## API conventions
@@ -60,9 +63,25 @@ npm test; npm run typecheck; npm run build; npm run dev
 ## Database conventions
 
 - SQLAlchemy 2.0 typed ORM (`Mapped[...]`), models inherit `app.db.base.Base` and are imported in `app/models/__init__.py`.
-- One session per request via `get_db`; rollback on error, always close.
-- `init_db` uses `create_all` for now. Introduce Alembic before the first schema change to an existing table.
+- One session per request via `get_db`; services call `session.commit()`; `session_scope` rolls back on error.
+- **Schema changes go through Alembic** (`app/db/migrations`). Autogenerate, review, replace app types with `sa.*`
+  in the migration, never edit an applied revision. `init_db` / `python -m app.cli migrate` run `upgrade head`.
+- Enums: `StrEnum` in `app/models/enums.py`, columns via `app.db.types.str_enum`. Timestamps: `UTCDateTime` + `utcnow()`.
+- Human-readable IDs come from `app/services/codes.py` (atomic counters). Never derive IDs by counting rows.
+- Expose codes (`INST-…`, `REG-EoA-…`) in URLs/responses, never internal UUIDs.
+- Seed data is synthetic, keyed by `seed_key`, and never overwrites records. Destructive commands require an explicit
+  flag and are never run at startup or against the developer database in tests.
 - Database files live in `data/` and are git-ignored. Tests must use temporary databases (see `tests/conftest.py`).
+
+## Request/response schema conventions
+
+- Request bodies inherit `StrictInputModel` (unknown fields → 422, prevents mass assignment); PATCH bodies inherit
+  `PartialUpdateModel` (no explicit nulls). Separate Create / Update / Read schemas.
+- Expected domain errors raise `AppError` / `NotFoundError` / `ConflictError` (`core/errors.py`) with client-safe messages;
+  field-specific business errors use 422 with `details[].loc` so the frontend can show them on the field.
+- Lists return `Page[T]` with `get_pagination` (max page size 100) and a stable `order_by`; eager-load relations.
+- Application status changes only through `services/workflow.py`. Statuses are internal, never AICTE decisions.
+- Authorization (future) is added as a router-level dependency in `api/v1/router.py`.
 
 ## Security requirements
 

@@ -8,6 +8,8 @@ const IMPLEMENTED = [
   "Dashboard shell and navigation",
   "Live backend health check (API + database query)",
   "Connection status: connected, degraded and disconnected states",
+  "Institution records: create, search, view and edit (fictional data)",
+  "EoA applications: create drafts, search, filter, edit drafts and move through internal workflow statuses",
 ];
 
 export function DashboardPage() {
@@ -62,7 +64,7 @@ export function DashboardPage() {
             Planned modules
           </h2>
           <ul className="mt-3 space-y-2 text-sm">
-            {MODULES.map((m) => (
+            {MODULES.filter((m) => !m.available).map((m) => (
               <li key={m.path} className="flex gap-2">
                 <CircleDashed aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
                 <span>

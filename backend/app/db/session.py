@@ -10,7 +10,8 @@ from app.core.config import Settings
 
 def build_engine(settings: Settings) -> Engine:
     is_sqlite = settings.database_backend == "sqlite"
-    connect_args: dict = {"check_same_thread": False} if is_sqlite else {}
+    # timeout: wait for SQLite's write lock instead of failing immediately under concurrent writes.
+    connect_args: dict = {"check_same_thread": False, "timeout": 30} if is_sqlite else {}
     path = settings.sqlite_path
     if path is not None:
         path.parent.mkdir(parents=True, exist_ok=True)

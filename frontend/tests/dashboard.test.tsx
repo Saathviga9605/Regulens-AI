@@ -120,9 +120,9 @@ describe("Dashboard", () => {
 describe("Module placeholders", () => {
   it("renders a clearly labelled placeholder with no fabricated data", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(HEALTHY));
-    renderApp("/applications");
+    renderApp("/verification");
 
-    expect(screen.getByRole("heading", { level: 1, name: "Applications" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Verification" })).toBeInTheDocument();
     expect(screen.getByText("Planned")).toBeInTheDocument();
     expect(screen.getByText(/this module is not implemented yet/i)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();

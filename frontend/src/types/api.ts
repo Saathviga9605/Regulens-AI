@@ -1,4 +1,4 @@
-/** Types mirroring backend schemas in backend/app/schemas/system.py. */
+/** Types mirroring backend schemas in backend/app/schemas/*.py. Keep both in sync. */
 
 export interface DependencyStatus {
   status: "ok" | "unavailable";
@@ -22,8 +22,14 @@ export interface SystemInfoResponse {
   planned_capabilities: string[];
 }
 
+export interface ApiErrorDetail {
+  loc?: string[];
+  msg?: string;
+  allowed_transitions?: ApplicationStatus[];
+}
+
 export interface ApiErrorBody {
-  error: { code: string; message: string; request_id: string };
+  error: { code: string; message: string; request_id: string; details?: ApiErrorDetail[] };
 }
 
 /** Connection state shown in the UI, derived from the real /health response. */
@@ -32,3 +38,139 @@ export type ConnectionState =
   | { kind: "connected"; health: HealthResponse; checkedAt: Date }
   | { kind: "degraded"; health: HealthResponse; checkedAt: Date }
   | { kind: "disconnected"; message: string; checkedAt: Date };
+
+// --- Pagination ------------------------------------------------------------------------------
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+// --- Institutions ----------------------------------------------------------------------------
+
+export type InstitutionType =
+  | "government"
+  | "government_aided"
+  | "private_self_financing"
+  | "deemed_university"
+  | "state_private_university";
+
+export type RecordStatus = "active" | "inactive";
+
+export interface InstitutionInput {
+  name: string;
+  institution_type: InstitutionType;
+  state: string;
+  district: string;
+  address: string;
+  trust_name: string;
+  property_identifier: string;
+}
+
+export type InstitutionUpdate = Partial<InstitutionInput> & { status?: RecordStatus };
+
+export interface InstitutionSummary {
+  institution_code: string;
+  name: string;
+  institution_type: InstitutionType;
+  state: string;
+  district: string;
+  status: RecordStatus;
+}
+
+export interface Institution extends InstitutionSummary {
+  address: string;
+  trust_name: string;
+  property_identifier: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstitutionQuery {
+  q?: string;
+  state?: string;
+  status?: RecordStatus;
+  page?: number;
+  page_size?: number;
+}
+
+// --- Applications ----------------------------------------------------------------------------
+
+export type ApplicationStatus =
+  | "draft"
+  | "ready_for_preliminary_scrutiny"
+  | "under_preliminary_scrutiny"
+  | "awaiting_additional_evidence"
+  | "preliminary_scrutiny_completed";
+
+export type ApplicationType =
+  | "eoa_no_change"
+  | "increase_in_intake"
+  | "reduction_in_intake"
+  | "introduction_of_new_course"
+  | "change_of_institution_name";
+
+export type ProgrammeLevel = "diploma" | "undergraduate" | "postgraduate";
+export type Shift = "first" | "second";
+
+export interface Programme {
+  programme_level: ProgrammeLevel;
+  course_name: string;
+  shift: Shift;
+  existing_intake: number;
+  proposed_intake: number;
+}
+
+export interface ApplicationInput {
+  institution_code: string;
+  academic_year: string;
+  application_type: ApplicationType;
+  programmes: Programme[];
+}
+
+export interface ApplicationListItem {
+  application_code: string;
+  category: "extension_of_approval";
+  academic_year: string;
+  application_type: ApplicationType;
+  status: ApplicationStatus;
+  institution: InstitutionSummary;
+  programme_count: number;
+  total_proposed_intake: number;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstitutionSnapshot {
+  institution_code: string;
+  name: string;
+  institution_type: InstitutionType;
+  state: string;
+  district: string;
+  address: string;
+  trust_name: string;
+  property_identifier: string;
+  captured_at: string;
+}
+
+export interface Application extends ApplicationListItem {
+  programmes: Programme[];
+  status_changed_at: string;
+  is_editable: boolean;
+  allowed_transitions: ApplicationStatus[];
+  institution_snapshot: InstitutionSnapshot | null;
+}
+
+export interface ApplicationQuery {
+  q?: string;
+  status?: ApplicationStatus;
+  academic_year?: string;
+  application_type?: ApplicationType;
+  institution_code?: string;
+  page?: number;
+  page_size?: number;
+}

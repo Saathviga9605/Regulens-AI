@@ -8,8 +8,8 @@ by authorised humans.
 
 | # | Capability | Deliverable |
 |---|-----------|-------------|
-| 1 | Application and institutional-record management | Planned (D2) |
-| 2 | PDF document upload and storage | Planned (D2) |
+| 1 | Application and institutional-record management | Implemented (D2) |
+| 2 | PDF document upload and storage | Planned (D3, next) |
 | 3 | OCR of scanned documents | Planned (D3) |
 | 4 | Structured extraction with page-level evidence (document, page, text span) | Planned (D3) |
 | 5 | Configurable regulatory validation rules with provenance (handbook, clause, version) | Planned (D4) |

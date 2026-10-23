@@ -26,9 +26,9 @@ The frontend never accesses the database or filesystem; the backend is the only 
 | `db/` | `base.py` (DeclarativeBase), `session.py` (engine, session factory, per-request session scope), `init_db.py`. |
 | `api/deps.py` | FastAPI dependencies: `get_app_settings`, `get_db`. |
 | `api/v1/` | Routers. Thin: call services, return schemas. |
-| `services/` | Logic: `health.check_database` (runs `SELECT 1`), `system_info`. |
+| `services/` | Logic: health, system_info, institutions, applications, workflow (status rules), codes (ID generation), seed. |
 | `schemas/` | Pydantic response models. |
-| `models/` | ORM models (none yet). |
+| `models/` | ORM models: Institution, Application, ApplicationProgramme, IdSequence; enums. |
 
 Settings and engine are stored on `app.state`, so tests build fully isolated apps via `create_app(test_settings)`.
 

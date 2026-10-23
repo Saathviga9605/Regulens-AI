@@ -4,9 +4,10 @@ Evidence-first regulatory scrutiny assistant for AICTE Extension of Approval (Eo
 Hackathon prototype. ReguLens AI supports human reviewers; it never approves or rejects applications and never
 treats an anomaly as proof of misconduct.
 
-**Current state: Deliverable 1 — runnable full-stack foundation.** A FastAPI backend with a live SQLite health
-check, and a React dashboard shell that shows the real backend status. Business features (uploads, OCR, rules,
-verification, reports, audit) are planned; see [docs/implementation-status.md](docs/implementation-status.md).
+**Current state: Deliverable 2 — institution and EoA application management.** On top of the Deliverable 1
+foundation (live health check, dashboard shell), users can manage fictional institutions and create, search,
+filter, edit and move EoA applications through internal workflow statuses. Uploads, OCR, rules, verification,
+reports and audit are planned; see [docs/implementation-status.md](docs/implementation-status.md).
 
 ## Prerequisites (Windows)
 
@@ -33,11 +34,39 @@ pip install -r requirements.lock.txt
 pip install -e ".[dev]"
 cd ..
 
-# 3. Frontend
+# 3. Database schema + synthetic demo data (run inside backend/ with the venv active)
+cd backend
+python -m app.cli migrate        # apply Alembic migrations (also runs automatically at API startup)
+python -m app.cli seed           # 8 fictional institutions, 12 applications; safe to rerun
+cd ..
+
+# 4. Frontend
 cd frontend
 npm ci
 cd ..
 ```
+
+### Database commands (from `backend/`, venv active)
+
+| Command | Effect |
+|---------|--------|
+| `python -m app.cli migrate` | Upgrade schema to the latest migration. Non-destructive; existing data is kept. |
+| `python -m app.cli seed` | Insert the synthetic dataset. Rerunning skips existing seed records and never modifies any record. |
+| `python -m app.cli seed-summary` | Print counts of institutions/applications (total, seeded, by status). |
+| `python -m app.cli reset-data --confirm-reset` | **Deletes all institution and application data**, including records you created. Refused without the flag and outside `development`/`test`. |
+
+Expected first `seed` output:
+
+```
+Institutions: 8 created, 0 already present
+Applications: 12 created, 0 already present
+{ "institutions_total": 8, "institutions_seeded": 8, "applications_total": 12, "applications_seeded": 12,
+  "applications_by_status": { "draft": 4, "ready_for_preliminary_scrutiny": 2, "under_preliminary_scrutiny": 2,
+                              "awaiting_additional_evidence": 2, "preliminary_scrutiny_completed": 2 } }
+```
+
+All seeded names, trusts, addresses and property identifiers are invented (trusts are suffixed "(Synthetic)",
+property identifiers start with `SYN-`). No findings, documents or validation results are seeded.
 
 ## Run (two terminals)
 
@@ -56,7 +85,10 @@ npm run dev
 
 Open http://127.0.0.1:5173. The sidebar and Dashboard show **Connected**, **Degraded** or **Disconnected**
 based on the actual `/api/v1/health` response. Stop the backend and press **Retry** to see the
-disconnected state.
+disconnected state. **Applications** and **Institutions** in the sidebar open the management pages.
+
+> Application statuses are internal ReguLens workflow states. Nothing is submitted to AICTE, and no status is an
+> approval or rejection.
 
 Quick API check: `Invoke-RestMethod http://127.0.0.1:8000/api/v1/health`
 Interactive API docs (non-production only): http://127.0.0.1:8000/docs
@@ -71,7 +103,7 @@ cd backend;  .\.venv\Scripts\Activate.ps1; python -m pytest; cd ..
 cd frontend; npm test; npm run typecheck; npm run build; cd ..
 ```
 
-Backend tests use temporary SQLite databases and never touch `data/regulens.db`.
+Backend tests use temporary SQLite databases and never touch `data/regulens.db`; reset is never run against it.
 
 ## Configuration
 

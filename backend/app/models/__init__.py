@@ -1,4 +1,6 @@
-"""ORM models. Import each model module here so ``init_db`` registers it.
+"""ORM models. Import each model here so Alembic autogenerate and metadata see it."""
 
-No business models exist in Deliverable 1.
-"""
+from app.models.application import Application, ApplicationProgramme, IdSequence
+from app.models.institution import Institution
+
+__all__ = ["Application", "ApplicationProgramme", "IdSequence", "Institution"]

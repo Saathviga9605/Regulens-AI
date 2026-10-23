@@ -14,7 +14,28 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("regulens.errors")
 
-_HTTP_CODES = {400: "bad_request", 404: "not_found", 405: "method_not_allowed"}
+_HTTP_CODES = {400: "bad_request", 404: "not_found", 405: "method_not_allowed", 409: "conflict"}
+
+
+class AppError(Exception):
+    """Expected domain error, rendered with the standard error body. Message must be client-safe."""
+
+    def __init__(self, status_code: int, code: str, message: str, details: list | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.code = code
+        self.message = message
+        self.details = details
+
+
+class NotFoundError(AppError):
+    def __init__(self, message: str) -> None:
+        super().__init__(404, "not_found", message)
+
+
+class ConflictError(AppError):
+    def __init__(self, code: str, message: str, details: list | None = None) -> None:
+        super().__init__(409, code, message, details)
 
 
 def _request_id(request: Request) -> str:
@@ -29,6 +50,13 @@ def error_body(code: str, message: str, request_id: str, details: list | None = 
 
 
 def register_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_body(exc.code, exc.message, _request_id(request), exc.details),
+        )
+
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         message = exc.detail if isinstance(exc.detail, str) else "Request failed."

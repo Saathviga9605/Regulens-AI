@@ -44,3 +44,45 @@ def app(settings: Settings) -> FastAPI:
 def client(app: FastAPI) -> Iterator[TestClient]:
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
+
+
+def institution_payload(**overrides) -> dict:
+    payload = {
+        "name": "Test Synthetic Institute of Technology",
+        "institution_type": "private_self_financing",
+        "state": "Kerala",
+        "district": "Ernakulam",
+        "address": "1 Synthetic Test Road, Kochi 682099",
+        "trust_name": "Test Synthetic Education Trust",
+        "property_identifier": "SYN-TEST-001",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def application_payload(institution_code: str, **overrides) -> dict:
+    payload = {
+        "institution_code": institution_code,
+        "academic_year": "2026-27",
+        "application_type": "eoa_no_change",
+        "programmes": [
+            {"programme_level": "undergraduate", "course_name": "B.Tech Civil Engineering",
+             "existing_intake": 60, "proposed_intake": 60},
+        ],
+    }
+    payload.update(overrides)
+    return payload
+
+
+@pytest.fixture
+def institution(client: TestClient) -> dict:
+    response = client.post("/api/v1/institutions", json=institution_payload())
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+@pytest.fixture
+def draft(client: TestClient, institution: dict) -> dict:
+    response = client.post("/api/v1/applications", json=application_payload(institution["institution_code"]))
+    assert response.status_code == 201, response.text
+    return response.json()
