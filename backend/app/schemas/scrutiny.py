@@ -214,6 +214,8 @@ class FindingRead(BaseModel):
     review_status: ReviewStatus
     review_note: str | None
     reviewed_at: datetime | None
+    review_version: int
+    allowed_actions: list[str] = Field(default_factory=list, description="Review actions valid in the current state")
     created_at: datetime
 
 
@@ -221,11 +223,6 @@ class FindingDetail(FindingRead):
     application_code: str
     run_number: int
     rule: dict | None = Field(description="Rule as snapshotted for this run (title, source, demo-only flag)")
-
-
-class FindingReviewUpdate(StrictInputModel):
-    review_status: ReviewStatus
-    review_note: str | None = Field(default=None, max_length=1000)
 
 
 # --- Simulated issuer verification ------------------------------------------------------------------

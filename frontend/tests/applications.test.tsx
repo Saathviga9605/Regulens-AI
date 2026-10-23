@@ -12,7 +12,7 @@ describe("Applications list", () => {
     mockApi({ "GET /applications": async () => (await gate, jsonResponse(page([LIST_ITEM]))) });
     renderApp("/applications");
 
-    expect(screen.getByText("Loading applications…")).toBeInTheDocument();
+    expect(await screen.findByText("Loading applications…")).toBeInTheDocument();
     release();
 
     const table = await screen.findByRole("table", { name: "Applications" });

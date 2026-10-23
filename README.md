@@ -4,13 +4,17 @@ Evidence-first regulatory scrutiny assistant for AICTE Extension of Approval (Eo
 Hackathon prototype. ReguLens AI supports human reviewers; it never approves or rejects applications and never
 treats an anomaly as proof of misconduct.
 
-**Current state: Deliverable 4 — document intelligence and preliminary scrutiny.** On top of institution/application
-management and secure PDF intake, ReguLens extracts page text (OCR when Tesseract is installed), detects document
-types, extracts evidence-quoted fields, runs configurable deterministic rules and cross-document checks, raises
-anomaly indicators, performs **simulated** issuer checks against synthetic records, and keeps a history of scrutiny
-runs and findings for human review. Reports, audit trail and authentication are planned; see
-[docs/implementation-status.md](docs/implementation-status.md) and
-[docs/scrutiny-and-extraction.md](docs/scrutiny-and-extraction.md).
+**Current state: Deliverable 6 — government-grade UI revamp.** The interface now uses a dedicated design system
+(see [docs/design-system.md](docs/design-system.md)): a navy application shell with grouped navigation, a persistent
+trust notice, accessible dialogs and confirmations, toasts, and responsive layouts from 360 px upwards. Local demo
+accounts are created automatically by `seed`. Deliverable 5 delivered the reviewer workspace: on top of institution/application management, secure PDF
+intake, document processing and preliminary scrutiny (Deliverables 1–4), reviewers now sign in, work from a review
+queue, confirm/dismiss/escalate/resolve findings with recorded reasons, request and track additional evidence,
+receive in-app alerts, download a preliminary scrutiny PDF and ask an evidence-grounded (non-AI) copilot. Important
+actions are written to an application-level append-only audit log; reviewer and administrator roles are enforced by
+the backend. See [docs/review-workflow.md](docs/review-workflow.md), [docs/security.md](docs/security.md),
+[docs/scrutiny-and-extraction.md](docs/scrutiny-and-extraction.md) and
+[docs/implementation-status.md](docs/implementation-status.md).
 
 > Findings are preliminary indicators for a human reviewer. Nothing in ReguLens approves or rejects an application,
 > establishes that a document is authentic, or concludes misconduct. Default expectation rules are **demo-only** and
@@ -30,8 +34,8 @@ No Docker, PostgreSQL or external services are required.
 From the repository root (`regulens-ai/`):
 
 ```powershell
-# 1. Configuration (shared by backend and frontend)
-Copy-Item .env.example .env
+# 1. Configuration (shared by backend and frontend) — only creates .env if you don't already have one
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 
 # 2. Backend
 cd backend
@@ -44,7 +48,7 @@ cd ..
 # 3. Database schema + synthetic demo data (run inside backend/ with the venv active)
 cd backend
 python -m app.cli migrate        # apply Alembic migrations (also runs automatically at API startup)
-python -m app.cli seed           # 8 fictional institutions, 12 applications; safe to rerun
+python -m app.cli seed           # 8 fictional institutions, 12 applications + local demo accounts; safe to rerun
 cd ..
 
 # 4. Frontend
@@ -87,6 +91,29 @@ backend. ReguLens auto-detects `tesseract` on `PATH` or `C:\Program Files\Tesser
 available)* and the document's processing status is *failed* with code `ocr_unavailable` — never as an empty success.
 The backend logs a warning at startup when OCR is unavailable.
 
+### Demo sign-in
+
+All pages except sign-in need an account. Outside production, `python -m app.cli seed` creates (or reconciles)
+two fictional local demo accounts from these `.env` settings — defaults shown, as in `.env.example`:
+
+| Role | Username | Password |
+|------|----------|----------|
+| Reviewer | `demo.reviewer` | `Reviewer@Demo2026` |
+| Administrator | `demo.admin` | `Admin@Demo2026` |
+
+> **LOCAL DEMO ONLY — CHANGE BEFORE SHARING.** These credentials are public in this repository. Change
+> `REGULENS_DEMO_REVIEWER_PASSWORD` / `REGULENS_DEMO_ADMIN_PASSWORD` in your `.env` (min. 10 characters) and rerun
+> `python -m app.cli seed` (or `python -m app.cli create-demo-users`) before anyone else can reach the app.
+
+- Rerunning is idempotent: only these two usernames are touched; a changed password, role or active state is
+  reconciled and that account's sessions are revoked. Other accounts are never modified.
+- Passwords are stored only as scrypt hashes and are never logged, audited, returned by the API or shown in the UI.
+- Set `REGULENS_DEMO_USERS_ENABLED=false` to stop creating them. With `REGULENS_ENVIRONMENT=production` demo
+  accounts are always off, and explicitly enabling them is rejected at startup.
+- An existing `.env` without the `REGULENS_DEMO_*` keys uses the defaults above; nothing in your `.env` is overwritten.
+
+See [docs/security.md](docs/security.md).
+
 ## Run (two terminals)
 
 ```powershell
@@ -102,9 +129,10 @@ cd frontend
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. The sidebar and Dashboard show **Connected**, **Degraded** or **Disconnected**
-based on the actual `/api/v1/health` response. Stop the backend and press **Retry** to see the
-disconnected state. **Applications** and **Institutions** in the sidebar open the management pages.
+Open http://127.0.0.1:5173 and sign in. **Overview** shows live queue counts, priority applications, recent alerts
+and backend status (**Connected**, **Degraded** or **Disconnected**, from the real `/api/v1/health` response). The
+header carries the environment badge, alerts with unread count and the account menu (Help & About, Sign out); the
+amber bar beneath it is the permanent trust notice. Below 1024 px the sidebar becomes a drawer (menu button).
 
 > Application statuses are internal ReguLens workflow states. Nothing is submitted to AICTE, and no status is an
 > approval or rejection.
@@ -124,11 +152,12 @@ are allowed while the application is **Draft** or **Awaiting additional evidence
   marked *Duplicate detected* with a link to the original. Matches in other applications are shown only as a count.
 - **Deletion**: explicit, confirmed, permanent (metadata + file). Deleting an original promotes its earliest
   duplicate to original. Processing results are removed with the document; past scrutiny findings keep their
-  evidence snapshots. There is no audit trail yet.
+  evidence snapshots. Uploads and deletions are recorded in the audit log.
 
 ### Demonstrating the end-to-end workflow
 
-1. Seed (`python -m app.cli seed`), start backend and frontend, open http://127.0.0.1:5173.
+1. Seed (`python -m app.cli seed`), create demo users (above), start backend and frontend, open
+   http://127.0.0.1:5173 and sign in as `demo.reviewer`.
 2. **Applications** → open `REG-EoA-2026-0005` (Hooghly Riverside, the inconsistent demo; codes are for a fresh
    database — check the seed output / list otherwise).
 3. *Supporting documents* → **Process all**. Open **Details** on `occupancy-certificate.pdf` to see detected type,
@@ -142,7 +171,25 @@ are allowed while the application is **Draft** or **Awaiting additional evidence
 6. **Rerun** and use the *Scrutiny run* selector to view earlier runs.
 7. Open `REG-EoA-2026-0001` (clean demo): run scrutiny → *No findings*; the fire certificate's simulated check →
    *Simulated match*. Open `REG-EoA-2026-0008` for unreadable/miscategorised examples.
-8. **Scrutiny Rules** in the sidebar: enable/disable rules or change severity (each change creates a new version).
+8. **Scrutiny Rules** in the sidebar: read-only for reviewers; administrators can enable/disable rules or change
+   severity (each change creates a new version).
+
+### Reviewer workspace demo (Deliverable 5)
+
+1. Sign in as `demo.reviewer` → **Review Queue** shows real counts; open `REG-EoA-2026-0005` and run scrutiny.
+2. Open *Conflicting survey number across documents* → **Confirm finding** with a reason. Open *Conflicting built-up
+   area* → **Dismiss** (a reason of ≥ 10 characters is required). The system result stays unchanged; the review
+   history lists your actions.
+3. *Additional evidence requests* → **New request** (e.g. "Structural stability certificate").
+4. *Supporting documents* → **Upload PDF**, choose *Structural Stability Certificate*, and select the request under
+   *Link to evidence request*. Then in the request: **Mark fulfilled** → **Confirm fulfilled**.
+5. *Activity* (bottom of the page) shows the audit entries; **Alerts** in the sidebar shows the generated alerts —
+   mark them read.
+6. *Reviewer copilot* → "Why was the survey number conflict raised?" — the answer cites rule CON-003 and quotes
+   "Survey No.: 312" / "Survey No.: 318"; click a source to open the finding.
+7. *Preliminary scrutiny* → **Download preliminary report** (PDF).
+8. Sign out, sign in as `demo.admin`: toggle a rule on **Scrutiny Rules**, create a user on **Users**, review the
+   global **Audit Trail**. As `demo.reviewer` those pages/operations are refused (403).
 
 Quick API check: `Invoke-RestMethod http://127.0.0.1:8000/api/v1/health`
 Interactive API docs (non-production only): http://127.0.0.1:8000/docs
@@ -154,8 +201,35 @@ Interactive API docs (non-production only): http://127.0.0.1:8000/docs
 
 ```powershell
 cd backend;  .\.venv\Scripts\Activate.ps1; python -m pytest; cd ..
-cd frontend; npm test; npm run typecheck; npm run build; cd ..
+cd frontend; npm test; npm run typecheck; npm run build; npm audit; cd ..
 ```
+
+### UI smoke test (real browser, optional)
+
+`frontend/e2e/smoke.mjs` drives the running app in Microsoft Edge (via `playwright-core`, no browser download):
+sign-in, overview, queue, scrutiny and a finding action, upload and confirmed delete, copilot, report download,
+reviewer permission denial, admin rule and user confirmations, the audit trail, an overflow sweep at
+360/390/768/1024/1440/1920 px and the mobile drawer. **It writes data**, so run it against a scratch database on
+spare ports, never your working data:
+
+```powershell
+# Terminal A (backend/, venv active): scratch database on port 8030
+$env:REGULENS_DATABASE_URL = "sqlite:///$env:TEMP/regulens-smoke.db"
+$env:REGULENS_DOCUMENT_STORAGE_DIR = "$env:TEMP/regulens-smoke-docs"
+$env:REGULENS_CORS_ORIGINS = "http://127.0.0.1:5195"
+python -m app.cli migrate; python -m app.cli seed
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8030
+
+# Terminal B (frontend/)
+$env:VITE_API_BASE_URL = "http://127.0.0.1:8030/api/v1"; npx vite --port 5195 --strictPort --host 127.0.0.1
+
+# Terminal C (frontend/)
+$env:SMOKE_ALLOW_WRITES = "1"; $env:SMOKE_BASE_URL = "http://127.0.0.1:5195"; $env:SMOKE_API_URL = "http://127.0.0.1:8030/api/v1"
+npm run smoke
+```
+
+Screenshots go to `data/smoke-screenshots/` (git-ignored; override with `SMOKE_OUT_DIR`). Without
+`SMOKE_ALLOW_WRITES=1` the script refuses to run. Use `SMOKE_BROWSER_CHANNEL=chrome` for Chrome.
 
 Backend tests use temporary SQLite databases and temporary document storage; they never touch `data/regulens.db`
 or `data/documents/`, and reset is never run against them. They need no network access. The real-Tesseract test
@@ -187,4 +261,7 @@ regulens-ai/
 - [API contracts](docs/api-contracts.md)
 - [Data model](docs/data-model.md)
 - [Document intelligence and scrutiny (pipeline, rules, limitations)](docs/scrutiny-and-extraction.md)
+- [Reviewer workflow (review states, evidence requests, alerts, report, copilot)](docs/review-workflow.md)
+- [Security, roles and audit](docs/security.md)
+- [Design system (tokens, components, layout, accessibility)](docs/design-system.md)
 - [Implementation status](docs/implementation-status.md)

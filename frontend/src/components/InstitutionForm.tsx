@@ -115,7 +115,7 @@ export function InstitutionForm({ institution, submitLabel, onSubmit, onCancel }
           />
         )}
       </div>
-      <div className="flex gap-2 border-t border-slate-200 pt-4">
+      <div className="flex gap-2 border-t border-line pt-4">
         <button type="submit" className={buttonStyles.primary} disabled={submitting}>
           {submitting ? "Saving…" : submitLabel}
         </button>

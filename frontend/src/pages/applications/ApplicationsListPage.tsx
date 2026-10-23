@@ -52,8 +52,10 @@ export function ApplicationsListPage() {
   const filtered = Boolean(query.q || query.status || query.academic_year || query.application_type);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
+        eyebrow="Scrutiny work"
+        breadcrumbs={[{ label: "Overview", to: "/" }, { label: "Applications" }]}
         title="Applications"
         description="Extension of Approval applications recorded in ReguLens. Statuses are internal workflow states, not AICTE decisions."
         actions={
@@ -63,7 +65,7 @@ export function ApplicationsListPage() {
         }
       />
 
-      <section aria-label="Search and filters" className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <section aria-label="Search and filters" className="rounded-lg border border-line bg-surface p-4 shadow-sm">
         <form role="search" onSubmit={onSearch} className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div className="flex-1">
             <TextField
@@ -129,7 +131,7 @@ export function ApplicationsListPage() {
       ) : result.data ? (
         <div>
           <div className={TABLE.wrap}>
-            <table className={TABLE.table}>
+            <table className={`${TABLE.table} min-w-[52rem]`}>
               <caption className="sr-only">Applications</caption>
               <thead>
                 <tr>
@@ -141,17 +143,17 @@ export function ApplicationsListPage() {
                   <th scope="col" className={TABLE.th}>Last updated</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {result.data.items.map((a) => (
-                  <tr key={a.application_code} className="hover:bg-slate-50">
+                  <tr key={a.application_code} className="hover:bg-surface-muted">
                     <td className={TABLE.td}>
                       <Link to={`/applications/${a.application_code}`} className={`${buttonStyles.link} whitespace-nowrap font-mono`}>
                         {a.application_code}
                       </Link>
                     </td>
                     <td className={TABLE.td}>
-                      <div className="font-medium text-slate-900">{a.institution.name}</div>
-                      <div className="text-xs text-slate-500">{a.institution.institution_code}</div>
+                      <div className="font-medium text-ink">{a.institution.name}</div>
+                      <div className="text-xs text-ink-subtle">{a.institution.institution_code}</div>
                     </td>
                     <td className={TABLE.td}>{a.academic_year}</td>
                     <td className={TABLE.td}>{APPLICATION_TYPE_LABELS[a.application_type]}</td>

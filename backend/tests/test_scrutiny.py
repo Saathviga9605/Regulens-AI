@@ -241,13 +241,15 @@ def test_finding_detail_and_human_review(client, demo) -> None:
     detail = client.get(f"/api/v1/applications/{code}/findings/{finding['id']}").json()
     assert detail["rule"]["is_demo_only"] is True and detail["rule"]["source_verification_status"] == "unverified"
     assert detail["run_number"] == 1 and detail["review_status"] == "not_reviewed"
-    reviewed = client.patch(f"/api/v1/applications/{code}/findings/{finding['id']}/review",
-                            json={"review_status": "needs_follow_up", "review_note": "Ask institution."}).json()
-    assert reviewed["review_status"] == "needs_follow_up" and reviewed["reviewed_at"]
+    assert "confirm" in detail["allowed_actions"] and "resolve" not in detail["allowed_actions"]
+    action = client.post(f"/api/v1/applications/{code}/findings/{finding['id']}/actions",
+                         json={"action": "escalate", "expected_version": detail["review_version"],
+                               "note": "Ask the institution for the certificate."})
+    assert action.status_code == 201, action.text
+    reviewed = client.get(f"/api/v1/applications/{code}/findings/{finding['id']}").json()
+    assert reviewed["review_status"] == "escalated" and reviewed["reviewed_at"]
     assert reviewed["outcome"] == "issue"  # the system result itself is unchanged by human review
-    assert client.patch(f"/api/v1/applications/{code}/findings/{finding['id']}/review",
-                        json={"review_status": "approved"}).status_code == 422
-    filtered = findings(client, code, result["id"], review_status="needs_follow_up")
+    filtered = findings(client, code, result["id"], review_status="escalated")
     assert [f["id"] for f in filtered] == [finding["id"]]
 
 

@@ -18,6 +18,7 @@ from app.core.errors import AppError
 from app.models import Document, ExtractedField, IssuerReferenceRecord, VerificationAttempt
 from app.models.enums import DocumentCategory, FieldStatus, ReferenceAvailability, VerificationOutcome as V
 from app.services import processing as processing_service
+from app.services import audit
 from app.services.normalize import is_grounded, normalize_identifier, text_similarity
 
 SIMULATION_LABEL = "SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY"
@@ -146,6 +147,10 @@ def verify_document(session: Session, document: Document, today: date,
         fields_compared=result.fields_compared, reference_code=result.reference_code,
     )
     session.add(attempt)
+    session.flush()
+    audit.record(session, "issuer_verification.simulated", "verification_attempt", attempt.id,
+                 application_id=document.application_id,
+                 details={"document_id": document.id, "outcome": result.outcome.value, "adapter": adapter.name})
     session.commit()
     return attempt
 

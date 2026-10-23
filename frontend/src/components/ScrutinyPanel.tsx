@@ -1,11 +1,12 @@
-import { ClipboardCheck, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { ClipboardCheck, FileDown, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import {
   FINDING_KIND_LABELS,
   OUTCOME_LABELS,
   OUTCOME_STYLES,
   REVIEW_STATUS_LABELS,
+  REVIEW_STATUS_STYLES,
   SEVERITY_LABELS,
   SEVERITY_STYLES,
   entries,
@@ -25,7 +26,8 @@ import type {
   ScrutinyRun,
   Severity,
 } from "../types/api";
-import { Alert, Card, EmptyState, ErrorState, LoadingState, Pill, SelectField, TABLE, TextField, buttonStyles } from "./ui";
+import { ReviewActions } from "./ReviewActions";
+import { Alert, Card, EmptyState, ErrorState, LoadingState, Pill, SelectField, TABLE, buttonStyles } from "./ui";
 
 const RUN_STATUS_TEXT: Record<ScrutinyRun["status"], string> = {
   running: "Running",
@@ -36,9 +38,9 @@ const RUN_STATUS_TEXT: Record<ScrutinyRun["status"], string> = {
 
 function Tile({ label, value, className = "" }: { label: string; value: number; className?: string }) {
   return (
-    <div className={`rounded-md border border-slate-200 bg-white px-3 py-2 ${className}`}>
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="text-xl font-semibold tabular-nums text-slate-900">{value}</dd>
+    <div className={`rounded-control border border-line bg-surface px-3 py-2 ${className}`}>
+      <dt className="text-xs text-ink-subtle">{label}</dt>
+      <dd className="text-xl font-semibold tabular-nums text-ink">{value}</dd>
     </div>
   );
 }
@@ -49,12 +51,12 @@ function RunSummary({ run }: { run: ScrutinyRun }) {
   const severities = s.finding_severities;
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-ink">
         <Pill className={run.status === "failed" ? OUTCOME_STYLES.issue : run.status === "completed" ? OUTCOME_STYLES.pass : OUTCOME_STYLES.inconclusive}>
           {RUN_STATUS_TEXT[run.status]}
         </Pill>
         <span>Run #{run.run_number} · scrutiny date {run.scrutiny_date} · started {formatDateTime(run.started_at)}</span>
-        <span className="text-xs text-slate-500">rule set {run.rule_set_version}</span>
+        <span className="text-xs text-ink-subtle">rule set {run.rule_set_version}</span>
       </div>
       {run.failure_reason && <Alert tone="error">{run.failure_reason}</Alert>}
       {run.warnings.length > 0 && (
@@ -64,7 +66,7 @@ function RunSummary({ run }: { run: ScrutinyRun }) {
       )}
       {outcomes && (
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rule evaluations by outcome</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Rule evaluations by outcome</h4>
           <dl className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(Object.keys(OUTCOME_LABELS) as RuleOutcome[]).map((o) => (
               <Tile key={o} label={OUTCOME_LABELS[o]} value={outcomes[o] ?? 0} />
@@ -74,7 +76,7 @@ function RunSummary({ run }: { run: ScrutinyRun }) {
       )}
       {severities && (
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
             Findings by severity ({s.rule_findings ?? 0} rule findings, {s.anomaly_indicators ?? 0} anomaly indicators)
           </h4>
           <dl className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -82,7 +84,7 @@ function RunSummary({ run }: { run: ScrutinyRun }) {
               <Tile key={sev} label={SEVERITY_LABELS[sev]} value={severities[sev] ?? 0} />
             ))}
           </dl>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-ink-subtle">
             {s.documents_considered ?? 0} document(s) considered, {s.documents_processed_ok ?? 0} readable · {s.rules_evaluated ?? 0} enabled rules
           </p>
         </div>
@@ -95,7 +97,7 @@ function ComparedValues({ values }: { values: ComparedValue[] }) {
   if (values.length === 0) return null;
   return (
     <div>
-      <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Values compared</h5>
+      <h5 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Values compared</h5>
       <ul className="mt-1 space-y-0.5 text-sm">
         {values.map((v, i) => (
           <li key={i}>
@@ -107,58 +109,49 @@ function ComparedValues({ values }: { values: ComparedValue[] }) {
   );
 }
 
-function FindingDetailView({ applicationCode, findingId, onReviewed }: {
-  applicationCode: string; findingId: string; onReviewed: (f: FindingDetail) => void;
+function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun }: {
+  applicationCode: string; findingId: string; onReviewed: (f: FindingDetail) => void; isLatestRun: boolean;
 }) {
-  const detail = useApiQuery(() => apiClient.getFinding(applicationCode, findingId), findingId);
-  const [status, setStatus] = useState<ReviewStatus | "">("");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [version, setVersion] = useState(0);
+  const detail = useApiQuery(() => apiClient.getFinding(applicationCode, findingId), `${findingId}:${version}`);
 
   if (detail.loading && !detail.data) return <LoadingState label="Loading finding…" />;
   if (detail.error) return <ErrorState message={detail.error} onRetry={detail.reload} />;
   const f = detail.data;
   if (!f) return null;
 
-  async function save() {
-    if (!status) return;
-    setSaving(true);
-    setMessage(null);
+  async function refresh() {
     try {
-      const updated = await apiClient.reviewFinding(applicationCode, findingId, status, note);
+      const updated = await apiClient.getFinding(applicationCode, findingId);
       detail.setData(updated);
       onReviewed(updated);
-      setMessage({ tone: "success", text: "Review status saved." });
-    } catch (err) {
-      setMessage({ tone: "error", text: err instanceof ApiError ? err.message : "Could not save review." });
-    } finally {
-      setSaving(false);
+    } catch {
+      setVersion((v) => v + 1);
     }
   }
 
   return (
-    <article aria-label={`Finding: ${f.title}`} className="space-y-3 rounded-md border border-slate-300 bg-white p-4">
+    <article aria-label={`Finding: ${f.title}`} className="space-y-3 rounded-control border border-line-strong bg-surface p-4">
       <header className="space-y-1">
         <div className="flex flex-wrap gap-2">
           <Pill className={SEVERITY_STYLES[f.severity]}>{SEVERITY_LABELS[f.severity]} severity</Pill>
           <Pill className={OUTCOME_STYLES[f.outcome]}>{OUTCOME_LABELS[f.outcome]}</Pill>
-          <Pill className="bg-slate-100 text-slate-700 ring-slate-300">{FINDING_KIND_LABELS[f.kind]}</Pill>
+          <Pill className="bg-surface-muted text-ink ring-line">{FINDING_KIND_LABELS[f.kind]}</Pill>
         </div>
-        <h4 className="text-base font-semibold text-slate-900">{f.title}</h4>
+        <h4 className="text-base font-semibold text-ink">{f.title}</h4>
       </header>
 
       <section aria-label="System-generated result" className="space-y-2">
-        <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">System-generated explanation</h5>
-        <p className="text-sm text-slate-800">{f.explanation}</p>
-        {f.uncertainty && <p className="text-sm text-amber-900"><strong>Uncertainty:</strong> {f.uncertainty}</p>}
-        {f.missing_evidence && <p className="text-sm text-slate-700"><strong>Missing evidence:</strong> {f.missing_evidence}</p>}
+        <h5 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">System-generated explanation</h5>
+        <p className="text-sm text-ink">{f.explanation}</p>
+        {f.uncertainty && <p className="text-sm text-warning-800"><strong>Uncertainty:</strong> {f.uncertainty}</p>}
+        {f.missing_evidence && <p className="text-sm text-ink"><strong>Missing evidence:</strong> {f.missing_evidence}</p>}
         {f.kind === "anomaly_indicator" && (
-          <p className="text-xs text-slate-500">Anomaly indicators are prompts for attention. They are not conclusions and never establish misconduct.</p>
+          <p className="text-xs text-ink-subtle">Anomaly indicators are prompts for attention. They are not conclusions and never establish misconduct.</p>
         )}
         {f.evidence.length > 0 && (
           <div>
-            <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Supporting evidence</h5>
+            <h5 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Supporting evidence</h5>
             <ul className="mt-1 space-y-2">
               {f.evidence.map((e, i) => (
                 <li key={i} className="text-sm">
@@ -166,7 +159,7 @@ function FindingDetailView({ applicationCode, findingId, onReviewed }: {
                   {e.page_number && <> · page {e.page_number}</>}
                   {e.field_name && <> · {fieldLabel(e.field_name)}</>}
                   {e.quote && (
-                    <blockquote className="mt-1 border-l-2 border-blue-300 pl-2 font-mono text-xs text-slate-700 [overflow-wrap:anywhere]">
+                    <blockquote className="mt-1 border-l-2 border-info-line pl-2 font-mono text-xs text-ink [overflow-wrap:anywhere]">
                       {e.quote}
                     </blockquote>
                   )}
@@ -177,39 +170,27 @@ function FindingDetailView({ applicationCode, findingId, onReviewed }: {
         )}
         <ComparedValues values={f.compared_values} />
         {f.rule ? (
-          <div className="rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+          <div className="rounded border border-line bg-surface-muted p-2 text-xs text-ink">
             <p>
               Rule <strong>{f.rule.rule_id}</strong> v{f.rule.version}: {f.rule.title}
             </p>
             <p>Source: {f.rule.source}{f.rule.source_reference ? ` — ${f.rule.source_reference}` : ""}</p>
             <p>Source verification: {f.rule.source_verification_status.replace("_", " ")}</p>
             {f.rule.is_demo_only && (
-              <p className="mt-1 font-semibold text-amber-900">DEMO-ONLY RULE — not a verified AICTE requirement.</p>
+              <p className="mt-1 font-semibold text-warning-800">DEMO-ONLY RULE — not a verified AICTE requirement.</p>
             )}
           </div>
-        ) : f.detector && <p className="text-xs text-slate-500">Detector: {f.detector}</p>}
+        ) : f.detector && <p className="text-xs text-ink-subtle">Detector: {f.detector}</p>}
       </section>
 
-      <section aria-label="Human review" className="space-y-2 border-t border-slate-200 pt-3">
-        <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Human review</h5>
-        <p className="text-sm">
-          Current: <strong>{REVIEW_STATUS_LABELS[f.review_status]}</strong>
-          {f.reviewed_at && <> · {formatDateTime(f.reviewed_at)}</>}
-          {f.review_note && <> · “{f.review_note}”</>}
+      {isLatestRun ? (
+        <ReviewActions applicationCode={applicationCode} finding={f} onChanged={refresh} />
+      ) : (
+        <p className="border-t border-line pt-3 text-sm text-ink-muted">
+          Human review state: <strong>{REVIEW_STATUS_LABELS[f.review_status]}</strong>. This finding belongs to an earlier run;
+          review actions are taken on the latest run.
         </p>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <SelectField label="Set review status" value={status} onChange={(e) => setStatus(e.target.value as ReviewStatus | "")}
-            options={entries(REVIEW_STATUS_LABELS)} placeholder="Choose…" />
-          <div className="sm:col-span-2">
-            <TextField label="Reviewer note (optional)" value={note} maxLength={1000} onChange={(e) => setNote(e.target.value)} />
-          </div>
-        </div>
-        <button type="button" className={buttonStyles.secondary} onClick={save} disabled={!status || saving}>
-          {saving ? "Saving…" : "Save review"}
-        </button>
-        {message && <Alert tone={message.tone}>{message.text}</Alert>}
-        <p className="text-xs text-slate-500">Reviewing records your assessment; it does not change the system result or the application status.</p>
-      </section>
+      )}
     </article>
   );
 }
@@ -218,13 +199,13 @@ function FindingRow({ f, selected, onSelect }: { f: Finding; selected: boolean; 
   return (
     <li>
       <button type="button" onClick={onSelect} aria-pressed={selected}
-        className={`flex w-full flex-col gap-1 rounded-md border px-3 py-2 text-left text-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600 sm:flex-row sm:items-center sm:justify-between ${selected ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"}`}>
+        className={`flex w-full flex-col gap-1 rounded-control border px-3 py-2 text-left text-sm hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-saffron-500 sm:flex-row sm:items-center sm:justify-between ${selected ? "border-brand-600 bg-info-bg" : "border-line bg-surface"}`}>
         <span className="flex flex-wrap items-center gap-2">
           <Pill className={SEVERITY_STYLES[f.severity]}>{SEVERITY_LABELS[f.severity]}</Pill>
           <Pill className={OUTCOME_STYLES[f.outcome]}>{OUTCOME_LABELS[f.outcome]}</Pill>
-          <span className="font-medium text-slate-900">{f.title}</span>
+          <span className="font-medium text-ink">{f.title}</span>
         </span>
-        <span className="text-xs text-slate-500">{REVIEW_STATUS_LABELS[f.review_status]}</span>
+        <Pill className={REVIEW_STATUS_STYLES[f.review_status]}>{REVIEW_STATUS_LABELS[f.review_status]}</Pill>
       </button>
     </li>
   );
@@ -232,8 +213,8 @@ function FindingRow({ f, selected, onSelect }: { f: Finding; selected: boolean; 
 
 function EvaluationsTable({ run }: { run: ScrutinyRun }) {
   return (
-    <details className="rounded-md border border-slate-200 bg-white">
-      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-slate-800">
+    <details className="rounded-control border border-line bg-surface">
+      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-ink">
         All rule evaluations ({run.evaluations.length}) — including passes and not-applicable results
       </summary>
       <div className="overflow-x-auto">
@@ -246,7 +227,7 @@ function EvaluationsTable({ run }: { run: ScrutinyRun }) {
               <th scope="col" className={TABLE.th}>Explanation</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line">
             {run.evaluations.map((e) => (
               <tr key={e.id}>
                 <td className={`${TABLE.td} whitespace-nowrap font-mono text-xs`}>{e.rule_id} v{e.rule_version}</td>
@@ -261,7 +242,14 @@ function EvaluationsTable({ run }: { run: ScrutinyRun }) {
   );
 }
 
-export function ScrutinyPanel({ applicationCode, onRunCompleted }: { applicationCode: string; onRunCompleted: () => void }) {
+interface PanelProps {
+  applicationCode: string;
+  onRunCompleted: () => void;
+  /** A finding to open (e.g. from a copilot source); changes when a new source is clicked. */
+  focus?: { findingId: string; nonce: number } | null;
+}
+
+export function ScrutinyPanel({ applicationCode, onRunCompleted, focus }: PanelProps) {
   const [version, setVersion] = useState(0);
   const runs = useApiQuery(() => apiClient.listScrutinyRuns(applicationCode), `${applicationCode}:${version}`);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -274,6 +262,30 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted }: { application
   const [selectedFinding, setSelectedFinding] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reportState, setReportState] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const latestRunId = runs.data?.items[0]?.id ?? null;
+
+  useEffect(() => {
+    if (!focus) return;
+    setSelectedRunId(null); // findings referenced by the copilot belong to the latest run
+    setFilters({});
+    setSelectedFinding(focus.findingId);
+  }, [focus]);
+
+  async function downloadReport() {
+    if (!runId) return;
+    setDownloading(true);
+    setReportState(null);
+    try {
+      const name = await apiClient.downloadReport(applicationCode, runId);
+      setReportState({ tone: "success", text: `Downloaded ${name}.` });
+    } catch (err) {
+      setReportState({ tone: "error", text: err instanceof ApiError ? err.message : "The report could not be generated." });
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function startRun() {
     setRunning(true);
@@ -306,12 +318,12 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted }: { application
       }
     >
       <div className="space-y-4">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-ink-muted">
           Runs the configured rules over processed documents (unprocessed documents are processed first). Results are
           preliminary indicators for human review — nothing here approves or rejects the application or establishes
           misconduct.
         </p>
-        {running && <div role="status" className="text-sm text-slate-700">Processing documents and evaluating rules…</div>}
+        {running && <div role="status" className="text-sm text-ink">Processing documents and evaluating rules…</div>}
         {error && <Alert tone="error">{error}</Alert>}
 
         {runs.loading && !runs.data ? (
@@ -333,6 +345,14 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted }: { application
             ) : run.data ? (
               <>
                 <RunSummary run={run.data} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className={buttonStyles.secondary} onClick={downloadReport}
+                    disabled={downloading || run.data.status === "failed" || run.data.status === "running"}>
+                    <FileDown aria-hidden="true" className="h-4 w-4" />
+                    {downloading ? "Generating report…" : `Download preliminary report (run #${run.data.run_number})`}
+                  </button>
+                  {reportState && <span role="status" className={`text-sm ${reportState.tone === "error" ? "text-danger-700" : "text-success-700"}`}>{reportState.text}</span>}
+                </div>
                 <section aria-label="Findings" className="space-y-3">
                   <div className="grid gap-2 sm:grid-cols-3">
                     <SelectField label="Severity" value={filters.severity ?? ""} placeholder="All severities"
@@ -358,7 +378,7 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted }: { application
                       <div className="space-y-4">
                         {ruleFindings.length > 0 && (
                           <div>
-                            <h4 className="mb-2 text-sm font-semibold text-slate-900">Rule findings ({ruleFindings.length})</h4>
+                            <h4 className="mb-2 text-sm font-semibold text-ink">Rule findings ({ruleFindings.length})</h4>
                             <ul className="space-y-2">
                               {ruleFindings.map((f) => (
                                 <FindingRow key={f.id} f={f} selected={selectedFinding === f.id} onSelect={() => setSelectedFinding(f.id)} />
@@ -368,8 +388,8 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted }: { application
                         )}
                         {indicators.length > 0 && (
                           <div>
-                            <h4 className="mb-1 text-sm font-semibold text-slate-900">Anomaly indicators ({indicators.length})</h4>
-                            <p className="mb-2 text-xs text-slate-500">Prompts for attention, not conclusions.</p>
+                            <h4 className="mb-1 text-sm font-semibold text-ink">Anomaly indicators ({indicators.length})</h4>
+                            <p className="mb-2 text-xs text-ink-subtle">Prompts for attention, not conclusions.</p>
                             <ul className="space-y-2">
                               {indicators.map((f) => (
                                 <FindingRow key={f.id} f={f} selected={selectedFinding === f.id} onSelect={() => setSelectedFinding(f.id)} />
@@ -381,12 +401,15 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted }: { application
                       <div>
                         {selectedFinding ? (
                           <FindingDetailView key={selectedFinding} applicationCode={applicationCode} findingId={selectedFinding}
+                            isLatestRun={runId === latestRunId}
                             onReviewed={(updated) => findings.setData({
                               ...findings.data!,
-                              items: items.map((x) => (x.id === updated.id ? { ...x, review_status: updated.review_status } : x)),
+                              items: items.map((x) => (x.id === updated.id
+                                ? { ...x, review_status: updated.review_status, review_version: updated.review_version,
+                                    allowed_actions: updated.allowed_actions } : x)),
                             })} />
                         ) : (
-                          <p className="rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                          <p className="rounded-control border border-dashed border-line-strong p-4 text-sm text-ink-subtle">
                             Select a finding to see its explanation and evidence.
                           </p>
                         )}

@@ -164,13 +164,13 @@ export function ApplicationForm({ institutions, initial, submitLabel, onSubmit, 
       </div>
 
       <fieldset className="space-y-3">
-        <legend className="text-sm font-semibold text-slate-900">Declared programmes and intake</legend>
-        <p className="text-xs text-slate-500">
+        <legend className="text-sm font-semibold text-ink">Declared programmes and intake</legend>
+        <p className="text-xs text-ink-subtle">
           Use existing intake 0 for a newly introduced course. Intake values are declarations, not verified figures.
         </p>
-        {errors.programmes && <p className="text-xs text-red-700">{errors.programmes}</p>}
+        {errors.programmes && <p className="text-xs text-danger-700">{errors.programmes}</p>}
         {values.programmes.map((p, i) => (
-          <div key={i} className="rounded-md border border-slate-200 bg-slate-50 p-4" role="group" aria-label={`Programme ${i + 1}`}>
+          <div key={i} className="rounded-control border border-line bg-surface-muted p-4" role="group" aria-label={`Programme ${i + 1}`}>
             <div className="grid gap-3 md:grid-cols-12">
               <div className="md:col-span-2">
                 <SelectField
@@ -240,7 +240,7 @@ export function ApplicationForm({ institutions, initial, submitLabel, onSubmit, 
         )}
       </fieldset>
 
-      <div className="flex gap-2 border-t border-slate-200 pt-4">
+      <div className="flex gap-2 border-t border-line pt-4">
         <button type="submit" className={buttonStyles.primary} disabled={submitting}>
           {submitting ? "Saving…" : submitLabel}
         </button>

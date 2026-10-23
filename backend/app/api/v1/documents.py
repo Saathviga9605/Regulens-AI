@@ -7,7 +7,11 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import Pagination, get_app_settings, get_db, get_pagination, get_storage
+from app.api.deps import Pagination, get_app_settings, get_current_actor, get_db, get_pagination, get_storage
+from app.core.context import Actor
+from app.core.errors import ConflictError
+from app.services import review
+from app.services.applications import get_application
 from app.core.config import Settings
 from app.models.enums import DocumentCategory
 from app.schemas.common import Page
@@ -35,12 +39,21 @@ async def upload_document(
     file: UploadFile = File(..., description="PDF file"),
     category: DocumentCategory = Form(...),
     description: str | None = Form(None, max_length=500),
+    evidence_request_id: str | None = Form(None, max_length=36,
+                                           description="Optional: explicitly link the upload to this open evidence request"),
+    actor: Actor = Depends(get_current_actor),
     db: Session = Depends(get_db),
     storage: DocumentStorage = Depends(get_storage),
     settings: Settings = Depends(get_app_settings),
 ) -> DocumentRead:
     # Cheap checks first: application exists and accepts documents, name and declared type are plausible.
     await run_in_threadpool(service.check_intake_allowed, db, application_code)
+    evidence_request = None
+    if evidence_request_id:
+        application = await run_in_threadpool(get_application, db, application_code)
+        evidence_request = await run_in_threadpool(review.scoped_request, db, application, evidence_request_id)
+        if evidence_request.status.value != "open":
+            raise ConflictError("evidence_request_closed", "The selected evidence request is not open.")
     filename = service.sanitize_filename(file.filename)
     service.check_declared_type(file.content_type)
     received = await service.receive_upload(storage, file, settings.max_upload_bytes)
@@ -50,6 +63,8 @@ async def upload_document(
             category=category, description=(description or "").strip() or None,
         )
     )
+    if evidence_request is not None:
+        await run_in_threadpool(lambda: review.link_document(db, document.application, evidence_request, document, actor))
     return await run_in_threadpool(
         lambda: service.to_read(document, service.other_application_matches(db, [document])[document.id], storage)
     )

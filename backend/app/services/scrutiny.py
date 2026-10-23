@@ -34,6 +34,7 @@ from app.models import (
     ScrutinyRun,
 )
 from app.models.enums import (
+    AuditOutcome,
     DocumentCategory,
     DocumentStatus,
     FieldStatus,
@@ -47,6 +48,7 @@ from app.models.enums import (
     VerificationOutcome,
 )
 from app.services import issuer_verification, processing as processing_service
+from app.services import alerts, audit
 from app.services.applications import get_application
 from app.services.documents import other_application_matches
 from app.services.normalize import is_grounded, normalize_identifier, text_similarity
@@ -663,6 +665,8 @@ def start_run(session: Session, storage: DocumentStorage, settings: Settings, oc
         run = session.get(ScrutinyRun, run_id)
         run.status, run.finished_at = RunStatus.FAILED, utcnow()
         run.failure_reason = "The scrutiny run failed unexpectedly. Previous runs are unaffected; please retry."
+        audit.record(session, "scrutiny.run_completed", "scrutiny_run", run_id, application_id=application.id,
+                     outcome=AuditOutcome.FAILURE, details={"run_number": run.run_number, "status": "failed"})
         session.commit()
     return get_run(session, run_id)
 
@@ -748,7 +752,37 @@ def _execute(session, storage, settings, ocr, run: ScrutinyRun, application: App
     run.warnings = warnings
     run.status = RunStatus.COMPLETED_WITH_WARNINGS if warnings else RunStatus.COMPLETED
     run.finished_at = utcnow()
+    session.flush()
+    _after_run(session, run, application)
     session.commit()
+
+
+def _after_run(session: Session, run: ScrutinyRun, application: Application) -> None:
+    """Carry human review state forward from the previous run, raise alerts, record the audit event."""
+    from app.services import review  # local import: review depends on this module
+
+    previous = session.execute(select(ScrutinyRun.id).where(
+        ScrutinyRun.application_id == application.id, ScrutinyRun.run_number < run.run_number,
+        ScrutinyRun.status != RunStatus.FAILED).order_by(ScrutinyRun.run_number.desc()).limit(1)).scalar()
+    carried = review.carry_forward(session, run.id, previous, application.id)
+    findings = session.execute(select(Finding).where(Finding.run_id == run.id)).scalars().all()
+    issues = [f for f in findings if f.outcome == O.ISSUE and f.kind == FindingKind.RULE_FINDING]
+    for f in issues:
+        if f.severity == Severity.HIGH and f.review_status in (ReviewStatus.NOT_REVIEWED, ReviewStatus.CONFIRMED,
+                                                               ReviewStatus.ESCALATED, ReviewStatus.AWAITING_EVIDENCE):
+            alerts.raise_alert(session, dedup_key=f"high_finding:{application.id}:{f.finding_key}",
+                               application_id=application.id, event_type="high_severity_finding", severity="high",
+                               finding_id=f.id, title="New high-severity finding",
+                               message=f"{application.application_code}: {f.title[:200]}")
+    if issues:
+        alerts.raise_alert(session, dedup_key=f"run_issues:{run.id}", application_id=application.id,
+                           event_type="scrutiny_completed_with_issues", severity="medium",
+                           title=f"Scrutiny run #{run.run_number} completed with issues",
+                           message=f"{application.application_code}: {len(issues)} issue finding(s) need human review.")
+    audit.record(session, "scrutiny.run_completed", "scrutiny_run", run.id, application_id=application.id,
+                 details={"run_number": run.run_number, "status": run.status.value,
+                          "rule_set_version": run.rule_set_version, "issues": len(issues),
+                          "findings": len(findings), "carried_forward_reviews": carried})
 
 
 def _lower(severity: Severity) -> Severity:
@@ -804,15 +838,6 @@ def get_finding(session: Session, finding_id: str) -> Finding:
     finding = session.get(Finding, finding_id)
     if finding is None:
         raise NotFoundError("Finding was not found.")
-    return finding
-
-
-def review_finding(session: Session, finding_id: str, status: ReviewStatus, note: str | None) -> Finding:
-    finding = get_finding(session, finding_id)
-    finding.review_status = status
-    finding.review_note = note
-    finding.reviewed_at = None if status == ReviewStatus.NOT_REVIEWED else utcnow()
-    session.commit()
     return finding
 
 

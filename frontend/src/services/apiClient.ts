@@ -20,8 +20,22 @@ import type {
   IntakePolicy,
   Page,
   ProcessingResult,
-  ReviewStatus,
+  AlertPage,
+  AlertQuery,
+  AuditEvent,
+  AuditQuery,
+  CopilotAnswer,
+  EvidenceRequest,
+  EvidenceRequestInput,
+  LoginResponse,
+  QueuePage,
+  QueueQuery,
+  ReviewAction,
+  ReviewActionInput,
   RuleUpdate,
+  User,
+  UserCreateInput,
+  UserUpdateInput,
   ScrutinyRule,
   ScrutinyRun,
   ScrutinyRunSummary,
@@ -82,10 +96,46 @@ interface RequestOptions {
   timeoutMs?: number;
 }
 
+// --- Session token -------------------------------------------------------------------------------
+// Kept in sessionStorage (cleared when the tab closes). Prototype auth: see docs/security.md.
+const TOKEN_KEY = "regulens.token";
+export const UNAUTHENTICATED_EVENT = "regulens:unauthenticated";
+let memoryToken: string | null = null;
+
+export function getToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY) ?? memoryToken;
+  } catch {
+    return memoryToken;
+  }
+}
+
+export function setToken(token: string | null): void {
+  memoryToken = token;
+  try {
+    if (token) sessionStorage.setItem(TOKEN_KEY, token);
+    else sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable: memory only */
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function handleUnauthenticated(status: number, code?: string) {
+  if (status === 401 && code === "not_authenticated" && getToken()) {
+    setToken(null);
+    window.dispatchEvent(new Event(UNAUTHENTICATED_EVENT));
+  }
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json", ...authHeaders() };
   const isForm = options.body instanceof FormData;
   // FormData sets its own multipart Content-Type (with boundary).
   if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
@@ -115,11 +165,54 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (!response.ok) {
     if (isApiErrorBody(body)) {
       const { message, code, details } = body.error;
+      handleUnauthenticated(response.status, code);
       throw new ApiError(message, "http", response.status, code, details ?? []);
     }
     throw new ApiError(`Request failed with status ${response.status}.`, "http", response.status);
   }
   return body as T;
+}
+
+/** Authenticated binary download (documents, reports). Never exposes storage paths. */
+async function requestBlob(path: string, query?: Query): Promise<{ blob: Blob; filename: string | null }> {
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, query), { headers: authHeaders() });
+  } catch {
+    throw new ApiError(`Unable to reach the ReguLens API at ${API_BASE_URL}.`, "network");
+  }
+  if (!response.ok) {
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      /* not JSON */
+    }
+    if (isApiErrorBody(body)) {
+      handleUnauthenticated(response.status, body.error.code);
+      throw new ApiError(body.error.message, "http", response.status, body.error.code);
+    }
+    throw new ApiError(`Download failed with status ${response.status}.`, "http", response.status);
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename="([^"]+)"/.exec(disposition);
+  return { blob: await response.blob(), filename: match?.[1] ?? null };
+}
+
+/** Saves a blob through a temporary object URL (download) or opens it in a new tab. */
+export function deliverBlob(blob: Blob, filename: string, mode: "download" | "open"): void {
+  const url = URL.createObjectURL(blob);
+  if (mode === "open") {
+    window.open(url, "_blank", "noopener");
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function isHealthResponse(value: unknown): value is HealthResponse {
@@ -190,6 +283,7 @@ export const apiClient = {
     form.append("file", upload.file, upload.file.name);
     form.append("category", upload.category);
     if (upload.description) form.append("description", upload.description);
+    if (upload.evidenceRequestId) form.append("evidence_request_id", upload.evidenceRequestId);
     return request(`/applications/${enc(applicationCode)}/documents`, { method: "POST", body: form });
   },
   deleteDocument(id: string): Promise<void> {
@@ -238,14 +332,91 @@ export const apiClient = {
   getFinding(applicationCode: string, findingId: string): Promise<FindingDetail> {
     return request(`/applications/${enc(applicationCode)}/findings/${enc(findingId)}`);
   },
-  reviewFinding(applicationCode: string, findingId: string, reviewStatus: ReviewStatus, note?: string): Promise<FindingDetail> {
-    return request(`/applications/${enc(applicationCode)}/findings/${enc(findingId)}/review`, {
-      method: "PATCH",
-      body: { review_status: reviewStatus, review_note: note?.trim() || null },
+  reviewAction(applicationCode: string, findingId: string, action: ReviewActionInput): Promise<ReviewAction> {
+    return request(`/applications/${enc(applicationCode)}/findings/${enc(findingId)}/actions`, { method: "POST", body: action });
+  },
+  listFindingActions(applicationCode: string, findingId: string): Promise<ReviewAction[]> {
+    return request(`/applications/${enc(applicationCode)}/findings/${enc(findingId)}/actions`);
+  },
+  listApplicationActions(applicationCode: string): Promise<ReviewAction[]> {
+    return request(`/applications/${enc(applicationCode)}/review-actions`);
+  },
+
+  /** Fetches document content with the session token and opens or saves it. */
+  async openDocument(id: string, filename: string, mode: "open" | "download"): Promise<void> {
+    const { blob } = await requestBlob(`/documents/${enc(id)}/content`, mode === "download" ? { disposition: "attachment" } : undefined);
+    deliverBlob(blob, filename, mode);
+  },
+  async downloadReport(applicationCode: string, runId: string): Promise<string> {
+    const { blob, filename } = await requestBlob(`/applications/${enc(applicationCode)}/scrutiny-runs/${enc(runId)}/report.pdf`);
+    const name = filename ?? `ReguLens-preliminary-scrutiny-${applicationCode}.pdf`;
+    deliverBlob(blob, name, "download");
+    return name;
+  },
+
+  // --- Auth & users ------------------------------------------------------------------------------
+  login(username: string, password: string): Promise<LoginResponse> {
+    return request("/auth/login", { method: "POST", body: { username, password } });
+  },
+  logout(): Promise<void> {
+    return request("/auth/logout", { method: "POST" });
+  },
+  me(): Promise<User> {
+    return request("/auth/me");
+  },
+  listUsers(): Promise<User[]> {
+    return request("/users");
+  },
+  createUser(input: UserCreateInput): Promise<User> {
+    return request("/users", { method: "POST", body: input });
+  },
+  updateUser(id: string, input: UserUpdateInput): Promise<User> {
+    return request(`/users/${enc(id)}`, { method: "PATCH", body: input });
+  },
+
+  // --- Workspace ---------------------------------------------------------------------------------
+  reviewQueue(query: QueueQuery = {}): Promise<QueuePage> {
+    return request("/review-queue", { query: { ...query, unresolved_only: query.unresolved_only ? "true" : undefined } });
+  },
+  listEvidenceRequests(applicationCode: string, status?: string): Promise<EvidenceRequest[]> {
+    return request(`/applications/${enc(applicationCode)}/evidence-requests`, { query: { status } });
+  },
+  createEvidenceRequest(applicationCode: string, input: EvidenceRequestInput): Promise<EvidenceRequest> {
+    return request(`/applications/${enc(applicationCode)}/evidence-requests`, { method: "POST", body: input });
+  },
+  linkEvidenceDocument(applicationCode: string, requestId: string, documentId: string): Promise<EvidenceRequest> {
+    return request(`/applications/${enc(applicationCode)}/evidence-requests/${enc(requestId)}/documents`, {
+      method: "POST", body: { document_id: documentId },
     });
   },
-  /** URL served by the backend (never a storage path). Opened via a normal link so the browser handles the PDF. */
-  documentContentUrl(id: string, disposition: "inline" | "attachment" = "inline"): string {
-    return buildUrl(`/documents/${enc(id)}/content`, disposition === "attachment" ? { disposition } : undefined);
+  fulfilEvidenceRequest(applicationCode: string, requestId: string, version: number, note?: string): Promise<EvidenceRequest> {
+    return request(`/applications/${enc(applicationCode)}/evidence-requests/${enc(requestId)}/fulfil`, {
+      method: "POST", body: { expected_version: version, note: note || null },
+    });
+  },
+  cancelEvidenceRequest(applicationCode: string, requestId: string, version: number, reason: string): Promise<EvidenceRequest> {
+    return request(`/applications/${enc(applicationCode)}/evidence-requests/${enc(requestId)}/cancel`, {
+      method: "POST", body: { expected_version: version, note: reason },
+    });
+  },
+  listAuditEvents(query: AuditQuery = {}): Promise<Page<AuditEvent>> {
+    return request("/audit-events", { query: { ...query } });
+  },
+  listApplicationAudit(applicationCode: string, page = 1): Promise<Page<AuditEvent>> {
+    return request(`/applications/${enc(applicationCode)}/audit-events`, { query: { page, page_size: 50 } });
+  },
+  listAlerts(query: AlertQuery = {}): Promise<AlertPage> {
+    return request("/alerts", { query: { ...query, unread_only: query.unread_only ? "true" : undefined } });
+  },
+  markAlertsRead(ids: string[]): Promise<void> {
+    return request("/alerts/read", { method: "POST", body: { alert_ids: ids } });
+  },
+  markAllAlertsRead(applicationCode?: string): Promise<void> {
+    return request("/alerts/read-all", { method: "POST", query: { application_code: applicationCode } });
+  },
+  askCopilot(applicationCode: string, question: string, findingId?: string): Promise<CopilotAnswer> {
+    return request(`/applications/${enc(applicationCode)}/copilot`, {
+      method: "POST", body: { question, finding_id: findingId ?? null },
+    });
   },
 };

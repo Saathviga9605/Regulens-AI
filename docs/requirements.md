@@ -16,11 +16,11 @@ by authorised humans.
 | 6 | Cross-document consistency checks | Implemented (D4) |
 | 7 | Preliminary anomaly detection (flags for review, not conclusions) | Implemented (D4) |
 | 8 | Issuer-verification workflow (simulated; no real government APIs) | Implemented, simulated only (D4) |
-| 9 | Reviewer dashboard and review queue | Shell in D1; queue planned (D6) |
-| 10 | Audit trail of all user/system actions | Planned (D6) |
-| 11 | Preliminary scrutiny reports with cited evidence | Planned (D6) |
-| 12 | Human review and decision recording | Planned (D6) |
-| 13 | Authentication and role-based access | Planned (D6) |
+| 9 | Reviewer dashboard and review queue | Implemented (D5) |
+| 10 | Audit trail of all user/system actions | Implemented, application-level (D5) |
+| 11 | Preliminary scrutiny reports with cited evidence | Implemented (D5) |
+| 12 | Human review and decision recording | Finding-level review implemented (D5); no official decisions |
+| 13 | Authentication and role-based access | Prototype local auth + 2 roles (D5) |
 
 Deliverable numbers after D1 are indicative and may be re-sequenced.
 

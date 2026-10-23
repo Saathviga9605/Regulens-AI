@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 
 import { App } from "../src/app/App";
+import { setToken } from "../src/services/apiClient";
 import type {
   Application,
   ApplicationDocument,
@@ -11,6 +12,7 @@ import type {
   Institution,
   IntakePolicy,
   Page,
+  User,
 } from "../src/types/api";
 
 export const HEALTHY: HealthResponse = {
@@ -138,12 +140,28 @@ export function mockApi(routes: Record<string, Handler>) {
     if (method === "GET" && call.path === "/documents/intake-policy") return jsonResponse(POLICY);
     if (method === "GET" && /^\/applications\/[^/]+\/documents$/.test(call.path)) return jsonResponse(page([]));
     if (method === "GET" && /^\/applications\/[^/]+\/scrutiny-runs$/.test(call.path)) return jsonResponse(page([]));
+    // Session and workspace panels.
+    if (method === "GET" && call.path === "/auth/me") return jsonResponse(currentUser);
+    if (method === "GET" && call.path === "/alerts") return jsonResponse({ ...page([]), unread_count: 0 });
+    if (method === "GET" && /^\/applications\/[^/]+\/evidence-requests$/.test(call.path)) return jsonResponse([]);
+    if (method === "GET" && /^\/applications\/[^/]+\/audit-events$/.test(call.path)) return jsonResponse(page([]));
+    if (method === "GET" && /\/findings\/[^/]+\/actions$/.test(call.path)) return jsonResponse([]);
     return jsonResponse({ error: { code: "unmocked", message: `Unmocked ${method} ${path}`, request_id: "t" } }, 599);
   });
   return { spy, calls, callsTo: (method: string, path: string) => calls.filter((c) => c.method === method && c.path === path) };
 }
 
-export function renderApp(path: string) {
+export const REVIEWER: User = {
+  id: "u-reviewer", username: "demo.reviewer", display_name: "Demo Reviewer", role: "reviewer", is_active: true,
+  created_at: "2026-10-23T09:00:00Z",
+};
+export const ADMIN: User = { ...REVIEWER, id: "u-admin", username: "demo.admin", display_name: "Demo Admin", role: "admin" };
+let currentUser: User = ADMIN;
+
+/** Renders the app signed in (token present, /auth/me answered) unless `signedIn` is false. */
+export function renderApp(path: string, options: { user?: User; signedIn?: boolean } = {}) {
+  currentUser = options.user ?? ADMIN;
+  setToken(options.signedIn === false ? null : "test-token");
   return render(
     <MemoryRouter initialEntries={[path]}>
       <App />

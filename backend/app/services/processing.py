@@ -17,6 +17,7 @@ from app.db.types import utcnow
 from app.models import Document, DocumentPage, DocumentProcessing, ExtractedField
 from app.models.enums import DocumentCategory, DocumentStatus, PageExtractionMethod, ProcessingStatus
 from app.services import classification, extraction, pdf_text
+from app.services import alerts, audit
 from app.services.storage import DocumentStorage
 
 logger = logging.getLogger("regulens.processing")
@@ -81,6 +82,15 @@ def process_document(session: Session, storage: DocumentStorage, settings: Setti
     else:
         result = _run_pipeline(storage, settings, ocr, document, started)
     session.add(result)
+    audit.record(session, "document.processed", "document", document.id, application_id=document.application_id,
+                 details={"status": result.status.value, "failure_code": result.failure_code,
+                          "pipeline_version": PIPELINE_VERSION, "reused_from_cache": cached is not None,
+                          "forced": force})
+    if result.status == ProcessingStatus.FAILED:
+        alerts.raise_alert(session, dedup_key=f"processing_failed:{document.id}:{document.sha256[:16]}:{PIPELINE_VERSION}",
+                           application_id=document.application_id, event_type="processing_failed", severity="medium",
+                           document_id=document.id, title="Document could not be read",
+                           message=f"'{document.original_filename}': {result.failure_reason or 'processing failed'}")
     session.commit()
     return get_processing(session, document.id), cached is not None
 

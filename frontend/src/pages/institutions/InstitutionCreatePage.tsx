@@ -9,7 +9,7 @@ export function InstitutionCreatePage() {
   const navigate = useNavigate();
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title="New institution" description="The institution code is assigned by the system." />
+      <PageHeader eyebrow="Scrutiny work" breadcrumbs={[{ label: "Overview", to: "/" }, { label: "Institutions", to: "/institutions" }, { label: "New" }]} title="New institution" description="The institution code is assigned by the system." />
       <Card>
         <InstitutionForm
           submitLabel="Create institution"

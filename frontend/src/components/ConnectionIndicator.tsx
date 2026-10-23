@@ -1,10 +1,10 @@
 import type { ConnectionState } from "../types/api";
 
 const STYLES: Record<ConnectionState["kind"], { label: string; dot: string; text: string }> = {
-  loading: { label: "Checking…", dot: "bg-slate-400 animate-pulse", text: "text-slate-300" },
-  connected: { label: "Connected", dot: "bg-emerald-400", text: "text-emerald-200" },
-  degraded: { label: "Degraded", dot: "bg-amber-400", text: "text-amber-200" },
-  disconnected: { label: "Disconnected", dot: "bg-red-400", text: "text-red-200" },
+  loading: { label: "Checking…", dot: "bg-ink-subtle animate-pulse", text: "text-brand-100" },
+  connected: { label: "Connected", dot: "bg-success-700", text: "text-success-line" },
+  degraded: { label: "Degraded", dot: "bg-saffron-500", text: "text-warning-line" },
+  disconnected: { label: "Disconnected", dot: "bg-danger-700", text: "text-danger-line" },
 };
 
 export function ConnectionIndicator({ state }: { state: ConnectionState }) {

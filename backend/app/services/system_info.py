@@ -28,6 +28,7 @@ def build_system_info(settings: Settings) -> SystemInfoResponse:
         app_version=settings.app_version,
         api_version=settings.api_version,
         environment=settings.environment,
+        demo_mode=settings.environment != "production" and settings.demo_users_enabled,
         database_backend=settings.database_backend,
         implemented_capabilities=IMPLEMENTED,
         planned_capabilities=PLANNED,

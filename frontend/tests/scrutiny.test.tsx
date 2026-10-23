@@ -60,6 +60,7 @@ const FINDING: Finding = {
   ],
   compared_values: [{ source: "'fire.pdf' p.1", value: "312" }], missing_evidence: null,
   human_review_recommended: true, review_status: "not_reviewed", review_note: null, reviewed_at: null,
+  review_version: 1, allowed_actions: ["confirm", "dismiss", "escalate", "request_evidence", "note"],
   created_at: "2026-10-23T11:00:00Z",
 };
 
@@ -262,10 +263,17 @@ describe("Preliminary scrutiny", () => {
   });
 
   it("opens a finding with its evidence, demo-only rule label and saves a human review", async () => {
-    let reviewed = false;
+    let detail_ = DETAIL;
     const api = scrutinyApi({
-      [`PATCH ${APP}/findings/fd3/review`]: () => { reviewed = true;
-        return jsonResponse({ ...DETAIL, review_status: "needs_follow_up", review_note: "Ask institution", reviewed_at: "2026-10-23T12:00:00Z" }); },
+      [`GET ${APP}/findings/fd3`]: () => jsonResponse(detail_),
+      [`POST ${APP}/findings/fd3/actions`]: (call) => {
+        detail_ = { ...DETAIL, review_status: "escalated", review_version: 2, reviewed_at: "2026-10-23T12:00:00Z",
+          allowed_actions: ["confirm", "dismiss", "request_evidence", "resolve", "note"] };
+        return jsonResponse({ id: "a1", finding_id: "fd3", action_type: (call.body as { action: string }).action,
+          previous_status: "not_reviewed", new_status: "escalated", actor_username: "demo.admin",
+          note: (call.body as { note: string }).note, evidence_refs: [], evidence_request_id: null,
+          created_at: "2026-10-23T12:00:00Z" }, 201);
+      },
     });
     renderApp(APP);
     await userEvent.click(await screen.findByRole("button", { name: "Run preliminary scrutiny" }));
@@ -278,14 +286,35 @@ describe("Preliminary scrutiny", () => {
     expect(within(detail).getByRole("region", { name: "System-generated result" })).toBeInTheDocument();
 
     const review = within(detail).getByRole("region", { name: "Human review" });
-    expect(review).toHaveTextContent("Current: Not reviewed");
-    await userEvent.selectOptions(within(review).getByRole("combobox", { name: "Set review status" }), "needs_follow_up");
-    await userEvent.type(within(review).getByRole("textbox", { name: "Reviewer note (optional)" }), "Ask institution");
-    await userEvent.click(within(review).getByRole("button", { name: "Save review" }));
-    expect(await within(review).findByText("Review status saved.")).toBeInTheDocument();
-    expect(reviewed).toBe(true);
-    expect(api.callsTo("PATCH", `${APP}/findings/fd3/review`)[0]!.body).toEqual({ review_status: "needs_follow_up", review_note: "Ask institution" });
-    expect(review).toHaveTextContent("Current: Needs follow-up");
+    expect(review).toHaveTextContent("Current state: Not reviewed");
+    expect(within(review).queryByRole("button", { name: "Mark resolved" })).not.toBeInTheDocument(); // not allowed yet
+    await userEvent.click(within(review).getByRole("button", { name: "Escalate" }));
+    await userEvent.click(within(review).getByRole("button", { name: "Save: Escalate" }));
+    expect(within(review).getByText(/A reason of at least 10 characters is required/)).toBeInTheDocument();
+    expect(api.callsTo("POST", `${APP}/findings/fd3/actions`)).toHaveLength(0);
+
+    await userEvent.type(within(review).getByRole("textbox", { name: "Reason (required)" }), "Needs a senior reviewer's view.");
+    await userEvent.click(within(review).getByRole("button", { name: "Save: Escalate" }));
+    expect(await within(detail).findByText("Escalate recorded.")).toBeInTheDocument();
+    expect(api.callsTo("POST", `${APP}/findings/fd3/actions`)[0]!.body).toEqual({
+      action: "escalate", expected_version: 1, note: "Needs a senior reviewer's view." });
+    await waitFor(() => expect(within(detail).getByRole("region", { name: "Human review" })).toHaveTextContent("Current state: Escalated"));
+    // System result stays visible and unchanged.
+    expect(detail).toHaveTextContent("Issue");
+  });
+
+  it("reports a stale review conflict instead of overwriting", async () => {
+    scrutinyApi({
+      [`POST ${APP}/findings/fd3/actions`]: () => jsonResponse({ error: { code: "stale_review",
+        message: "This finding was updated by someone else. Reload and try again.", request_id: "r" } }, 409),
+    });
+    renderApp(APP);
+    await userEvent.click(await screen.findByRole("button", { name: "Run preliminary scrutiny" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Expected document not found/ }));
+    const detail = await screen.findByRole("article", { name: /Finding: Expected document not found/ });
+    await userEvent.click(within(detail).getByRole("button", { name: "Confirm finding" }));
+    await userEvent.click(within(detail).getByRole("button", { name: "Save: Confirm finding" }));
+    expect(await within(detail).findByText(/Someone else updated this finding/)).toBeInTheDocument();
   });
 
   it("shows evidence quotes for both documents of a conflict", async () => {
@@ -364,7 +393,14 @@ describe("Scrutiny rules administration", () => {
     expect(within(table).getByRole("row", { name: /CON-003/ })).toHaveTextContent("Integrity check (not a regulatory requirement)");
 
     await userEvent.click(within(demoRow).getByRole("checkbox", { name: "Enable EXP-001" }));
+    const dialog = screen.getByRole("dialog", { name: "Disable rule?" });
+    expect(dialog).toHaveTextContent("Future scrutiny runs will not evaluate this rule.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(api.callsTo("PATCH", "/scrutiny-rules/EXP-001")).toHaveLength(0); // nothing sent without confirmation
+    await userEvent.click(within(demoRow).getByRole("checkbox", { name: "Enable EXP-001" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Disable rule?" })).getByRole("button", { name: "Disable rule" }));
     expect(await screen.findByText(/EXP-001 saved \(now version 2\)/)).toBeInTheDocument();
+    expect(api.callsTo("PATCH", "/scrutiny-rules/EXP-001")).toHaveLength(1);
     expect(api.callsTo("PATCH", "/scrutiny-rules/EXP-001")[0]!.body).toEqual({ enabled: false });
   });
 
@@ -375,6 +411,9 @@ describe("Scrutiny rules administration", () => {
     });
     renderApp("/scrutiny-rules");
     await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Severity for CON-003" }), "low");
-    expect(await screen.findByRole("alert")).toHaveTextContent("Rule parameters are invalid");
+    const dialog = screen.getByRole("dialog", { name: "Change severity?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Change severity" }));
+    // The dialog stays open with the server's reason so the admin can retry or cancel.
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Rule parameters are invalid");
   });
 });

@@ -1,84 +1,129 @@
-import { CheckCircle2, CircleDashed, Info } from "lucide-react";
+import { ArrowRight, Bell, ClipboardList, FilePlus2, FileText } from "lucide-react";
+import { Link } from "react-router";
 
+import { useAuth } from "../app/AuthContext";
 import { useBackendHealth } from "../app/BackendHealthContext";
-import { MODULES } from "../app/navigation";
+import { ALERT_EVENT_LABELS, formatDateTime } from "../app/labels";
+import { useApiQuery } from "../app/useApiQuery";
 import { SystemStatusPanel } from "../components/SystemStatusPanel";
+import { Badge, Card, EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge, buttonStyles } from "../components/ui";
+import { apiClient } from "../services/apiClient";
 
-const IMPLEMENTED = [
-  "Dashboard shell and navigation",
-  "Live backend health check (API + database query)",
-  "Connection status: connected, degraded and disconnected states",
-  "Institution records: create, search, view and edit (fictional data)",
-  "EoA applications: create drafts, search, filter, edit drafts and move through internal workflow statuses",
-  "Secure PDF intake with private storage and exact-duplicate detection",
-  "Document processing: page text (OCR when Tesseract is installed), type detection, evidence-quoted fields",
-  "Preliminary scrutiny: configurable rules, cross-document checks, anomaly indicators and run history",
-  "Simulated issuer checks against synthetic records (clearly labelled, not real verification)",
-];
+function Metric({ label, value, to, tone }: { label: string; value: number | undefined; to: string; tone: string }) {
+  return (
+    <Link to={to} className={`group block rounded-panel border border-line border-t-4 ${tone} bg-surface p-4 shadow-panel hover:border-brand-600`}>
+      <dt className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{label}</dt>
+      <dd className="mt-1 flex items-end justify-between">
+        <span className="text-3xl font-semibold tabular-nums text-brand-900">{value ?? "—"}</span>
+        <ArrowRight aria-hidden="true" className="h-4 w-4 text-ink-subtle group-hover:text-brand-700" />
+      </dd>
+    </Link>
+  );
+}
 
 export function DashboardPage() {
   const { state, refresh } = useBackendHealth();
+  const { user } = useAuth();
+  const queue = useApiQuery(() => apiClient.reviewQueue({ page_size: 5 }), "overview-queue");
+  const alerts = useApiQuery(() => apiClient.listAlerts({ page_size: 5 }), "overview-alerts");
+  const recent = useApiQuery(() => apiClient.listApplications({ page_size: 5 }), "overview-apps");
+  const counts = queue.data?.counts;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Extension of Approval (EoA) scrutiny workspace — foundation release.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader eyebrow="Overview" title={`Welcome, ${user?.display_name ?? "reviewer"}`}
+        description="Extension of Approval (EoA) preliminary-scrutiny workspace. Figures below come from stored records."
+        actions={<>
+          <Link to="/review-queue" className={buttonStyles.primary}><ClipboardList aria-hidden="true" className="h-4 w-4" /> Open review queue</Link>
+          <Link to="/applications/new" className={buttonStyles.secondary}><FilePlus2 aria-hidden="true" className="h-4 w-4" /> New application</Link>
+        </>} />
 
-      <section
-        aria-labelledby="purpose-heading"
-        className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-5 text-sm text-slate-700"
-      >
-        <Info aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
-        <div>
-          <h2 id="purpose-heading" className="font-semibold text-slate-900">
-            Decision support, not decision making
-          </h2>
-          <p className="mt-1">
-            ReguLens AI assists AICTE reviewers by organising evidence, checking applications against configurable
-            regulatory rules and highlighting items that may need attention. It never approves or rejects an
-            application, and a flagged anomaly is a prompt for human review — not a finding of misconduct. All
-            decisions remain with authorised reviewers.
-          </p>
-        </div>
+      <section aria-labelledby="purpose-heading" className="rounded-panel border border-info-line bg-info-bg p-4 text-sm text-ink">
+        <h2 id="purpose-heading" className="font-semibold text-brand-900">Decision support, not decision making</h2>
+        <p className="mt-1">
+          ReguLens organises evidence, checks applications against configurable rules and highlights items that may need
+          attention. It never approves or rejects an application; a flagged anomaly is a prompt for human review, not a
+          finding of misconduct.
+        </p>
       </section>
 
-      <SystemStatusPanel state={state} onRetry={refresh} />
+      {queue.error ? <ErrorState message={queue.error} onRetry={queue.reload} /> : (
+        <dl aria-label="Review summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Metric label="Pending review" value={counts?.pending_review} to="/review-queue?unresolved_only=true" tone="border-t-brand-700" />
+          <Metric label="Unresolved high-severity" value={counts?.unresolved_high} to="/review-queue?severity=high" tone="border-t-danger-700" />
+          <Metric label="Awaiting evidence" value={counts?.awaiting_additional_evidence} to="/review-queue" tone="border-t-saffron-500" />
+          <Metric label="Preliminary reviews completed" value={counts?.completed_preliminary_reviews}
+            to="/review-queue?status=preliminary_scrutiny_completed" tone="border-t-teal-700" />
+        </dl>
+      )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <section aria-labelledby="implemented-heading" className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 id="implemented-heading" className="text-base font-semibold text-slate-900">
-            Available in this release
-          </h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {IMPLEMENTED.map((item) => (
-              <li key={item} className="flex gap-2">
-                <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-600" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </section>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card title="Highest-priority applications" actions={<Link to="/review-queue" className={`${buttonStyles.link} text-sm`}>View all</Link>}>
+            {queue.loading && !queue.data ? <LoadingState label="Loading priorities…" /> : queue.data && queue.data.items.length === 0 ? (
+              <EmptyState>No applications yet.</EmptyState>
+            ) : (
+              <ul className="divide-y divide-line">
+                {(queue.data?.items ?? []).map((i) => (
+                  <li key={i.application_code} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                    <div className="min-w-0">
+                      <Link to={`/applications/${i.application_code}`} className={`${buttonStyles.link} font-mono text-sm`}>{i.application_code}</Link>
+                      <p className="text-sm text-ink [overflow-wrap:anywhere]">{i.institution_name}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(i.unresolved_by_severity.high ?? 0) > 0 && <Badge tone="danger">{i.unresolved_by_severity.high} high</Badge>}
+                      {i.unresolved_total > 0 ? <Badge tone="warning">{i.unresolved_total} unresolved</Badge> : (
+                        <Badge tone={i.latest_run_number ? "success" : "neutral"}>{i.latest_run_number ? "No unresolved findings" : "No scrutiny yet"}</Badge>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+        <Card title="Recent alerts" actions={<Link to="/alerts" className={`${buttonStyles.link} text-sm`}>All alerts</Link>}>
+          {alerts.loading && !alerts.data ? <LoadingState label="Loading alerts…" /> : alerts.error ? (
+            <ErrorState message={alerts.error} onRetry={alerts.reload} />
+          ) : (alerts.data?.items ?? []).length === 0 ? <EmptyState>No alerts.</EmptyState> : (
+            <ul className="space-y-2">
+              {alerts.data!.items.map((a) => (
+                <li key={a.id} className="text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Bell aria-hidden="true" className={`h-4 w-4 ${a.read ? "text-ink-subtle" : "text-saffron-600"}`} />
+                    <span className="font-medium text-ink">{ALERT_EVENT_LABELS[a.event_type] ?? a.title}</span>
+                    {!a.read && <span className="sr-only">(unread)</span>}
+                  </div>
+                  <p className="text-xs text-ink-muted [overflow-wrap:anywhere]">{a.application_code} · {formatDateTime(a.created_at)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
 
-        <section aria-labelledby="planned-heading" className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 id="planned-heading" className="text-base font-semibold text-slate-900">
-            Planned modules
-          </h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {MODULES.filter((m) => !m.available).map((m) => (
-              <li key={m.path} className="flex gap-2">
-                <CircleDashed aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
-                <span>
-                  <span className="font-medium text-slate-800">{m.label}</span>
-                  <span className="text-slate-500"> — {m.summary}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card title="Recently created applications" actions={<Link to="/applications" className={`${buttonStyles.link} text-sm`}>All applications</Link>}>
+            {recent.loading && !recent.data ? <LoadingState label="Loading applications…" /> : recent.error ? (
+              <ErrorState message={recent.error} onRetry={recent.reload} />
+            ) : (recent.data?.items ?? []).length === 0 ? <EmptyState>No applications yet.</EmptyState> : (
+              <ul className="divide-y divide-line">
+                {recent.data!.items.map((a) => (
+                  <li key={a.application_code} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <FileText aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-subtle" />
+                      <Link to={`/applications/${a.application_code}`} className={`${buttonStyles.link} font-mono`}>{a.application_code}</Link>
+                      <span className="truncate text-ink-muted">{a.institution.name}</span>
+                    </span>
+                    <StatusBadge status={a.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+        <SystemStatusPanel state={state} onRetry={refresh} />
       </div>
     </div>
   );

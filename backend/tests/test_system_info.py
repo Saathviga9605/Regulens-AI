@@ -10,6 +10,7 @@ def test_system_info_returns_safe_metadata(client: TestClient, settings) -> None
         "app_version",
         "api_version",
         "environment",
+        "demo_mode",
         "database_backend",
         "implemented_capabilities",
         "planned_capabilities",

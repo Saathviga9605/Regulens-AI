@@ -187,3 +187,19 @@ never updates or deletes any row. `reset-data` deletes all institution/applicati
 
 RegulatorySource (verified official documents that rules cite), ReviewDecision (final human decision with rationale),
 AuditEvent (append-only), User/Role. These will reference `applications.id` and `institutions.id`.
+
+## Deliverable 5 tables (migration `0004`)
+| Table | Purpose / key constraints |
+|---|---|
+| users | id, username UNIQUE, display_name, role (`reviewer`/`admin`), scrypt password_hash, is_active, timestamps |
+| auth_sessions | token_hash (SHA-256) UNIQUE, user_id FK CASCADE, expires_at, revoked_at |
+| finding_review_actions | append-only history: finding_id FK CASCADE (INDEX), application_id FK, action_type, previous/new status, actor (id SET NULL + username snapshot), note, evidence_refs JSON, evidence_request_id |
+| evidence_requests | application_id FK RESTRICT, finding_id FK SET NULL (+ title snapshot), requested_evidence, reason, due_date, status, version, created/closed by/at, closing_note; INDEX (application_id, status) |
+| evidence_request_documents | request FK CASCADE, document_id FK SET NULL + filename snapshot, linked_by/at |
+| audit_events | created_at INDEX, actor, action INDEX, resource type/id, application_id INDEX (no FK so history survives), outcome, request_id, details JSON |
+| alerts | dedup_key UNIQUE, application_id FK, event_type, severity, title, message, optional finding/request/document ids |
+| alert_reads | (alert_id, user_id) PK — per-user read state |
+
+`findings` gains `review_version` (optimistic concurrency) and the new review-state CHECK. The migration maps legacy
+values (`acknowledged` → `confirmed`, `needs_follow_up` → `escalated`); downgrade maps back. `reset-data` also clears
+review/evidence/alert rows but keeps users, rules and the audit log (and audits the reset).

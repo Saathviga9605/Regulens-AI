@@ -17,6 +17,7 @@ export interface SystemInfoResponse {
   app_version: string;
   api_version: string;
   environment: string;
+  demo_mode: boolean;
   database_backend: string;
   implemented_capabilities: string[];
   planned_capabilities: string[];
@@ -230,6 +231,8 @@ export interface DocumentUpload {
   file: File;
   category: DocumentCategory;
   description?: string;
+  /** Explicitly link the upload to this open evidence request. */
+  evidenceRequestId?: string;
 }
 
 // --- Processing (Deliverable 4) ---------------------------------------------------------------
@@ -319,7 +322,7 @@ export interface ProcessingResult {
 export type RuleOutcome = "pass" | "issue" | "inconclusive" | "not_applicable";
 export type Severity = "info" | "low" | "medium" | "high";
 export type FindingKind = "rule_finding" | "anomaly_indicator";
-export type ReviewStatus = "not_reviewed" | "acknowledged" | "needs_follow_up" | "dismissed";
+export type ReviewStatus = "not_reviewed" | "confirmed" | "dismissed" | "escalated" | "awaiting_evidence" | "resolved";
 export type RunStatus = "running" | "completed" | "completed_with_warnings" | "failed";
 export type SourceVerificationStatus = "verified" | "unverified" | "not_applicable";
 
@@ -438,6 +441,8 @@ export interface Finding {
   review_status: ReviewStatus;
   review_note: string | null;
   reviewed_at: string | null;
+  review_version: number;
+  allowed_actions: ReviewActionType[];
   created_at: string;
 }
 
@@ -474,4 +479,207 @@ export interface VerificationAttempt {
   fields_compared: { field: string; document_value: string | null; result: string }[];
   reference_code: string | null;
   created_at: string;
+}
+
+// --- Auth, review workspace, audit, alerts, copilot (Deliverable 5) ----------------------------
+
+export type UserRole = "reviewer" | "admin";
+
+export interface User {
+  id: string;
+  username: string;
+  display_name: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  token_type: string;
+  expires_at: string;
+  user: User;
+}
+
+export interface UserCreateInput {
+  username: string;
+  display_name: string;
+  role: UserRole;
+  password: string;
+}
+
+export interface UserUpdateInput {
+  display_name?: string;
+  role?: UserRole;
+  is_active?: boolean;
+  password?: string;
+}
+
+export type ReviewActionType =
+  | "confirm"
+  | "dismiss"
+  | "escalate"
+  | "request_evidence"
+  | "resolve"
+  | "reopen"
+  | "note"
+  | "carried_forward";
+
+export interface ReviewActionInput {
+  action: ReviewActionType;
+  expected_version: number;
+  note?: string | null;
+  evidence_refs?: { document_id: string; page_number?: number | null }[];
+  requested_evidence?: string | null;
+  due_date?: string | null;
+}
+
+export interface ReviewAction {
+  id: string;
+  finding_id: string;
+  action_type: ReviewActionType;
+  previous_status: ReviewStatus;
+  new_status: ReviewStatus;
+  actor_username: string;
+  note: string | null;
+  evidence_refs: { document_id: string; document_filename: string; page_number: number | null }[];
+  evidence_request_id: string | null;
+  created_at: string;
+}
+
+export type EvidenceRequestStatus = "open" | "fulfilled" | "cancelled";
+
+export interface EvidenceRequest {
+  id: string;
+  application_code: string;
+  finding_id: string | null;
+  finding_title: string | null;
+  requested_evidence: string;
+  reason: string;
+  due_date: string | null;
+  status: EvidenceRequestStatus;
+  is_overdue: boolean;
+  version: number;
+  created_by: string;
+  created_at: string;
+  closed_by: string | null;
+  closed_at: string | null;
+  closing_note: string | null;
+  documents: { document_id: string | null; document_filename: string; linked_by: string; linked_at: string }[];
+}
+
+export interface EvidenceRequestInput {
+  requested_evidence: string;
+  reason: string;
+  due_date?: string | null;
+  finding_id?: string | null;
+}
+
+export interface AuditEvent {
+  id: string;
+  created_at: string;
+  actor_username: string;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  application_id: string | null;
+  outcome: "success" | "failure" | "denied";
+  request_id: string | null;
+  details: Record<string, unknown>;
+}
+
+export interface AuditQuery {
+  page?: number;
+  page_size?: number;
+  action?: string;
+  actor?: string;
+  outcome?: string;
+  application_code?: string;
+}
+
+export interface AlertItem {
+  id: string;
+  application_code: string;
+  event_type: string;
+  severity: string;
+  title: string;
+  message: string;
+  finding_id: string | null;
+  evidence_request_id: string | null;
+  document_id: string | null;
+  created_at: string;
+  read: boolean;
+}
+
+export interface AlertPage extends Page<AlertItem> {
+  unread_count: number;
+}
+
+export interface AlertQuery {
+  page?: number;
+  page_size?: number;
+  unread_only?: boolean;
+  application_code?: string;
+  event_type?: string;
+}
+
+export interface QueueItem {
+  application_code: string;
+  institution_name: string;
+  institution_code: string;
+  application_type: ApplicationType;
+  academic_year: string;
+  status: ApplicationStatus;
+  latest_run_number: number | null;
+  latest_run_status: string | null;
+  latest_run_finished_at: string | null;
+  unresolved_by_severity: Partial<Record<Severity, number>>;
+  unresolved_total: number;
+  findings_total: number;
+  open_evidence_requests: number;
+  overdue_evidence_requests: number;
+  review_state: "no_scrutiny" | "not_started" | "in_progress" | "complete";
+}
+
+export interface QueuePage extends Page<QueueItem> {
+  counts: {
+    pending_review: number;
+    unresolved_high: number;
+    awaiting_additional_evidence: number;
+    completed_preliminary_reviews: number;
+    no_scrutiny_yet: number;
+  };
+}
+
+export interface QueueQuery {
+  q?: string;
+  status?: ApplicationStatus;
+  scrutiny_status?: string;
+  severity?: Severity;
+  unresolved_only?: boolean;
+  review_state?: string;
+  sort?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface CopilotSource {
+  id: string;
+  kind: string;
+  label: string;
+  finding_id: string | null;
+  document_id: string | null;
+  document_filename: string | null;
+  page_number: number | null;
+  quote: string | null;
+}
+
+export interface CopilotAnswer {
+  intent: string;
+  lines: string[];
+  sources: CopilotSource[];
+  grounded: boolean;
+  limitations: string[];
+  disclaimer: string;
+  suggestions: string[];
 }

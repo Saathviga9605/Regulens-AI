@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
+from app.core.context import current_request_id
 from app.core.errors import register_error_handlers
 from app.core.limits import UploadSizeLimitMiddleware
 from app.core.logging import configure_logging
@@ -74,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
         request.state.request_id = uuid.uuid4().hex
+        current_request_id.set(request.state.request_id)
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
         return response
@@ -84,7 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
-        expose_headers=["X-Request-ID"],
+        expose_headers=["X-Request-ID", "Content-Disposition"],
     )
 
     register_error_handlers(app)

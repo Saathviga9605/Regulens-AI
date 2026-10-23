@@ -22,6 +22,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.errors import AppError, ConflictError, NotFoundError
 from app.core.limits import PayloadTooLarge
+from app.models.enums import AuditOutcome
+from app.services import audit
 from app.db.types import utcnow
 from app.models import Application, Document
 from app.models.enums import ApplicationStatus, DocumentCategory, DocumentStatus
@@ -171,6 +173,9 @@ def store_document(
             raise AppError(500, "document_storage_failed",
                            "The file could not be stored. The failed intake was recorded; please retry.",
                            [{"document_id": failed.id}]) from exc
+        audit.record(session, "document.uploaded", "document", document.id, application_id=application.id,
+                     details={"category": category.value, "size_bytes": received.size, "status": document.status.value,
+                              "duplicate_of": document.duplicate_of_id})
         session.commit()
         return document
     except BaseException:
@@ -188,6 +193,9 @@ def _record_intake_failure(session: Session, application_id: str, received: Rece
                       status=DocumentStatus.INTAKE_FAILED, description=description,
                       uploaded_at=now, created_at=now, updated_at=now)
     session.add(failed)
+    session.flush()
+    audit.record(session, "document.uploaded", "document", failed.id, application_id=application_id,
+                 outcome=AuditOutcome.FAILURE, details={"status": "intake_failed"})
     session.commit()
     return failed
 
@@ -306,6 +314,8 @@ def delete_document(session: Session, storage: DocumentStorage, document_id: str
     if key and isolated is None:
         logger.warning("Deleting document whose stored file was already missing")
     try:
+        audit.record(session, "document.deleted", "document", document.id, application_id=document.application_id,
+                     details={"category": document.category.value, "file_missing": bool(key and isolated is None)})
         session.delete(document)
         session.commit()
     except BaseException:

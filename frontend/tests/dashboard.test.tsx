@@ -1,17 +1,9 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { App } from "../src/app/App";
 import type { HealthResponse } from "../src/types/api";
-
-const HEALTHY: HealthResponse = {
-  app_name: "ReguLens AI",
-  api_version: "v1",
-  status: "ok",
-  database: { status: "ok", detail: null },
-};
+import { HEALTHY, REVIEWER, jsonResponse, mockApi, renderApp } from "./helpers";
 
 const DEGRADED: HealthResponse = {
   ...HEALTHY,
@@ -19,113 +11,98 @@ const DEGRADED: HealthResponse = {
   database: { status: "unavailable", detail: "Database connectivity check failed." },
 };
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
-
-function renderApp(path = "/") {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
-  );
-}
-
 function indicator() {
   return screen.getByTestId("connection-indicator");
 }
 
 describe("Dashboard", () => {
   it("renders the shell, purpose statement and navigation", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(HEALTHY));
-    renderApp();
+    mockApi({});
+    renderApp("/");
 
-    expect(screen.getByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: /Welcome,/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /decision support, not decision making/i })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Primary" });
-    for (const label of ["Applications", "Review Queue", "Verification", "Reports", "Audit Trail"]) {
+    for (const label of ["Review Queue", "Applications", "Institutions", "Alerts", "Scrutiny Rules", "Audit Trail", "Users"]) {
       expect(within(nav).getByRole("link", { name: label })).toBeInTheDocument();
     }
-    expect(screen.getByRole("heading", { name: "Available in this release" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Planned modules" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Overview" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Help & About" })).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("Decision-support prototype. Findings require human review. Not an official AICTE decision.");
+    expect(screen.getByRole("heading", { name: "Highest-priority applications" })).toBeInTheDocument();
     await screen.findByText("Backend connected");
+  });
+
+  it("hides administrator navigation from reviewers", async () => {
+    mockApi({});
+    renderApp("/", { user: REVIEWER });
+    const nav = await screen.findByRole("navigation", { name: "Primary" });
+    expect(within(nav).queryByRole("link", { name: "Users" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Audit Trail" })).not.toBeInTheDocument();
+    expect(screen.getByText(/demo\.reviewer · Reviewer/)).toBeInTheDocument();
   });
 
   it("shows a loading state while health is being fetched", async () => {
     let resolve!: (r: Response) => void;
-    vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise<Response>((r) => (resolve = r)));
-    renderApp();
+    const gate = new Promise<Response>((r) => (resolve = r));
+    mockApi({ "GET /health": () => gate });
+    renderApp("/");
 
-    expect(screen.getByText("Checking backend status…")).toBeInTheDocument();
+    expect(await screen.findByText("Checking backend status…")).toBeInTheDocument();
     expect(indicator()).toHaveTextContent("Checking…");
-
     resolve(jsonResponse(HEALTHY));
     await screen.findByText("Backend connected");
   });
 
   it("shows Connected for a healthy backend response", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(HEALTHY));
-    renderApp();
-
+    const api = mockApi({});
+    renderApp("/");
     await screen.findByText("Backend connected");
     expect(indicator()).toHaveTextContent("Connected");
-    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(/\/health$/);
+    expect(api.callsTo("GET", "/health").length).toBeGreaterThan(0);
   });
 
   it("shows Degraded when the API reports an unhealthy database", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(DEGRADED));
-    renderApp();
-
+    mockApi({ "GET /health": () => jsonResponse(DEGRADED) });
+    renderApp("/");
     await screen.findByText("Backend degraded");
     expect(indicator()).toHaveTextContent("Degraded");
     expect(screen.getByRole("alert")).toHaveTextContent("Database connectivity check failed.");
   });
 
   it("shows Disconnected with an error message when the backend is unreachable", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
-    renderApp();
-
+    mockApi({ "GET /health": () => Promise.reject(new TypeError("Failed to fetch")) });
+    renderApp("/");
     await screen.findByText("Backend unavailable");
     expect(indicator()).toHaveTextContent("Disconnected");
     expect(screen.getByRole("alert")).toHaveTextContent(/unable to reach the regulens api/i);
   });
 
   it("treats an HTTP error response as disconnected without crashing", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      jsonResponse({ error: { code: "internal_error", message: "An unexpected error occurred.", request_id: "x" } }, 500),
-    );
-    renderApp();
-
+    mockApi({ "GET /health": () => jsonResponse({ error: { code: "internal_error", message: "An unexpected error occurred.", request_id: "x" } }, 500) });
+    renderApp("/");
     await screen.findByText("Backend unavailable");
     expect(screen.getByRole("alert")).toHaveTextContent("An unexpected error occurred.");
   });
 
   it("retry triggers a new health request and updates the status", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce(jsonResponse(HEALTHY));
-    renderApp();
-
+    let fail = true;
+    const api = mockApi({ "GET /health": () => (fail ? Promise.reject(new TypeError("Failed to fetch")) : jsonResponse(HEALTHY)) });
+    renderApp("/");
     await screen.findByText("Backend unavailable");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
+    const before = api.callsTo("GET", "/health").length;
+    fail = false;
     await userEvent.click(screen.getByRole("button", { name: /retry/i }));
-
     await screen.findByText("Backend connected");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(api.callsTo("GET", "/health").length).toBe(before + 1);
   });
 });
 
-describe("Module placeholders", () => {
-  it("renders a clearly labelled placeholder with no fabricated data", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(HEALTHY));
-    renderApp("/verification");
-
-    expect(screen.getByRole("heading", { level: 1, name: "Verification" })).toBeInTheDocument();
-    expect(screen.getByText("Planned")).toBeInTheDocument();
-    expect(screen.getByText(/this module is not implemented yet/i)).toBeInTheDocument();
+describe("Routing", () => {
+  it("shows not found for unknown pages without fabricated data", async () => {
+    mockApi({});
+    renderApp("/does-not-exist");
+    expect(await screen.findByRole("heading", { level: 1, name: "Page not found" })).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    await waitFor(() => expect(indicator()).toHaveTextContent("Connected"));
   });
 });

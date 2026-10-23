@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 
@@ -36,11 +36,10 @@ export function InstitutionDetailPage() {
   const i = inst.data;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Link to="/institutions" className={`${buttonStyles.link} inline-flex items-center gap-1 text-sm`}>
-        <ArrowLeft aria-hidden="true" className="h-4 w-4" /> All institutions
-      </Link>
+    <div className="space-y-6">
       <PageHeader
+        eyebrow="Institution record"
+        breadcrumbs={[{ label: "Overview", to: "/" }, { label: "Institutions", to: "/institutions" }, { label: i.institution_code }]}
         title={i.name}
         description={`${i.institution_code} · ${RECORD_STATUS_LABELS[i.status]}`}
         actions={
@@ -62,7 +61,7 @@ export function InstitutionDetailPage() {
 
       {editing ? (
         <Card title="Edit institution">
-          <p className="mb-4 text-xs text-slate-500">
+          <p className="mb-4 text-xs text-ink-subtle">
             Edits apply to this institution record. Applications already marked ready keep the institution details
             captured at that time.
           </p>
@@ -105,7 +104,7 @@ export function InstitutionDetailPage() {
           <EmptyState>No applications for this institution yet.</EmptyState>
         ) : apps.data ? (
           <div className={TABLE.wrap}>
-            <table className={TABLE.table}>
+            <table className={`${TABLE.table} min-w-[36rem]`}>
               <caption className="sr-only">Applications for {i.name}</caption>
               <thead>
                 <tr>
@@ -115,7 +114,7 @@ export function InstitutionDetailPage() {
                   <th scope="col" className={TABLE.th}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {apps.data.items.map((a) => (
                   <tr key={a.application_code}>
                     <td className={TABLE.td}>

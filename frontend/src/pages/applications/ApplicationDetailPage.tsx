@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 
@@ -16,6 +16,10 @@ import { useApiQuery } from "../../app/useApiQuery";
 import { ApplicationForm, toFormValues } from "../../components/ApplicationForm";
 import { DocumentsPanel } from "../../components/DocumentsPanel";
 import { ScrutinyPanel } from "../../components/ScrutinyPanel";
+import { ActivityLog } from "../../components/ActivityLog";
+import { CopilotPanel } from "../../components/CopilotPanel";
+import { EvidenceRequestsPanel } from "../../components/EvidenceRequestsPanel";
+import { AlertList } from "../AlertsPage";
 import {
   Alert,
   Card,
@@ -23,6 +27,7 @@ import {
   ErrorState,
   LoadingState,
   PageHeader,
+  SectionNav,
   StatusBadge,
   TABLE,
   buttonStyles,
@@ -41,6 +46,8 @@ export function ApplicationDetailPage() {
   const [busy, setBusy] = useState(false);
   const [institutions, setInstitutions] = useState<Institution[] | null>(null);
   const [documentsVersion, setDocumentsVersion] = useState(0);
+  const [focus, setFocus] = useState<{ findingId: string; nonce: number } | null>(null);
+  const bump = () => setDocumentsVersion((v) => v + 1);
 
   if (app.loading && !app.data) return <LoadingState label="Loading application…" />;
   if (app.error && !app.data) return <ErrorState message={app.error} onRetry={app.reload} />;
@@ -78,13 +85,15 @@ export function ApplicationDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Link to="/applications" className={`${buttonStyles.link} inline-flex items-center gap-1 text-sm`}>
-        <ArrowLeft aria-hidden="true" className="h-4 w-4" /> All applications
-      </Link>
+    <div className="space-y-5">
       <PageHeader
+        eyebrow="Application workspace"
+        breadcrumbs={[{ label: "Overview", to: "/" }, { label: "Applications", to: "/applications" }, { label: a.application_code }]}
         title={a.application_code}
-        description={`${APPLICATION_TYPE_LABELS[a.application_type]} · Academic year ${a.academic_year}`}
+        description={<>
+          <span className="font-medium text-ink">{a.institution.name}</span> · {APPLICATION_TYPE_LABELS[a.application_type]} ·
+          Academic year {a.academic_year} · <StatusBadge status={a.status} />
+        </>}
         actions={
           a.is_editable && !editing ? (
             <button type="button" className={buttonStyles.secondary} onClick={startEditing}>
@@ -97,11 +106,19 @@ export function ApplicationDetailPage() {
       {flash && <Alert tone="success">{flash}</Alert>}
       {actionError && <Alert tone="error">{actionError}</Alert>}
 
+      <SectionNav label="Workspace sections" sections={[
+        { id: "overview", label: "Overview" }, { id: "documents", label: "Documents" },
+        { id: "scrutiny", label: "Scrutiny & findings" }, { id: "evidence", label: "Evidence requests" },
+        { id: "copilot", label: "Copilot" }, { id: "alerts", label: "Alerts" }, { id: "activity", label: "Activity" },
+        { id: "institution", label: "Institution" },
+      ]} />
+
+      <div id="overview" className="grid scroll-mt-28 gap-5 lg:grid-cols-2">
       <Card title="Internal workflow status">
         <div className="space-y-3">
           <StatusBadge status={a.status} />
-          <p className="text-sm text-slate-700">{STATUS_DESCRIPTIONS[a.status]}</p>
-          <p className="text-xs text-slate-500">Status last changed {formatDateTime(a.status_changed_at)}.</p>
+          <p className="text-sm text-ink">{STATUS_DESCRIPTIONS[a.status]}</p>
+          <p className="text-xs text-ink-subtle">Status last changed {formatDateTime(a.status_changed_at)}.</p>
           {a.allowed_transitions.length > 0 ? (
             <div className="flex flex-wrap gap-2 pt-1">
               {a.allowed_transitions.map((t) => (
@@ -117,10 +134,10 @@ export function ApplicationDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-600">No further workflow steps are available.</p>
+            <p className="text-sm text-ink-muted">No further workflow steps are available.</p>
           )}
           {a.status === "draft" && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-subtle">
               Marking ready freezes the application details. It does not confirm that required documents are present
               or valid — use preliminary scrutiny below and review its findings.
             </p>
@@ -129,6 +146,7 @@ export function ApplicationDetailPage() {
       </Card>
 
       {editing && institutions ? (
+        <div className="lg:col-span-2">
         <Card title="Edit draft">
           <ApplicationForm
             institutions={institutions}
@@ -143,8 +161,10 @@ export function ApplicationDetailPage() {
             }}
           />
         </Card>
+        </div>
       ) : (
         <>
+          <div className="space-y-5">
           <Card title="Application details">
             <DefinitionGrid
               items={[
@@ -162,7 +182,7 @@ export function ApplicationDetailPage() {
 
           <Card title="Declared programmes and intake">
             <div className={TABLE.wrap}>
-              <table className={TABLE.table}>
+              <table className={`${TABLE.table} min-w-[32rem]`}>
                 <caption className="sr-only">Declared programmes</caption>
                 <thead>
                   <tr>
@@ -173,7 +193,7 @@ export function ApplicationDetailPage() {
                     <th scope="col" className={`${TABLE.th} text-right`}>Proposed</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line">
                   {a.programmes.map((p) => (
                     <tr key={`${p.programme_level}-${p.course_name}-${p.shift}`}>
                       <td className={TABLE.td}>{PROGRAMME_LEVEL_LABELS[p.programme_level]}</td>
@@ -186,17 +206,40 @@ export function ApplicationDetailPage() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Declared by the applicant; not yet verified against documents.</p>
+            <p className="mt-2 text-xs text-ink-subtle">Declared by the applicant; not yet verified against documents.</p>
           </Card>
+          </div>
         </>
       )}
+      </div>
 
-      <DocumentsPanel applicationCode={a.application_code} intakeOpen={a.document_intake_open} refreshKey={documentsVersion} />
+      <div id="documents" className="scroll-mt-28">
+        <DocumentsPanel applicationCode={a.application_code} intakeOpen={a.document_intake_open} refreshKey={documentsVersion}
+          onChanged={bump} />
+      </div>
 
-      <ScrutinyPanel applicationCode={a.application_code} onRunCompleted={() => setDocumentsVersion((v) => v + 1)} />
+      <div id="scrutiny" className="scroll-mt-28">
+        <ScrutinyPanel applicationCode={a.application_code} onRunCompleted={bump} focus={focus} />
+      </div>
 
-      <Card
-        title="Institution"
+      <div id="evidence" className="scroll-mt-28">
+        <EvidenceRequestsPanel applicationCode={a.application_code} version={documentsVersion} onChanged={bump} />
+      </div>
+
+      <div id="copilot" className="scroll-mt-28">
+        <CopilotPanel applicationCode={a.application_code}
+          onOpenFinding={(findingId) => {
+            setFocus({ findingId, nonce: Date.now() });
+            document.getElementById("scrutiny")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+          }} />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Card id="alerts" title="Alerts for this application">
+          <AlertList key={documentsVersion} applicationCode={a.application_code} compact />
+        </Card>
+        <Card id="institution"
+          title="Institution"
         actions={
           <Link to={`/institutions/${a.institution.institution_code}`} className={`${buttonStyles.link} text-sm`}>
             View institution
@@ -212,9 +255,9 @@ export function ApplicationDetailPage() {
           ]}
         />
         {a.institution_snapshot && (
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <h3 className="text-sm font-semibold text-slate-900">Recorded when marked ready</h3>
-            <p className="mb-3 text-xs text-slate-500">
+          <div className="mt-4 border-t border-line pt-4">
+            <h3 className="text-sm font-semibold text-ink">Recorded when marked ready</h3>
+            <p className="mb-3 text-xs text-ink-subtle">
               Captured {formatDateTime(a.institution_snapshot.captured_at)}. Later institution edits do not change this record.
             </p>
             <DefinitionGrid
@@ -227,6 +270,11 @@ export function ApplicationDetailPage() {
             />
           </div>
         )}
+      </Card>
+      </div>
+
+      <Card id="activity" title="Activity (audit trail for this application)">
+        <ActivityLog key={documentsVersion} applicationCode={a.application_code} />
       </Card>
     </div>
   );

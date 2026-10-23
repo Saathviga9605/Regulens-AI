@@ -43,7 +43,7 @@ describe("Institutions", () => {
     });
     renderApp("/institutions/new");
 
-    await userEvent.click(screen.getByRole("button", { name: "Create institution" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Create institution" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Please correct the highlighted fields.");
     expect(screen.getByText("Official name must be 3–200 characters.")).toBeInTheDocument();
     expect(screen.getByText("Select an institution type.")).toBeInTheDocument();

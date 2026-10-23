@@ -159,12 +159,43 @@ class FindingKind(StrEnum):
 
 
 class ReviewStatus(StrEnum):
-    """Human-review outcome, set only by a person. System findings start as not_reviewed."""
+    """Human-review state of a finding, changed only through review actions. Never an AICTE decision;
+    'confirmed' means a reviewer agrees the finding needs attention, not that fraud or non-compliance is proven."""
 
     NOT_REVIEWED = "not_reviewed"
-    ACKNOWLEDGED = "acknowledged"
-    NEEDS_FOLLOW_UP = "needs_follow_up"
+    CONFIRMED = "confirmed"
     DISMISSED = "dismissed"
+    ESCALATED = "escalated"
+    AWAITING_EVIDENCE = "awaiting_evidence"
+    RESOLVED = "resolved"
+
+
+class ReviewActionType(StrEnum):
+    CONFIRM = "confirm"
+    DISMISS = "dismiss"
+    ESCALATE = "escalate"
+    REQUEST_EVIDENCE = "request_evidence"
+    RESOLVE = "resolve"
+    REOPEN = "reopen"
+    NOTE = "note"
+    CARRIED_FORWARD = "carried_forward"  # system: review state copied to the same finding in a newer run
+
+
+class UserRole(StrEnum):
+    REVIEWER = "reviewer"
+    ADMIN = "admin"
+
+
+class EvidenceRequestStatus(StrEnum):
+    OPEN = "open"
+    FULFILLED = "fulfilled"
+    CANCELLED = "cancelled"
+
+
+class AuditOutcome(StrEnum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    DENIED = "denied"
 
 
 class VerificationOutcome(StrEnum):

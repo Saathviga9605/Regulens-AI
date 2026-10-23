@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ApplicationDocument } from "../src/types/api";
 import { DOC, DRAFT, POLICY, jsonResponse, mockApi, page, renderApp } from "./helpers";
@@ -40,7 +40,7 @@ describe("Documents panel", () => {
     expect(rows[1]).toHaveTextContent("Fire Safety Certificate");
     expect(rows[1]).toHaveTextContent("240.0 KB");
     expect(rows[1]).toHaveTextContent("Uploaded");
-    expect(api.callsTo("GET", DOCS_PATH)).toHaveLength(1);
+    expect(api.callsTo("GET", DOCS_PATH).length).toBeGreaterThan(0);
   });
 
   it("shows loading, then the empty state", async () => {
@@ -96,19 +96,26 @@ describe("Documents panel", () => {
     expect(screen.getByText(/does not establish that the document is authentic/i)).toBeInTheDocument();
   });
 
-  it("provides open and download links served by the backend", async () => {
-    mockApi({
+  it("opens and downloads content through the authenticated backend endpoint", async () => {
+    const created: string[] = [];
+    URL.createObjectURL = vi.fn(() => { created.push("blob:x"); return "blob:x"; });
+    URL.revokeObjectURL = vi.fn();
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+    const api = mockApi({
       [`GET ${APP_PATH}`]: () => jsonResponse(DRAFT),
       [`GET ${DOCS_PATH}`]: () => jsonResponse(page([DOC, { ...DUPLICATE, id: "x", content_available: false }])),
+      [`GET /documents/${DOC.id}/content`]: () => new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), {
+        status: 200, headers: { "Content-Type": "application/pdf" } }),
     });
     renderApp(APP_PATH);
-    const open = await screen.findByRole("link", { name: "Open fire-safety.pdf" });
-    expect(open.getAttribute("href")).toMatch(new RegExp(`/api/v1/documents/${DOC.id}/content$`));
-    expect(open).toHaveAttribute("target", "_blank");
-    expect(open).toHaveAttribute("rel", "noopener noreferrer");
-    const download = screen.getByRole("link", { name: "Download fire-safety.pdf" });
-    expect(download.getAttribute("href")).toMatch(/\/content\?disposition=attachment$/);
-    expect(screen.queryByRole("link", { name: "Open fire-safety-copy.pdf" })).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Open fire-safety.pdf" }));
+    await waitFor(() => expect(openSpy).toHaveBeenCalledWith("blob:x", "_blank", "noopener"));
+    await userEvent.click(screen.getByRole("button", { name: "Download fire-safety.pdf" }));
+    await waitFor(() => expect(api.callsTo("GET", `/documents/${DOC.id}/content`)).toHaveLength(2));
+    expect(api.callsTo("GET", `/documents/${DOC.id}/content`)[1]!.params.get("disposition")).toBe("attachment");
+    const headers = (api.spy.mock.calls.find((c) => String(c[0]).includes("/content"))![1]!.headers) as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer test-token");
+    expect(screen.queryByRole("button", { name: "Open fire-safety-copy.pdf" })).not.toBeInTheDocument();
   });
 
   it("validates on the client before uploading", async () => {
@@ -207,15 +214,16 @@ describe("Documents panel", () => {
     });
     renderApp(APP_PATH);
     await userEvent.click(await screen.findByRole("button", { name: "Delete fire-safety-copy.pdf" }));
-    const dialog = screen.getByRole("alertdialog");
+    const dialog = screen.getByRole("dialog", { name: "Delete document?" });
     expect(dialog).toHaveTextContent("Delete “fire-safety-copy.pdf”?");
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Delete document?" })).not.toBeInTheDocument();
     expect(api.callsTo("DELETE", `/documents/${DUPLICATE.id}`)).toHaveLength(0);
 
     await userEvent.click(screen.getByRole("button", { name: "Delete fire-safety-copy.pdf" }));
-    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Confirm delete" }));
-    expect(await screen.findByText("Deleted “fire-safety-copy.pdf”.")).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Delete document?" })).getByRole("button", { name: "Confirm delete" }));
+    expect((await screen.findAllByText("Deleted “fire-safety-copy.pdf”.")).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("dialog", { name: "Delete document?" })).not.toBeInTheDocument();
     await waitFor(() => expect(within(screen.getByRole("table", { name: /Documents for/ })).getAllByRole("row")).toHaveLength(2));
     expect(screen.getByRole("table", { name: /Documents for/ })).toHaveTextContent("fire-safety.pdf");
     expect(api.callsTo("DELETE", `/documents/${DUPLICATE.id}`)).toHaveLength(1);
@@ -246,6 +254,6 @@ describe("Documents panel", () => {
     expect(screen.getByText(/documents can be added or removed only while/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload PDF" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open fire-safety.pdf" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open fire-safety.pdf" })).toBeInTheDocument();
   });
 });

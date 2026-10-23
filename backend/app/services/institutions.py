@@ -7,6 +7,7 @@ from app.core.errors import NotFoundError
 from app.db.types import utcnow
 from app.models import Institution
 from app.models.enums import RecordStatus
+from app.services import audit
 from app.schemas.institution import InstitutionCreate, InstitutionUpdate
 from app.services.codes import next_institution_code
 from app.services.querying import LIKE_ESCAPE, contains_pattern, paginate
@@ -24,6 +25,8 @@ def create_institution(session: Session, data: InstitutionCreate, *, seed_key: s
         **data.model_dump(),
     )
     session.add(institution)
+    session.flush()
+    audit.record(session, "institution.created", "institution", institution.institution_code)
     session.commit()
     return institution
 
@@ -72,5 +75,7 @@ def update_institution(session: Session, institution_code: str, data: Institutio
         institution.name_normalized = normalize_name(changes["name"])
     if changes:
         institution.updated_at = utcnow()
+        audit.record(session, "institution.updated", "institution", institution_code,
+                     details={"changed": sorted(changes)})
     session.commit()
     return institution

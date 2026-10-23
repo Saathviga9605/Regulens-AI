@@ -2,6 +2,7 @@
 
 import os
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -42,8 +43,51 @@ def app(settings: Settings) -> FastAPI:
     return create_app(settings)
 
 
+TEST_PASSWORD = "test-password-123"
+
+
+def authenticate(client: TestClient, role: str = "admin", username: str | None = None) -> TestClient:
+    """Create (if needed) a test user directly in the DB and sign the client in with a bearer token."""
+    from app.models.enums import UserRole
+    from app.services import auth
+
+    username = username or f"test.{role}"
+    with client.app.state.session_factory() as session:
+        from sqlalchemy import select
+
+        from app.models import User
+
+        if session.execute(select(User.id).where(User.username == username)).first() is None:
+            auth.create_user(session, username=username, display_name=username, role=UserRole(role),
+                             password=TEST_PASSWORD)
+    response = client.post("/api/v1/auth/login", json={"username": username, "password": TEST_PASSWORD})
+    assert response.status_code == 200, response.text
+    client.headers["Authorization"] = f"Bearer {response.json()['token']}"
+    return client
+
+
+@contextmanager
+def authed_client(app: FastAPI, role: str = "admin", **kwargs) -> Iterator[TestClient]:
+    with TestClient(app, **kwargs) as c:
+        yield authenticate(c, role)
+
+
 @pytest.fixture
 def client(app: FastAPI) -> Iterator[TestClient]:
+    """Signed in as a test administrator (the pre-auth tests exercise functionality, not permissions)."""
+    with authed_client(app, raise_server_exceptions=False) as c:
+        yield c
+
+
+@pytest.fixture
+def reviewer(app: FastAPI, client: TestClient) -> Iterator[TestClient]:
+    """A second client on the same app, signed in as a reviewer."""
+    with TestClient(app, raise_server_exceptions=False) as c:
+        yield authenticate(c, "reviewer")
+
+
+@pytest.fixture
+def anon(app: FastAPI, client: TestClient) -> Iterator[TestClient]:
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
 

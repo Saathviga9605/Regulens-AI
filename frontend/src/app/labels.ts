@@ -10,6 +10,7 @@ import type {
   PageStatus,
   ProcessingStatus,
   ReviewStatus,
+  ReviewActionType,
   RuleOutcome,
   Severity,
   VerificationOutcome,
@@ -47,11 +48,11 @@ export const TRANSITION_ACTIONS: Record<ApplicationStatus, string> = {
 };
 
 export const STATUS_STYLES: Record<ApplicationStatus, string> = {
-  draft: "bg-slate-100 text-slate-700 ring-slate-300",
-  ready_for_preliminary_scrutiny: "bg-blue-50 text-blue-800 ring-blue-200",
-  under_preliminary_scrutiny: "bg-indigo-50 text-indigo-800 ring-indigo-200",
-  awaiting_additional_evidence: "bg-amber-50 text-amber-900 ring-amber-200",
-  preliminary_scrutiny_completed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  draft: "bg-surface-muted text-ink ring-line",
+  ready_for_preliminary_scrutiny: "bg-info-bg text-brand-800 ring-info-line",
+  under_preliminary_scrutiny: "bg-info-bg text-info-700 ring-info-line",
+  awaiting_additional_evidence: "bg-warning-bg text-warning-800 ring-warning-line",
+  preliminary_scrutiny_completed: "bg-success-bg text-success-700 ring-success-line",
 };
 
 export const APPLICATION_TYPE_LABELS: Record<ApplicationType, string> = {
@@ -98,9 +99,9 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
 };
 
 export const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, string> = {
-  uploaded: "bg-slate-100 text-slate-700 ring-slate-300",
-  duplicate_detected: "bg-amber-50 text-amber-900 ring-amber-200",
-  intake_failed: "bg-red-50 text-red-800 ring-red-200",
+  uploaded: "bg-surface-muted text-ink ring-line",
+  duplicate_detected: "bg-warning-bg text-warning-800 ring-warning-line",
+  intake_failed: "bg-danger-bg text-danger-700 ring-danger-line",
 };
 
 export const PROCESSING_STATUS_LABELS: Record<ProcessingStatus, string> = {
@@ -110,9 +111,9 @@ export const PROCESSING_STATUS_LABELS: Record<ProcessingStatus, string> = {
 };
 
 export const PROCESSING_STATUS_STYLES: Record<ProcessingStatus, string> = {
-  completed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  completed_with_warnings: "bg-amber-50 text-amber-900 ring-amber-200",
-  failed: "bg-red-50 text-red-800 ring-red-200",
+  completed: "bg-success-bg text-success-700 ring-success-line",
+  completed_with_warnings: "bg-warning-bg text-warning-800 ring-warning-line",
+  failed: "bg-danger-bg text-danger-700 ring-danger-line",
 };
 
 export const PAGE_STATUS_LABELS: Record<PageStatus, string> = {
@@ -130,10 +131,10 @@ export const FIELD_STATUS_LABELS: Record<FieldStatus, string> = {
 };
 
 export const FIELD_STATUS_STYLES: Record<FieldStatus, string> = {
-  extracted: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  not_found: "bg-slate-100 text-slate-700 ring-slate-300",
-  ambiguous: "bg-amber-50 text-amber-900 ring-amber-200",
-  unverified: "bg-red-50 text-red-800 ring-red-200",
+  extracted: "bg-success-bg text-success-700 ring-success-line",
+  not_found: "bg-surface-muted text-ink ring-line",
+  ambiguous: "bg-warning-bg text-warning-800 ring-warning-line",
+  unverified: "bg-danger-bg text-danger-700 ring-danger-line",
 };
 
 export function fieldLabel(name: string): string {
@@ -149,19 +150,19 @@ export const OUTCOME_LABELS: Record<RuleOutcome, string> = {
 };
 
 export const OUTCOME_STYLES: Record<RuleOutcome, string> = {
-  pass: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  issue: "bg-red-50 text-red-800 ring-red-200",
-  inconclusive: "bg-amber-50 text-amber-900 ring-amber-200",
-  not_applicable: "bg-slate-100 text-slate-600 ring-slate-300",
+  pass: "bg-success-bg text-success-700 ring-success-line",
+  issue: "bg-danger-bg text-danger-700 ring-danger-line",
+  inconclusive: "bg-warning-bg text-warning-800 ring-warning-line",
+  not_applicable: "bg-surface-muted text-ink-muted ring-line",
 };
 
 export const SEVERITY_LABELS: Record<Severity, string> = { high: "High", medium: "Medium", low: "Low", info: "Info" };
 
 export const SEVERITY_STYLES: Record<Severity, string> = {
-  high: "bg-red-700 text-white ring-red-700",
-  medium: "bg-orange-100 text-orange-900 ring-orange-300",
-  low: "bg-sky-50 text-sky-900 ring-sky-200",
-  info: "bg-slate-100 text-slate-700 ring-slate-300",
+  high: "bg-danger-700 text-white ring-danger-700",
+  medium: "bg-saffron-100 text-warning-800 ring-warning-line",
+  low: "bg-info-bg text-info-700 ring-info-line",
+  info: "bg-surface-muted text-ink ring-line",
 };
 
 export const FINDING_KIND_LABELS: Record<FindingKind, string> = {
@@ -171,9 +172,52 @@ export const FINDING_KIND_LABELS: Record<FindingKind, string> = {
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   not_reviewed: "Not reviewed",
-  acknowledged: "Acknowledged",
-  needs_follow_up: "Needs follow-up",
+  confirmed: "Confirmed by reviewer",
   dismissed: "Dismissed",
+  escalated: "Escalated",
+  awaiting_evidence: "Awaiting evidence",
+  resolved: "Resolved",
+};
+
+export const REVIEW_STATUS_STYLES: Record<ReviewStatus, string> = {
+  not_reviewed: "bg-surface-muted text-ink ring-line",
+  confirmed: "bg-brand-50 text-brand-800 ring-brand-100",
+  dismissed: "bg-surface-muted text-ink-subtle ring-line",
+  escalated: "bg-danger-bg text-danger-700 ring-danger-line",
+  awaiting_evidence: "bg-warning-bg text-warning-800 ring-warning-line",
+  resolved: "bg-success-bg text-success-700 ring-success-line",
+};
+
+export const REVIEW_ACTION_LABELS: Record<ReviewActionType, string> = {
+  confirm: "Confirm finding",
+  dismiss: "Dismiss",
+  escalate: "Escalate",
+  request_evidence: "Request evidence",
+  resolve: "Mark resolved",
+  reopen: "Reopen",
+  note: "Add observation",
+  carried_forward: "Carried forward from previous run",
+};
+
+/** Actions that require a reason of at least 10 characters (enforced by the server too). */
+export const REASON_REQUIRED: ReviewActionType[] = ["dismiss", "escalate", "resolve", "reopen", "request_evidence", "note"];
+
+export const REVIEW_STATE_LABELS: Record<string, string> = {
+  no_scrutiny: "No scrutiny yet",
+  not_started: "Review not started",
+  in_progress: "Review in progress",
+  complete: "No unresolved findings",
+};
+
+export const ALERT_EVENT_LABELS: Record<string, string> = {
+  high_severity_finding: "High-severity finding",
+  scrutiny_completed_with_issues: "Scrutiny completed with issues",
+  evidence_requested: "Evidence requested",
+  evidence_due_soon: "Evidence due soon",
+  evidence_overdue: "Evidence overdue",
+  evidence_uploaded: "Evidence uploaded",
+  finding_escalated: "Finding escalated",
+  processing_failed: "Processing failure",
 };
 
 export const VERIFICATION_OUTCOME_LABELS: Record<VerificationOutcome, string> = {

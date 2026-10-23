@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last verified: 2026-10-23 (Deliverable 4) on Windows 11, Python 3.13.14, Node 24.19.0 / npm 11.17.0.
+Last verified: 2026-10-24 (Deliverable 6) on Windows 11, Python 3.13.14, Node 24.19.0 / npm 11.17.0.
 
 Statuses: **Implemented and tested** · **Implemented but not fully tested** · **Planned** · **Blocked**
 
@@ -87,13 +87,44 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Demo seed (12 fictional PDFs, 4 synthetic references), idempotent, user data preserved | Implemented and tested | seed tests; CLI run twice |
 | Frontend: processing controls, fields/evidence, page text, simulated checks, scrutiny panel, findings filters/detail/review, run history, rules page | Implemented and tested | `scrutiny.test.tsx` (13); browser |
 
+## Deliverable 5 — Reviewer workspace, decisions, audit, alerts, report, copilot
+
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| Migration `0004` (new tables; legacy review values mapped; downgrade/upgrade checked) | Implemented and tested | manual migration check with legacy data; migration test |
+| Local auth: scrypt hashes, hashed bearer sessions, expiry, revocation, lockout, logout | Implemented and tested | `test_auth.py`; browser sign-in/out |
+| Roles enforced server-side (rules, users, global audit = admin) with audited denials | Implemented and tested | `test_reviewer_cannot_use_admin_endpoints`; browser |
+| User management (create, role change, deactivate, no self-lockout) | Implemented and tested | `test_admin_user_management`; browser |
+| Review queue with filters, counts, stable sort, pagination | Implemented and tested | `test_review_queue_…`; browser |
+| Review actions with reasons, transitions, optimistic concurrency, history, carry-forward | Implemented and tested | `test_review_actions_…`, `test_invalid_transitions_…`; browser |
+| Evidence requests: create, explicit link at upload or later, fulfil, cancel, overdue | Implemented and tested | evidence tests; browser |
+| Application-level append-only audit (no update/delete API) | Implemented and tested | `test_audit_trail_…`; browser |
+| Alerts with dedup, per-user read state, due/overdue | Implemented and tested | alert tests; browser |
+| Preliminary scrutiny PDF (content, escaping, auth, audit) | Implemented and tested | report tests; browser download inspected |
+| Deterministic grounded copilot (intents, citations, refusals, isolation, injection-safe) | Implemented and tested | 13 copilot tests; browser |
+| Frontend: sign-in, queue, review actions, evidence, alerts, copilot, report, audit, users, read-only rules | Implemented and tested | `workspace.test.tsx` (16) + updated suites |
+| Per-application reviewer assignment | Planned | not implemented — all reviewers see all applications |
+
+## Deliverable 6 — Government-grade UI revamp and local demo accounts
+
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| Design tokens and typed component library (fields, password toggle, dialogs, confirm dialogs, toasts, tabs, breadcrumbs, skeletons, progress, empty/error states) | Implemented and tested | `shell.test.tsx` (dialog focus trap/restore, Escape, double submit, toasts, tabs); [design-system.md](design-system.md) |
+| Shell: header with original mark, environment badge, unread alerts, account menu; grouped navigation; persistent trust notice; mobile drawer | Implemented and tested | `shell.test.tsx`, `dashboard.test.tsx`; browser at 360–1920 px |
+| Overview with live queue counts, priorities, recent alerts and applications | Implemented and tested | `dashboard.test.tsx`; browser |
+| Login: show/hide password, lockout and missing-field messages, demo indicator, no credentials rendered | Implemented and tested | `shell.test.tsx`, `workspace.test.tsx`; browser |
+| Confirmations: document delete, rule enable/disable/severity, user role and active state | Implemented and tested | `documents.test.tsx`, `scrutiny.test.tsx`, `workspace.test.tsx`; browser (cancel sends nothing) |
+| Application workspace section navigation, breadcrumbs, responsive tables | Implemented and tested | browser overflow sweep (no page-level horizontal scroll on 14 routes × 6 widths) |
+| Help & About page | Implemented and tested | `shell.test.tsx` |
+| Demo account bootstrap from env (idempotent, hashed, production-guarded, never printed or audited) | Implemented and tested | `test_demo_bootstrap.py` (6) |
+| Repo-owned browser smoke script (`npm run smoke`, opt-in writes) | Implemented and tested | passed twice consecutively on a scratch DB |
+| Automated contrast audit (axe or similar) | Planned | colours chosen for WCAG AA; not tool-audited |
+
 ## Later deliverables
 
 | Feature | Status |
 |---------|--------|
 | Verified regulatory sources for rules (replacing demo-only expectations) | Planned |
-| Cross-application review queue, final human decisions, audit trail, preliminary reports | Planned |
-| Authentication & roles | Planned |
 | Background processing worker | Planned (only if needed) |
 | Real issuer integrations | Not planned without official authorisation |
 
@@ -133,17 +164,35 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Seed run twice | 12 demo documents + 4 references created, then 0 |
 | Real browser E2E (Playwright + headless Edge, scratch DB/storage, OCR unavailable) | all 12 acceptance steps passed; screenshots inspected |
 
+## Verification log — Deliverable 5 (2026-10-24)
+
+| Check | Result |
+|-------|--------|
+| Baseline before changes | 171 passed + 1 skipped backend, 53 frontend, tsc clean, build OK |
+| `python -m pytest` | **204 passed, 1 skipped** (skip = real Tesseract) |
+| `npm test` | **71 passed** |
+| `npm run typecheck` / `npm run build` | 0 errors / success |
+| Real browser E2E (Playwright + headless Edge, scratch DB, demo accounts from env) | all 14 acceptance steps passed |
+
+## Verification log — Deliverable 6 (2026-10-24)
+
+| Check | Result |
+|-------|--------|
+| `python -m pytest` | **210 passed, 1 skipped** (skip = real Tesseract) |
+| `npm test` | **80 passed** (7 files) |
+| `npm run typecheck` / `npm run build` / `npm audit` | 0 errors / success / 0 vulnerabilities |
+| Demo passwords in `frontend/dist` or `src` | none found |
+| Real browser (Edge headless via Playwright), scratch DB on ports 8030/5195 | login, overview, queue, scrutiny, finding action (double-click → 1 audit event), upload, delete dialog (cancel/confirm), copilot citation, report PDF, reviewer 403, rule and user confirmations, audit without secrets; no page overflow at 360/390/768/1024/1440/1920; mobile drawer and dialog fit; only console error = intentional wrong-password 401 |
+| Screenshots reviewed | login, overview, workspace with delete dialog, mobile drawer |
+
 ## Known limitations
 
 - Application creation form loads at most the first 100 active institutions (alphabetical) into the selector.
 - Academic-year choices in the UI are fixed to 2024-25 … 2027-28 (the API accepts any valid year).
 - The ID-sequence upsert is SQLite-dialect specific.
-- Status changes record no actor or note yet (audit trail is a later deliverable).
-- No authentication: anyone who can reach the API can change data **or download any document by id**.
-  Document ids are random UUIDs, but that is not access control. Dev/local use only.
 - PDF checks are structural (signature, `%%EOF`); a crafted file can pass them. Files are never executed or
   rendered by the backend, but the PDF is opened by the user's browser viewer.
-- No malware scanning, no encryption at rest, no upload progress percentage.
+- No malware scanning, no encryption at rest. Upload progress is an indeterminate bar (fetch exposes no byte progress).
 - Duplicate detection is exact-byte only; re-saved or re-scanned copies are not detected (by design).
 - A crash between delete-commit and file discard can leave an orphan file in `.trash/`.
 - Extraction recognises only `Label: value` lines in English; tables, multi-line values and unusual wording are missed.
@@ -152,6 +201,11 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 - All default expectation rules are demo-only and unverified against official sources; no regulatory citation exists.
 - Issuer verification is simulated against synthetic records only; there is no real integration.
 - Processing and scrutiny run synchronously in the HTTP request; very large or many scanned documents will be slow.
-- Human review records status/note without reviewer identity (no authentication yet).
-- Browser E2E script lives outside the repo (not part of the automated suite).
-- Port 5173 is occupied by an unrelated app on the verification machine; browser checks used port 5180.
+- Authentication is a local prototype scheme (no SSO/MFA/password reset); every reviewer can access every
+  application; the audit log is application-level append-only, not tamper-evident or certified.
+- The copilot is keyword-intent based: unusual phrasings fall back to help text; it summarises stored records only.
+- Report fonts cover Latin text; other scripts may not render. Review queue counts are computed in memory.
+- Alerts are visible to all staff; there are no email/SMS notifications.
+- The browser smoke script (`frontend/e2e/smoke.mjs`) is manual: it needs running servers and is not part of `npm test`.
+- Local demo credentials are public defaults; they must be changed before sharing (see security.md).
+- Ports 8000 and 5173 were in use on the verification machine; browser checks used scratch servers on 8030/5195.

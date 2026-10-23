@@ -1,91 +1,56 @@
 import {
+  Bell,
   Building2,
   ClipboardList,
-  FileCheck2,
   FileText,
   History,
   LayoutDashboard,
-  ShieldCheck,
+  LifeBuoy,
   SlidersHorizontal,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
-export interface ModuleDefinition {
+export interface NavItem {
   path: string;
   label: string;
   icon: LucideIcon;
-  summary: string;
-  /** false = route renders a clearly labelled "Planned" placeholder. */
-  available: boolean;
-  plannedScope: string[];
+  /** Shown only to administrators. The backend enforces the same restriction independently. */
+  adminOnly?: boolean;
 }
 
-export const DASHBOARD_NAV = { path: "/", label: "Dashboard", icon: LayoutDashboard } as const;
+export interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
 
-export const MODULES: ModuleDefinition[] = [
+/** Sidebar structure. Every path here is a real, implemented route (see App.tsx). */
+export const NAV_GROUPS: NavGroup[] = [
   {
-    path: "/applications",
-    label: "Applications",
-    icon: FileText,
-    summary: "EoA applications, their documents, extracted evidence and preliminary scrutiny findings.",
-    available: true,
-    plannedScope: [],
+    label: "Overview",
+    items: [{ path: "/", label: "Overview", icon: LayoutDashboard }],
   },
   {
-    path: "/institutions",
-    label: "Institutions",
-    icon: Building2,
-    summary: "Manage fictional institution records used by applications.",
-    available: true,
-    plannedScope: [],
-  },
-  {
-    path: "/scrutiny-rules",
-    label: "Scrutiny Rules",
-    icon: SlidersHorizontal,
-    summary: "View and configure the deterministic preliminary-scrutiny rules and their source status.",
-    available: true,
-    plannedScope: [],
-  },
-  {
-    path: "/review-queue",
-    label: "Review Queue",
-    icon: ClipboardList,
-    summary: "Cross-application queue of findings awaiting human review.",
-    available: false,
-    plannedScope: [
-      "Prioritised list of open findings across applications",
-      "Reviewer assignment (requires authentication)",
+    label: "Scrutiny work",
+    items: [
+      { path: "/review-queue", label: "Review Queue", icon: ClipboardList },
+      { path: "/applications", label: "Applications", icon: FileText },
+      { path: "/institutions", label: "Institutions", icon: Building2 },
+      { path: "/alerts", label: "Alerts", icon: Bell },
     ],
   },
   {
-    path: "/verification",
-    label: "Verification",
-    icon: ShieldCheck,
-    summary: "Cross-application overview of issuer-verification attempts.",
-    available: false,
-    plannedScope: [
-      "Overview of simulated checks across applications (per-document simulated checks already exist)",
-      "Real issuer integrations only if officially authorised — none exist in this prototype",
+    label: "Administration",
+    items: [
+      { path: "/scrutiny-rules", label: "Scrutiny Rules", icon: SlidersHorizontal },
+      { path: "/users", label: "Users", icon: Users, adminOnly: true },
+      { path: "/audit-trail", label: "Audit Trail", icon: History, adminOnly: true },
     ],
   },
   {
-    path: "/reports",
-    label: "Reports",
-    icon: FileCheck2,
-    summary: "Preliminary scrutiny reports to support reviewer decisions.",
-    available: false,
-    plannedScope: [
-      "Evidence-cited preliminary scrutiny reports",
-      "Reviewer notes and final human decision recording",
-    ],
-  },
-  {
-    path: "/audit-trail",
-    label: "Audit Trail",
-    icon: History,
-    summary: "Immutable record of actions taken on applications.",
-    available: false,
-    plannedScope: ["Chronological audit log of user and system actions", "Filtering by application and actor"],
+    label: "Support",
+    items: [{ path: "/help", label: "Help & About", icon: LifeBuoy }],
   },
 ];
+
+export const TRUST_NOTICE = "Decision-support prototype. Findings require human review. Not an official AICTE decision.";

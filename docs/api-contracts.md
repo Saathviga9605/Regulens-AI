@@ -322,3 +322,37 @@ the application status are not changed.
 ## CORS
 Allowed origins from `REGULENS_CORS_ORIGINS` (exact match); credentials not allowed; `*` rejected in production.
 `/docs` and `/openapi.json` are served outside production only.
+
+## Deliverable 5 endpoints
+
+All require `Authorization: Bearer <token>` except login (401 `not_authenticated` otherwise). Admin-only routes
+return 403 `forbidden` to reviewers. Details and state tables: [review-workflow.md](review-workflow.md),
+[security.md](security.md).
+
+| Method & path | Role | Notes |
+|---|---|---|
+| `POST /auth/login` `{username, password}` | public | → `{token, token_type, expires_at, user}`; 401 `invalid_credentials`; 429 `too_many_attempts` |
+| `POST /auth/logout` | any | 204, revokes session |
+| `GET /auth/me` | any | current user |
+| `GET /users`, `POST /users`, `PATCH /users/{id}` | admin | create `{username, display_name, role, password≥10}`; patch `{display_name?, role?, is_active?, password?}`; 409 `user_exists` / `self_lockout` |
+| `GET /review-queue` | any | `q, status, scrutiny_status, severity, unresolved_only, review_state, sort, page, page_size` → `{items, total, page, page_size, total_pages, counts}` |
+| `POST /applications/{code}/findings/{id}/actions` | any | `{action, expected_version, note?, evidence_refs?[], requested_evidence?, due_date?}` → 201 action; 409 `invalid_review_transition` / `stale_review` / `finding_superseded`; 422 `reason_required` |
+| `GET /applications/{code}/findings/{id}/actions` | any | review history (oldest first) |
+| `GET /applications/{code}/review-actions` | any | latest 100 actions for the application |
+| `GET /applications/{code}/evidence-requests?status=open\|fulfilled\|cancelled\|overdue` | any | list |
+| `POST /applications/{code}/evidence-requests` | any | `{requested_evidence, reason≥10, due_date?, finding_id?}` |
+| `POST …/evidence-requests/{id}/documents` `{document_id}` | any | explicit link; 409 `already_linked` / `evidence_request_closed` |
+| `POST …/evidence-requests/{id}/fulfil` `{expected_version, note?}` | any | 409 `no_linked_evidence` / stale |
+| `POST …/evidence-requests/{id}/cancel` `{expected_version, note≥10}` | any | |
+| `POST /applications/{code}/documents` | any | new optional form field `evidence_request_id` (must be an open request of the same application) |
+| `GET /audit-events` | admin | filters `action` (prefix), `actor`, `outcome`, `resource_type`, `application_code`; paginated, newest first; **no PUT/PATCH/DELETE** |
+| `GET /applications/{code}/audit-events` | any | same, scoped to one application |
+| `GET /alerts` | any | `unread_only, application_code, event_type, page, page_size` → page + `unread_count`; refreshes due/overdue alerts |
+| `POST /alerts/read` `{alert_ids[]}` / `POST /alerts/read-all[?application_code]` | any | 204, per-user read state |
+| `GET /applications/{code}/scrutiny-runs/{run}/report.pdf` | any | PDF attachment; 404 if the run belongs to another application; 409 `run_not_reportable` for failed/running runs |
+| `POST /applications/{code}/copilot` `{question 2–500, finding_id?}` | any | → `{intent, lines[], sources[{id, kind, label, finding_id, document_id, document_filename, page_number, quote}], grounded, limitations[], disclaimer, suggestions[]}` |
+
+Changed: findings now include `review_version` and `allowed_actions`; review states are
+`not_reviewed | confirmed | dismissed | escalated | awaiting_evidence | resolved`. The previous
+`PATCH …/findings/{id}/review` endpoint was **removed** (replaced by review actions). Document content and reports
+require the bearer header; `Content-Disposition` is exposed via CORS.

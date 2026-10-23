@@ -22,8 +22,10 @@ export function InstitutionsListPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
+        eyebrow="Scrutiny work"
+        breadcrumbs={[{ label: "Overview", to: "/" }, { label: "Institutions" }]}
         title="Institutions"
         description="Fictional institution records used for prototype EoA applications."
         actions={
@@ -32,7 +34,7 @@ export function InstitutionsListPage() {
           </Link>
         }
       />
-      <form role="search" onSubmit={onSearch} className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end">
+      <form role="search" onSubmit={onSearch} className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-4 shadow-sm sm:flex-row sm:items-end">
         <div className="flex-1">
           <TextField label="Search institutions" type="search" placeholder="Name or institution code" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
@@ -50,7 +52,7 @@ export function InstitutionsListPage() {
       ) : result.data ? (
         <div>
           <div className={TABLE.wrap}>
-            <table className={TABLE.table}>
+            <table className={`${TABLE.table} min-w-[44rem]`}>
               <caption className="sr-only">Institutions</caption>
               <thead>
                 <tr>
@@ -61,9 +63,9 @@ export function InstitutionsListPage() {
                   <th scope="col" className={TABLE.th}>Record status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {result.data.items.map((i) => (
-                  <tr key={i.institution_code} className="hover:bg-slate-50">
+                  <tr key={i.institution_code} className="hover:bg-surface-muted">
                     <td className={TABLE.td}>
                       <Link to={`/institutions/${i.institution_code}`} className={buttonStyles.link}>
                         {i.name}

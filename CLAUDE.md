@@ -33,13 +33,14 @@ React 18, Vite 6, TypeScript (strict), Tailwind CSS v4, React Router 7, lucide-r
 # backend
 cd backend; python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements.lock.txt; pip install -e ".[dev]"
-python -m app.cli migrate; python -m app.cli seed  # schema + synthetic data
+python -m app.cli migrate; python -m app.cli seed  # schema + synthetic data + local demo accounts
 python -m pytest                                   # tests
 python -m uvicorn app.main:app --reload --port 8000  # run
 
 # frontend
 cd frontend; npm ci
 npm test; npm run typecheck; npm run build; npm run dev
+npm run smoke   # real-browser smoke; WRITES data: scratch DB + SMOKE_ALLOW_WRITES=1 only (README)
 ```
 
 ## Coding conventions
@@ -50,7 +51,15 @@ npm test; npm run typecheck; npm run build; npm run dev
 - Frontend: strict TS, no `any`. Shared API types in `src/types/api.ts` mirror backend schemas — update both.
   Enum display labels live in `src/app/labels.ts`. Components never call `fetch` directly: add methods to
   `services/apiClient.ts` and load data with `useApiQuery`. Reuse `components/ui.tsx` primitives (fields,
-  states, table styles). Never render hardcoded records; tests mock `fetch` with `tests/helpers.tsx:mockApi`. Tailwind utility classes; slate/navy + restrained blue palette.
+  states, table styles). Never render hardcoded records; tests mock `fetch` with `tests/helpers.tsx:mockApi`.
+- UI design system (`docs/design-system.md`): use only the tokens in `src/index.css` (`brand-*`, `ink*`, `line*`,
+  `surface*`, `danger/warning/success/info-*`, `rounded-control/panel`) — no raw `slate-*`/`blue-*` classes. Build
+  pages from `ui.tsx` (`PageHeader` with breadcrumbs, `Card`, fields, `ConfirmDialog`, `Alert`, states) and `useToast`.
+  Consequential changes (delete, rule/role/active changes) go through `ConfirmDialog`; disable submit while busy;
+  keep input on failure; show success only after the API confirms. Tables get a caption, `TABLE.wrap` and a
+  `min-w-[…]`. Never use a government emblem or imply AICTE affiliation; keep the trust notice in the shell.
+- Local demo accounts come from `REGULENS_DEMO_*` settings and `bootstrap_demo_users`; never print, log, audit,
+  return or bundle their passwords, and never enable them in production.
 - Keep new modules out of the tree until they have real code. No empty placeholders claiming functionality.
 
 ## API conventions
@@ -98,6 +107,18 @@ npm test; npm run typecheck; npm run build; npm run dev
 - Issuer verification goes through `IssuerVerificationAdapter`; anything simulated must carry the label
   "SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY". No network calls to real authorities.
 - Demo data must be fictional and bannered; seeds are idempotent via `seed_key` and never modify existing rows.
+
+## Auth, review and audit conventions
+
+- Every new router is protected via `api/v1/router.py` (`get_current_actor`); admin-only routes add
+  `Depends(require_admin)`. Never trust user ids or roles from request bodies.
+- Important state changes call `audit.record(session, ...)` before the same commit; failures/denials use
+  `audit.record_now`. Audit details: ids, counts, statuses, field names — never document text, questions, passwords.
+- Human review changes go through `services/review.py` (transitions, reasons, `expected_version`); never modify a
+  finding's system fields. Alerts use `alerts.raise_alert` with a deterministic dedup key.
+- The copilot must stay retrieval/template based: answers cite stored records, quote document text only as labelled
+  data, and refuse decisions, other applications and unverified regulatory claims.
+- Tests: the `client` fixture is an authenticated admin; use `reviewer`/`anon` fixtures for permission tests.
 
 ## Request/response schema conventions
 

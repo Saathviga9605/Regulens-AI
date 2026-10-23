@@ -11,7 +11,7 @@ from app.core.config import REPO_ROOT
 from app.main import create_app
 from app.models import Document
 from app.services.storage import DocumentStorage, StorageError
-from tests.conftest import application_payload, institution_payload, make_settings
+from tests.conftest import authed_client, application_payload, institution_payload, make_settings
 
 
 def make_pdf(text: str = "hello") -> bytes:
@@ -104,7 +104,7 @@ def test_oversized_upload_rejected(tmp_path: Path) -> None:
     settings = make_settings(tmp_path / "small.db", max_upload_bytes=2048)
     app = create_app(settings)
     storage = app.state.document_storage
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         inst = client.post("/api/v1/institutions", json=institution_payload()).json()
         code = client.post("/api/v1/applications", json=application_payload(inst["institution_code"])).json()["application_code"]
         # Just over the limit: caught while streaming by the service.
@@ -175,11 +175,11 @@ def test_list_is_scoped_to_application(client, code, institution) -> None:
 
 def test_metadata_persists_across_sessions(tmp_path: Path) -> None:
     settings = make_settings(tmp_path / "persist.db")
-    with TestClient(create_app(settings)) as c1:
+    with authed_client(create_app(settings)) as c1:
         inst = c1.post("/api/v1/institutions", json=institution_payload()).json()
         code = c1.post("/api/v1/applications", json=application_payload(inst["institution_code"])).json()["application_code"]
         doc = upload(c1, code, make_pdf("persist")).json()
-    with TestClient(create_app(settings)) as c2:
+    with authed_client(create_app(settings)) as c2:
         assert c2.get(f"/api/v1/documents/{doc['id']}").json() == doc
         assert c2.get(f"/api/v1/documents/{doc['id']}/content").content == make_pdf("persist")
 

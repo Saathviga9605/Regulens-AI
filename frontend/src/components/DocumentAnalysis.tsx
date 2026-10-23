@@ -38,7 +38,7 @@ function normalizedText(f: ExtractedField): string | null {
 }
 
 function FieldsTable({ fields }: { fields: ExtractedField[] }) {
-  if (fields.length === 0) return <p className="text-sm text-slate-600">No fields were extracted.</p>;
+  if (fields.length === 0) return <p className="text-sm text-ink-muted">No fields were extracted.</p>;
   return (
     <div className={TABLE.wrap}>
       <table className={TABLE.table}>
@@ -51,44 +51,44 @@ function FieldsTable({ fields }: { fields: ExtractedField[] }) {
             <th scope="col" className={TABLE.th}>Evidence</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-line">
           {fields.map((f) => (
             <tr key={f.id}>
-              <th scope="row" className={`${TABLE.td} text-left font-medium text-slate-900`}>{fieldLabel(f.field_name)}</th>
+              <th scope="row" className={`${TABLE.td} text-left font-medium text-ink`}>{fieldLabel(f.field_name)}</th>
               <td className={TABLE.td}>
                 {f.raw_value ? (
                   <>
                     <div className="[overflow-wrap:anywhere]">{f.raw_value}</div>
-                    {normalizedText(f) && <div className="text-xs text-slate-500">Normalised: {normalizedText(f)}</div>}
+                    {normalizedText(f) && <div className="text-xs text-ink-subtle">Normalised: {normalizedText(f)}</div>}
                   </>
                 ) : (
-                  <span className="text-slate-400">—</span>
+                  <span className="text-ink-subtle">—</span>
                 )}
               </td>
               <td className={TABLE.td}>
                 <Pill className={FIELD_STATUS_STYLES[f.status]}>{FIELD_STATUS_LABELS[f.status]}</Pill>
-                {f.status !== "not_found" && <div className="mt-1 text-xs text-slate-500">{f.confidence} confidence</div>}
+                {f.status !== "not_found" && <div className="mt-1 text-xs text-ink-subtle">{f.confidence} confidence</div>}
               </td>
               <td className={TABLE.td}>
                 {f.evidence_quote ? (
                   <figure>
-                    <blockquote className="border-l-2 border-blue-300 pl-2 font-mono text-xs text-slate-700 [overflow-wrap:anywhere]">
+                    <blockquote className="border-l-2 border-info-line pl-2 font-mono text-xs text-ink [overflow-wrap:anywhere]">
                       {f.evidence_quote}
                     </blockquote>
-                    <figcaption className="mt-1 text-xs text-slate-500">Page {f.page_number} · {f.method}</figcaption>
+                    <figcaption className="mt-1 text-xs text-ink-subtle">Page {f.page_number} · {f.method}</figcaption>
                   </figure>
                 ) : (
-                  <span className="text-xs text-slate-500">No evidence in readable text</span>
+                  <span className="text-xs text-ink-subtle">No evidence in readable text</span>
                 )}
                 {f.candidates.length > 0 && (
-                  <ul className="mt-1 list-disc pl-4 text-xs text-amber-900">
+                  <ul className="mt-1 list-disc pl-4 text-xs text-warning-800">
                     {f.candidates.map((c) => (
                       <li key={`${c.page_number}-${c.value}`}>“{c.value}” (p.{c.page_number})</li>
                     ))}
                   </ul>
                 )}
                 {f.warnings.map((w) => (
-                  <p key={w} className="mt-1 text-xs text-amber-800">{w}</p>
+                  <p key={w} className="mt-1 text-xs text-warning-800">{w}</p>
                 ))}
               </td>
             </tr>
@@ -122,18 +122,18 @@ function PageTexts({ documentId }: { documentId: string }) {
         <button type="button" className={buttonStyles.secondary} onClick={load} disabled={loading}>
           <FileSearch aria-hidden="true" className="h-4 w-4" /> {loading ? "Loading…" : "Show extracted page text"}
         </button>
-        {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="mt-2 text-sm text-danger-700">{error}</p>}
       </div>
     );
   }
   return (
     <div className="space-y-2">
       {pages.map((p) => (
-        <details key={p.page_number} className="rounded border border-slate-200 bg-white">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-slate-800">
+        <details key={p.page_number} className="rounded border border-line bg-surface">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-ink">
             Page {p.page_number} · {p.method.replace("_", " ")} · {PAGE_STATUS_LABELS[p.status]} · {p.char_count} characters
           </summary>
-          <pre className="max-h-80 overflow-auto whitespace-pre-wrap border-t border-slate-100 px-3 py-2 font-mono text-xs text-slate-700">
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap border-t border-line px-3 py-2 font-mono text-xs text-ink">
             {p.text || "(no text)"}
           </pre>
         </details>
@@ -162,7 +162,7 @@ function SimulatedIssuerChecks({ documentId, enabled }: { documentId: string; en
 
   return (
     <section aria-label="Simulated issuer verification" className="space-y-2">
-      <div className="rounded-md border-2 border-amber-400 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+      <div className="rounded-control border-2 border-warning-line bg-warning-bg px-3 py-2 text-sm font-semibold text-warning-800">
         {SIMULATION_LABEL}
         <p className="mt-0.5 text-xs font-normal">
           Compares extracted fields with configured synthetic demo records only. No issuing authority is contacted.
@@ -171,19 +171,19 @@ function SimulatedIssuerChecks({ documentId, enabled }: { documentId: string; en
       <button type="button" className={buttonStyles.secondary} onClick={run} disabled={running || !enabled}>
         <ShieldQuestion aria-hidden="true" className="h-4 w-4" /> {running ? "Checking…" : "Run simulated issuer check"}
       </button>
-      {!enabled && <p className="text-xs text-slate-500">Available after the document has been processed successfully.</p>}
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      {attempts.error && <p className="text-sm text-red-700">{attempts.error}</p>}
+      {!enabled && <p className="text-xs text-ink-subtle">Available after the document has been processed successfully.</p>}
+      {error && <p role="alert" className="text-sm text-danger-700">{error}</p>}
+      {attempts.error && <p className="text-sm text-danger-700">{attempts.error}</p>}
       {(attempts.data ?? []).map((a: VerificationAttempt) => (
-        <div key={a.id} className="rounded border border-amber-200 bg-white p-3 text-sm">
+        <div key={a.id} className="rounded border border-warning-line bg-surface p-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <Pill className="bg-amber-100 text-amber-900 ring-amber-300">{a.simulation_label ?? "Not simulated"}</Pill>
+            <Pill className="bg-warning-bg text-warning-800 ring-warning-line">{a.simulation_label ?? "Not simulated"}</Pill>
             <strong>{VERIFICATION_OUTCOME_LABELS[a.outcome]}</strong>
-            <span className="text-xs text-slate-500">{formatDateTime(a.created_at)}</span>
+            <span className="text-xs text-ink-subtle">{formatDateTime(a.created_at)}</span>
           </div>
-          <p className="mt-1 text-slate-700">{a.explanation}</p>
+          <p className="mt-1 text-ink">{a.explanation}</p>
           {a.fields_compared.length > 0 && (
-            <ul className="mt-1 text-xs text-slate-600">
+            <ul className="mt-1 text-xs text-ink-muted">
               {a.fields_compared.map((c) => (
                 <li key={c.field}>
                   {fieldLabel(c.field)}: {c.document_value ?? "—"} → {c.result.replace("_", " ")}
@@ -191,7 +191,7 @@ function SimulatedIssuerChecks({ documentId, enabled }: { documentId: string; en
               ))}
             </ul>
           )}
-          {a.reference_code && <p className="mt-1 text-xs text-slate-500">Synthetic reference: {a.reference_code}</p>}
+          {a.reference_code && <p className="mt-1 text-xs text-ink-subtle">Synthetic reference: {a.reference_code}</p>}
         </div>
       ))}
     </section>
@@ -221,9 +221,9 @@ export function DocumentAnalysis({ doc, onProcessed }: { doc: ApplicationDocumen
   const r = result.data;
 
   return (
-    <section aria-label={`Analysis of ${doc.original_filename}`} className="space-y-4 border-t border-slate-200 pt-4">
+    <section aria-label={`Analysis of ${doc.original_filename}`} className="space-y-4 border-t border-line pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-900">Text extraction and evidence</h3>
+        <h3 className="text-sm font-semibold text-ink">Text extraction and evidence</h3>
         <button type="button" className={buttonStyles.secondary} onClick={() => process(r !== null)} disabled={processing}
           aria-label={`${r ? "Reprocess" : "Process"} ${doc.original_filename}`}>
           {processing ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : <RefreshCw aria-hidden="true" className="h-4 w-4" />}
@@ -232,12 +232,12 @@ export function DocumentAnalysis({ doc, onProcessed }: { doc: ApplicationDocumen
       </div>
       {error && <Alert tone="error">{error}</Alert>}
       {!r ? (
-        <p className="text-sm text-slate-600">This document has not been processed yet.</p>
+        <p className="text-sm text-ink-muted">This document has not been processed yet.</p>
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <Pill className={PROCESSING_STATUS_STYLES[r.status]}>{PROCESSING_STATUS_LABELS[r.status]}</Pill>
-            <span className="text-slate-600">
+            <span className="text-ink-muted">
               {r.pages_processed} of {r.page_count} page(s) · OCR {r.ocr_available ? "available" : "not available"}
               {r.reused_from_cache && " · cached result for identical content"} · {formatDateTime(r.finished_at)}
             </span>
@@ -245,12 +245,12 @@ export function DocumentAnalysis({ doc, onProcessed }: { doc: ApplicationDocumen
           {!r.is_current && <Alert tone="info">This result was produced by an older pipeline version; reprocess to refresh it.</Alert>}
           {r.failure_reason && <Alert tone="error">{r.failure_reason}</Alert>}
           {r.warnings.length > 0 && (
-            <ul className="list-disc space-y-0.5 pl-5 text-xs text-amber-900" aria-label="Processing warnings">
+            <ul className="list-disc space-y-0.5 pl-5 text-xs text-warning-800" aria-label="Processing warnings">
               {r.warnings.map((w) => <li key={w}>{w}</li>)}
             </ul>
           )}
-          <div className="rounded-md border border-slate-200 bg-white p-3 text-sm">
-            <h4 className="font-semibold text-slate-900">Detected type</h4>
+          <div className="rounded-control border border-line bg-surface p-3 text-sm">
+            <h4 className="font-semibold text-ink">Detected type</h4>
             <p className="mt-1">
               {r.classification.predicted_category
                 ? <>Predicted <strong>{DOCUMENT_CATEGORY_LABELS[r.classification.predicted_category]}</strong></>
@@ -259,15 +259,15 @@ export function DocumentAnalysis({ doc, onProcessed }: { doc: ApplicationDocumen
               selected at upload: {DOCUMENT_CATEGORY_LABELS[r.classification.selected_category]}
             </p>
             {r.classification.agrees_with_selected === false && (
-              <p className="mt-1 text-amber-900">The predicted type differs from the selected category. The selected category was kept; please review.</p>
+              <p className="mt-1 text-warning-800">The predicted type differs from the selected category. The selected category was kept; please review.</p>
             )}
             {r.classification.signals.length > 0 && (
-              <p className="mt-1 text-xs text-slate-500">Signals: {r.classification.signals.map((s) => s.signal).join("; ")}</p>
+              <p className="mt-1 text-xs text-ink-subtle">Signals: {r.classification.signals.map((s) => s.signal).join("; ")}</p>
             )}
-            <p className="mt-1 text-xs text-slate-500">Confidence is a keyword-signal heuristic, not a probability.</p>
+            <p className="mt-1 text-xs text-ink-subtle">Confidence is a keyword-signal heuristic, not a probability.</p>
           </div>
           <FieldsTable fields={r.fields} />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-subtle">
             Extracted values are quoted from the document text. Extraction does not establish authenticity or compliance.
           </p>
           <PageTexts documentId={doc.id} />

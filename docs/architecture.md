@@ -98,10 +98,10 @@ A background worker would be the next step if documents grow large. See
 
 | Dir | Responsibility |
 |-----|----------------|
-| `app/` | `App.tsx` (routes), `navigation.ts` (module definitions), `BackendHealthContext.tsx` (shared health state + refresh). |
-| `layouts/` | `AppLayout` — responsive navy sidebar, skip link, connection indicator, `<main>` outlet. |
-| `pages/` | Dashboard, applications (list/create/detail), institutions (list/create/detail), `ScrutinyRulesPage`, `ModulePlaceholderPage`, `NotFoundPage`. |
-| `components/` | `ConnectionIndicator`, `SystemStatusPanel`, `ApplicationForm`, `InstitutionForm`, `DocumentsPanel` (inventory, upload, processing status, process all, details, open/download, confirmed delete), `DocumentAnalysis` (classification, fields with evidence, page text, simulated issuer checks), `ScrutinyPanel` (runs, history, summary, findings, finding detail, human review), `ui.tsx` primitives. |
+| `app/` | `App.tsx` (routes, wrapped in `ToastProvider`), `navigation.ts` (`NAV_GROUPS`, `TRUST_NOTICE`), `AuthContext`, `BackendHealthContext.tsx` (shared health state + refresh), `labels.ts`. |
+| `layouts/` | `AppLayout` — sticky header (wordmark, environment badge, alerts count, account menu), trust-notice bar, grouped sidebar, mobile drawer, skip link, `<main>` outlet. |
+| `pages/` | Login, Overview (`DashboardPage`), review queue, applications (list/create/workspace), institutions (list/create/detail), alerts, scrutiny rules, users, audit trail, Help & About, not found. |
+| `components/` | `ConnectionIndicator`, `SystemStatusPanel`, `ApplicationForm`, `InstitutionForm`, `DocumentsPanel` (inventory, upload, processing status, process all, details, open/download, confirmed delete), `DocumentAnalysis` (classification, fields with evidence, page text, simulated issuer checks), `ScrutinyPanel` (runs, history, summary, findings, finding detail, human review), `ui.tsx` design-system primitives (see [design-system.md](design-system.md)), `Toast.tsx`, `BrandMark.tsx`. |
 | `services/` | `apiClient.ts` — typed fetch wrapper with timeout, error normalisation (`ApiError`), response shape check. |
 | `types/` | API types mirroring backend schemas, `ConnectionState` union. |
 
@@ -124,3 +124,17 @@ page + typed client functions:
 
 Long-running work (OCR, extraction) is expected to run as in-process background tasks first; a separate worker is
 only introduced if needed.
+
+## Reviewer workspace (Deliverable 5)
+
+```
+browser ── Bearer token ──► router (get_current_actor → contextvars actor/request id; require_admin on admin routes)
+                              ├─ services/review.py   review actions, evidence requests  ─┐
+                              ├─ services/queue.py    queue summary from latest runs      │ same transaction:
+                              ├─ services/report.py   PDF (PyMuPDF Story)                 ├─ audit.record(...)
+                              ├─ services/copilot.py  intent → retrieval → templates      │  alerts.raise_alert(...)
+                              └─ existing services (documents, processing, scrutiny, rules)┘
+```
+Auth: `services/auth.py`, `core/security.py`, `api/deps.py`. Frontend: `AuthContext` + `guards` (UI only; the
+server enforces roles), `ReviewQueuePage`, `ReviewActions`, `EvidenceRequestsPanel`, `CopilotPanel`, `ActivityLog`,
+`AlertsPage`, `AuditTrailPage`, `UsersPage`; the API client attaches the token and fetches documents/reports as blobs.

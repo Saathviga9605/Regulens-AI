@@ -13,16 +13,19 @@ import {
 } from "../app/labels";
 import { useApiQuery } from "../app/useApiQuery";
 import { ApiError, apiClient } from "../services/apiClient";
-import type { ApplicationDocument, DocumentCategory, IntakePolicy } from "../types/api";
+import type { ApplicationDocument, DocumentCategory, EvidenceRequest, IntakePolicy } from "../types/api";
 import { DocumentAnalysis } from "./DocumentAnalysis";
+import { useToast } from "./Toast";
 import {
   Alert,
   Card,
+  ConfirmDialog,
   DefinitionGrid,
   EmptyState,
   ErrorState,
   LoadingState,
   Pill,
+  ProgressBar,
   SelectField,
   TABLE,
   TextField,
@@ -42,11 +45,13 @@ function StatusPill({ doc }: { doc: ApplicationDocument }) {
 function UploadForm({
   applicationCode,
   policy,
+  openRequests,
   onUploaded,
   onCancel,
 }: {
   applicationCode: string;
   policy: IntakePolicy;
+  openRequests: EvidenceRequest[];
   onUploaded: (doc: ApplicationDocument) => void;
   onCancel: () => void;
 }) {
@@ -54,6 +59,7 @@ function UploadForm({
   const [category, setCategory] = useState<DocumentCategory | "">("");
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
+  const [requestId, setRequestId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -81,7 +87,9 @@ function UploadForm({
     setUploading(true);
     try {
       const trimmed = description.trim();
-      onUploaded(await apiClient.uploadDocument(applicationCode, { file, category, ...(trimmed ? { description: trimmed } : {}) }));
+      onUploaded(await apiClient.uploadDocument(applicationCode, {
+        file, category, ...(trimmed ? { description: trimmed } : {}), ...(requestId ? { evidenceRequestId: requestId } : {}),
+      }));
     } catch (err) {
       if (err instanceof ApiError) {
         setErrors(err.fieldErrors);
@@ -96,7 +104,7 @@ function UploadForm({
 
   return (
     <form noValidate onSubmit={handleSubmit} aria-label="Upload document" aria-busy={uploading}
-      className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+      className="space-y-4 rounded-control border border-line bg-surface-muted p-4">
       {formError && <Alert tone="error">{formError}</Alert>}
       <div className="grid gap-4 md:grid-cols-2">
         <SelectField
@@ -109,7 +117,7 @@ function UploadForm({
           hint="Categories are for organisation only; not every category is required for every application."
         />
         <div>
-          <label htmlFor={fileId} className="block text-sm font-medium text-slate-700">
+          <label htmlFor={fileId} className="block text-sm font-medium text-ink">
             PDF file
           </label>
           <input
@@ -119,9 +127,9 @@ function UploadForm({
             aria-invalid={errors.file ? true : undefined}
             aria-describedby={`${fileId}-help`}
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white text-sm text-slate-700 file:mr-3 file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            className="mt-1 block w-full rounded-control border border-line-strong bg-surface text-sm text-ink file:mr-3 file:border-0 file:bg-surface-muted file:px-3 file:py-2 file:text-sm file:font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
           />
-          <p id={`${fileId}-help`} className={`mt-1 text-xs ${errors.file ? "text-red-700" : "text-slate-500"}`}>
+          <p id={`${fileId}-help`} className={`mt-1 text-xs ${errors.file ? "text-danger-700" : "text-ink-subtle"}`}>
             {errors.file ?? `PDF only, up to ${limit}. The file is checked on the server.`}
           </p>
         </div>
@@ -129,7 +137,15 @@ function UploadForm({
           <TextField label="Description (optional)" value={description} maxLength={500}
             onChange={(e) => setDescription(e.target.value)} error={errors.description} />
         </div>
+        {openRequests.length > 0 && (
+          <div className="md:col-span-2">
+            <SelectField label="Link to evidence request (optional)" value={requestId} placeholder="Not linked to a request"
+              options={openRequests.map((r) => [r.id, r.requested_evidence])} onChange={(e) => setRequestId(e.target.value)}
+              hint="Only the request you select is linked; uploads never satisfy requests automatically." />
+          </div>
+        )}
       </div>
+      {uploading && <ProgressBar label={`Uploading ${file?.name ?? "file"}`} />}
       <div className="flex gap-2">
         <button type="submit" className={buttonStyles.primary} disabled={uploading}>
           <Upload aria-hidden="true" className="h-4 w-4" /> {uploading ? "Uploading…" : "Upload"}
@@ -168,7 +184,7 @@ function DocumentDetails({ doc }: { doc: ApplicationDocument }) {
           ],
         ]}
       />
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-ink-subtle">
         The SHA-256 checksum identifies the exact file content for comparison. It does not establish that the document
         is authentic or that its issuer is legitimate.
       </p>
@@ -183,17 +199,30 @@ interface PanelProps {
   intakeOpen: boolean;
   /** Changing this value reloads the inventory (e.g. after a scrutiny run processed documents). */
   refreshKey?: number;
+  /** Called after uploads/deletions so related panels (e.g. evidence requests) can refresh. */
+  onChanged?: () => void;
 }
 
-export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: PanelProps) {
+export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0, onChanged }: PanelProps) {
   const docs = useApiQuery(() => apiClient.listDocuments(applicationCode), `${applicationCode}:${refreshKey}`);
   const policy = useApiQuery(() => apiClient.getIntakePolicy(), "policy");
   const [uploading, setUploading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<ApplicationDocument | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const toast = useToast();
   const [deleting, setDeleting] = useState(false);
   const [flash, setFlash] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [batch, setBatch] = useState<string | null>(null);
+  const openRequests = useApiQuery(() => apiClient.listEvidenceRequests(applicationCode, "open"), `${applicationCode}:${refreshKey}`);
+
+  async function openContent(doc: ApplicationDocument, mode: "open" | "download") {
+    try {
+      await apiClient.openDocument(doc.id, doc.original_filename, mode);
+    } catch (err) {
+      setFlash({ tone: "error", text: err instanceof ApiError ? err.message : "The document could not be opened." });
+    }
+  }
 
   async function processAll() {
     const pending = (docs.data?.items ?? []).filter((d) => d.status !== "intake_failed" && !d.processing?.is_current);
@@ -226,6 +255,7 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
           : `Uploaded “${doc.original_filename}”.`,
     });
     docs.reload();
+    onChanged?.();
   }
 
   async function confirmDelete() {
@@ -234,12 +264,14 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
     try {
       await apiClient.deleteDocument(confirming.id);
       setFlash({ tone: "success", text: `Deleted “${confirming.original_filename}”.` });
+      toast(`Deleted “${confirming.original_filename}”.`);
       setConfirming(null);
+      setDeleteError(null);
       setExpanded(null);
       docs.reload();
+      onChanged?.();
     } catch (err) {
-      setFlash({ tone: "error", text: err instanceof ApiError ? err.message : "Delete failed. Please try again." });
-      setConfirming(null);
+      setDeleteError(err instanceof ApiError ? err.message : "Delete failed. Please try again.");
     } finally {
       setDeleting(false);
     }
@@ -248,8 +280,18 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
   const items = docs.data?.items ?? [];
 
   return (
+    <>
+    <ConfirmDialog open={confirming !== null} title="Delete document?" confirmLabel="Confirm delete" destructive
+      busy={deleting} error={deleteError} onConfirm={confirmDelete}
+      onCancel={() => { setConfirming(null); setDeleteError(null); }}>
+      <p>Delete “<span className="[overflow-wrap:anywhere]">{confirming?.original_filename}</span>”? The stored file and its
+        metadata are removed permanently.</p>
+      {confirming?.status === "uploaded" && <p className="text-ink-muted">If identical duplicates exist, the earliest one becomes the original.</p>}
+      <p className="text-ink-muted">Past scrutiny findings keep their evidence snapshots. The deletion is recorded in the audit trail.</p>
+    </ConfirmDialog>
     <Card
       title="Supporting documents"
+      description="Uploaded PDFs, their processing status and extracted evidence. Files are private and opened through the API."
       actions={
         <div className="flex flex-wrap gap-2">
           {items.length > 0 && (
@@ -271,11 +313,12 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
             Documents can be added or removed only while the application is a draft or awaiting additional evidence.
           </Alert>
         )}
-        {batch && <div role="status" className="text-sm text-slate-700">{batch}</div>}
+        {batch && <div role="status" className="text-sm text-ink">{batch}</div>}
         {flash && <Alert tone={flash.tone}>{flash.text}</Alert>}
         {policy.error && <ErrorState message={policy.error} onRetry={policy.reload} />}
         {uploading && policy.data && (
           <UploadForm applicationCode={applicationCode} policy={policy.data} onUploaded={onUploaded}
+            openRequests={openRequests.data ?? []}
             onCancel={() => setUploading(false)} />
         )}
 
@@ -287,12 +330,12 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
           <EmptyState>No documents have been uploaded for this application.</EmptyState>
         ) : (
           <div className={TABLE.wrap}>
-            <table className={TABLE.table}>
+            <table className={`${TABLE.table} min-w-[56rem]`}>
               <caption className="sr-only">Documents for {applicationCode}</caption>
               <thead>
                 <tr>
                   <th scope="col" className={TABLE.th}>File</th>
-                  <th scope="col" className={TABLE.th}>Category</th>
+                  <th scope="col" className={TABLE.th}>Category (selected)</th>
                   <th scope="col" className={TABLE.th}>Size</th>
                   <th scope="col" className={TABLE.th}>Uploaded</th>
                   <th scope="col" className={TABLE.th}>Intake status</th>
@@ -300,7 +343,7 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
                   <th scope="col" className={TABLE.th}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line">
                 {items.map((doc) => (
                   <DocumentRow
                     key={doc.id}
@@ -308,12 +351,9 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
                     expanded={expanded === doc.id}
                     onToggle={() => setExpanded(expanded === doc.id ? null : doc.id)}
                     canDelete={intakeOpen}
-                    confirming={confirming?.id === doc.id}
-                    deleting={deleting}
                     onAskDelete={() => { setFlash(null); setConfirming(doc); }}
-                    onCancelDelete={() => setConfirming(null)}
-                    onConfirmDelete={confirmDelete}
                     onProcessed={docs.reload}
+                    onContent={(mode) => openContent(doc, mode)}
                   />
                 ))}
               </tbody>
@@ -322,6 +362,7 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: 
         )}
       </div>
     </Card>
+    </>
   );
 }
 
@@ -330,41 +371,38 @@ interface RowProps {
   expanded: boolean;
   onToggle: () => void;
   canDelete: boolean;
-  confirming: boolean;
-  deleting: boolean;
   onAskDelete: () => void;
-  onCancelDelete: () => void;
-  onConfirmDelete: () => void;
   onProcessed: () => void;
+  onContent: (mode: "open" | "download") => void;
 }
 
 function ProcessingCell({ doc }: { doc: ApplicationDocument }) {
   const p = doc.processing;
-  if (!p) return <span className="text-xs text-slate-500">Not processed</span>;
+  if (!p) return <span className="text-xs text-ink-subtle">Not processed</span>;
   return (
     <>
       <Pill className={PROCESSING_STATUS_STYLES[p.status]}>{PROCESSING_STATUS_LABELS[p.status]}</Pill>
-      {!p.is_current && <div className="mt-1 text-xs text-amber-800">Outdated — reprocess</div>}
+      {!p.is_current && <div className="mt-1 text-xs text-warning-800">Outdated — reprocess</div>}
       {p.status !== "failed" && (
-        <div className="mt-1 text-xs text-slate-600">
+        <div className="mt-1 text-xs text-ink-muted">
           {p.predicted_category
             ? `Detected: ${DOCUMENT_CATEGORY_LABELS[p.predicted_category]}${p.predicted_category !== doc.category ? " (differs)" : ""}`
-            : "Type uncertain"}
+            : "Detected type: uncertain"}
         </div>
       )}
     </>
   );
 }
 
-function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting, onAskDelete, onCancelDelete, onConfirmDelete, onProcessed }: RowProps) {
+function DocumentRow({ doc, expanded, onToggle, canDelete, onAskDelete, onProcessed, onContent }: RowProps) {
   const detailsId = `doc-details-${doc.id}`;
-  const small = "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+  const small = "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500";
   return (
     <>
       <tr>
-        <td className={TABLE.td}>
-          <div className="font-medium text-slate-900 [overflow-wrap:anywhere]">{doc.original_filename}</div>
-          {doc.description && <div className="text-xs text-slate-500">{doc.description}</div>}
+        <td className={`${TABLE.td} max-w-64`}>
+          <div className="font-medium text-ink [overflow-wrap:anywhere]">{doc.original_filename}</div>
+          {doc.description && <div className="text-xs text-ink-subtle">{doc.description}</div>}
         </td>
         <td className={TABLE.td}>{DOCUMENT_CATEGORY_LABELS[doc.category]}</td>
         <td className={`${TABLE.td} whitespace-nowrap tabular-nums`}>{formatBytes(doc.size_bytes)}</td>
@@ -372,10 +410,12 @@ function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting,
         <td className={TABLE.td}>
           <StatusPill doc={doc} />
           {doc.duplicate_of && (
-            <div className="mt-1 text-xs text-slate-600">Same content as “{doc.duplicate_of.original_filename}”</div>
+            <div className="mt-1 text-xs text-ink-muted" title="Identical file content (SHA-256). A content-identity indicator, not evidence of wrongdoing.">
+              Same content as “{doc.duplicate_of.original_filename}”
+            </div>
           )}
           {doc.other_application_match_count > 0 && (
-            <div className="mt-1 text-xs text-slate-600">Also present in another application</div>
+            <div className="mt-1 text-xs text-ink-muted">Also present in another application</div>
           )}
         </td>
         <td className={TABLE.td}>
@@ -383,24 +423,25 @@ function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting,
         </td>
         <td className={TABLE.td}>
           <div className="flex flex-wrap gap-1">
-            <button type="button" className={`${small} text-slate-700 hover:bg-slate-100`} aria-expanded={expanded}
+            <button type="button" className={`${small} text-ink hover:bg-surface-muted`} aria-expanded={expanded}
               aria-controls={detailsId} onClick={onToggle} aria-label={`Details for ${doc.original_filename}`}>
               <Info aria-hidden="true" className="h-3.5 w-3.5" /> Details
             </button>
             {doc.content_available && (
               <>
-                <a href={apiClient.documentContentUrl(doc.id)} target="_blank" rel="noopener noreferrer"
-                  className={`${small} text-blue-700 hover:bg-blue-50`} aria-label={`Open ${doc.original_filename}`}>
+                {/* Content requires the session token, so it is fetched as a blob rather than linked directly. */}
+                <button type="button" onClick={() => onContent("open")}
+                  className={`${small} text-brand-700 hover:bg-info-bg`} aria-label={`Open ${doc.original_filename}`}>
                   <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" /> Open
-                </a>
-                <a href={apiClient.documentContentUrl(doc.id, "attachment")} download
-                  className={`${small} text-blue-700 hover:bg-blue-50`} aria-label={`Download ${doc.original_filename}`}>
+                </button>
+                <button type="button" onClick={() => onContent("download")}
+                  className={`${small} text-brand-700 hover:bg-info-bg`} aria-label={`Download ${doc.original_filename}`}>
                   <Download aria-hidden="true" className="h-3.5 w-3.5" /> Download
-                </a>
+                </button>
               </>
             )}
             {canDelete && (
-              <button type="button" className={`${small} text-red-700 hover:bg-red-50`} onClick={onAskDelete}
+              <button type="button" className={`${small} text-danger-700 hover:bg-danger-bg`} onClick={onAskDelete}
                 aria-label={`Delete ${doc.original_filename}`}>
                 <Trash2 aria-hidden="true" className="h-3.5 w-3.5" /> Delete
               </button>
@@ -408,29 +449,9 @@ function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting,
           </div>
         </td>
       </tr>
-      {confirming && (
-        <tr>
-          <td colSpan={7} className="bg-red-50 px-4 py-3">
-            <div role="alertdialog" aria-labelledby={`${detailsId}-confirm`} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p id={`${detailsId}-confirm`} className="text-sm text-red-900">
-                Delete “{doc.original_filename}”? The stored file and its metadata are removed permanently.
-                {doc.status === "uploaded" && " If identical duplicates exist, the earliest one becomes the original."}
-              </p>
-              <div className="flex gap-2">
-                <button type="button" className={`${buttonStyles.primary} bg-red-700 hover:bg-red-800`} onClick={onConfirmDelete} disabled={deleting}>
-                  {deleting ? "Deleting…" : "Confirm delete"}
-                </button>
-                <button type="button" className={buttonStyles.secondary} onClick={onCancelDelete} disabled={deleting}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
       {expanded && (
         <tr>
-          <td id={detailsId} colSpan={7} className="space-y-4 bg-slate-50 px-4 py-4">
+          <td id={detailsId} colSpan={7} className="space-y-4 bg-surface-muted px-4 py-4">
             <DocumentDetails doc={doc} />
             {doc.status !== "intake_failed" && <DocumentAnalysis doc={doc} onProcessed={onProcessed} />}
           </td>

@@ -10,7 +10,7 @@ from app.db.init_db import init_db
 from app.db.session import build_engine, build_session_factory
 from app.main import create_app
 from app.services import seed as seed_service
-from tests.conftest import application_payload, institution_payload, make_settings
+from tests.conftest import authed_client, application_payload, institution_payload, make_settings
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def test_reseed_is_idempotent_and_preserves_user_records(seeded_env) -> None:
         seed_service.seed(session)
 
     app = create_app(settings)
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         inst = client.post("/api/v1/institutions", json=institution_payload(name="User Created Synthetic")).json()
         user_app = client.post("/api/v1/applications", json=application_payload(inst["institution_code"])).json()
         # A user edit to a seeded institution must survive reseeding.
@@ -69,7 +69,7 @@ def test_reseed_is_idempotent_and_preserves_user_records(seeded_env) -> None:
         summary = seed_service.summary(session)
     assert summary["institutions_total"] == 9 and summary["applications_total"] == 13
 
-    with TestClient(app) as client:
+    with authed_client(app) as client:
         assert client.get(f"/api/v1/institutions/{seeded_code}").json()["name"] == "Deccan Ridge Edited By User"
         assert client.get(f"/api/v1/applications/{user_app['application_code']}").json() == user_app
 
@@ -112,12 +112,12 @@ def test_migrations_preserve_existing_data_and_are_repeatable(tmp_path: Path) ->
         conn.execute("INSERT INTO local_notes (text) VALUES ('keep me')")
 
     settings = make_settings(db)
-    with TestClient(create_app(settings)) as client:
+    with authed_client(create_app(settings)) as client:
         assert client.get("/api/v1/health").json()["status"] == "ok"
         inst = client.post("/api/v1/institutions", json=institution_payload()).json()
-    with TestClient(create_app(settings)) as client:  # second startup re-runs migrations: no-op
+    with authed_client(create_app(settings)) as client:  # second startup re-runs migrations: no-op
         assert client.get(f"/api/v1/institutions/{inst['institution_code']}").status_code == 200
 
     with sqlite3.connect(db) as conn:
         assert conn.execute("SELECT text FROM local_notes").fetchall() == [("keep me",)]
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0003",)]
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0004",)]

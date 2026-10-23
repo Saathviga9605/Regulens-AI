@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repository root (regulens-ai/), used to resolve relative SQLite paths.
@@ -56,6 +56,31 @@ class Settings(BaseSettings):
     # Pages whose text layer has fewer non-whitespace characters than this are OCR candidates.
     min_page_text_chars: int = Field(default=25, ge=1, le=2000)
     max_processing_pages: int = Field(default=50, ge=1, le=500)
+
+    # --- Local authentication (prototype) --------------------------------------------------------
+    session_ttl_minutes: int = Field(default=480, ge=5, le=1440)
+    login_max_failures: int = Field(default=5, ge=3, le=50)  # per username within login_lockout_minutes
+    login_lockout_minutes: int = Field(default=15, ge=1, le=1440)
+    # LOCAL DEMO ONLY — CHANGE BEFORE SHARING. Used only by the demo bootstrap (`seed` / `create-demo-users`);
+    # never sent to the frontend, logged or audited. Mirrored in .env.example (a test keeps them in sync).
+    # Demo bootstrap is refused in production, and enabling it in production is a configuration error.
+    demo_users_enabled: bool = True
+    demo_reviewer_username: str = Field(default="demo.reviewer", pattern=r"^[a-zA-Z0-9._-]{3,60}$")
+    demo_reviewer_password: str = Field(default="Reviewer@Demo2026", min_length=10, max_length=200)
+    demo_admin_username: str = Field(default="demo.admin", pattern=r"^[a-zA-Z0-9._-]{3,60}$")
+    demo_admin_password: str = Field(default="Admin@Demo2026", min_length=10, max_length=200)
+
+    @model_validator(mode="after")
+    def _no_demo_users_in_production(self):
+        if self.environment == "production" and self.demo_users_enabled:
+            # An explicit request for demo accounts in production is a configuration error; the
+            # local-friendly default is simply switched off so production never gets them silently.
+            if "demo_users_enabled" in self.model_fields_set:
+                raise ValueError("REGULENS_DEMO_USERS_ENABLED must be false when REGULENS_ENVIRONMENT=production.")
+            self.demo_users_enabled = False
+        if self.demo_reviewer_username.lower() == self.demo_admin_username.lower():
+            raise ValueError("Demo reviewer and administrator usernames must differ.")
+        return self
 
     @field_validator("document_storage_dir")
     @classmethod

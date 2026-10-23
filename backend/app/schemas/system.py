@@ -20,6 +20,8 @@ class SystemInfoResponse(BaseModel):
     app_version: str
     api_version: str
     environment: str
+    # True outside production when local demo accounts are enabled. Never includes credentials.
+    demo_mode: bool
     database_backend: str
     implemented_capabilities: list[str]
     planned_capabilities: list[str]

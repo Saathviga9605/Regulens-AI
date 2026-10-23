@@ -13,6 +13,11 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models import (
+    Alert,
+    AlertRead,
+    EvidenceRequest,
+    EvidenceRequestDocument,
+    FindingReviewAction,
     Application,
     ApplicationProgramme,
     Document,
@@ -34,6 +39,7 @@ from app.models.enums import ProgrammeLevel as L
 from app.schemas.application import ApplicationCreate, ProgrammeIn
 from app.schemas.institution import InstitutionCreate
 from app.services import applications as app_service
+from app.services import audit
 from app.services import institutions as inst_service
 from app.services.storage import DocumentStorage
 
@@ -173,7 +179,8 @@ class ResetRefused(Exception):
 
 
 def reset_data(session: Session, settings: Settings, *, confirm: bool) -> int:
-    """Delete ALL institution, application, document, processing, scrutiny and synthetic issuer-reference rows
+    """Delete ALL institution, application, document, processing, scrutiny, review, evidence-request, alert and
+    synthetic issuer-reference rows
     (user-created included) and the stored files those document rows reference. Scrutiny rules and the schema
     are kept. Returns the number of stored files removed.
 
@@ -188,10 +195,13 @@ def reset_data(session: Session, settings: Settings, *, confirm: bool) -> int:
         raise ResetRefused(f"Refusing to reset in the '{settings.environment}' environment.")
     keys = [k for k in session.execute(select(Document.storage_key)).scalars() if k]
     session.execute(update(Document).values(duplicate_of_id=None))
-    for model in (VerificationAttempt, Finding, RuleEvaluation, ScrutinyRun, ExtractedField, DocumentPage,
+    for model in (AlertRead, Alert, EvidenceRequestDocument, EvidenceRequest, FindingReviewAction,
+                  VerificationAttempt, Finding, RuleEvaluation, ScrutinyRun, ExtractedField, DocumentPage,
                   DocumentProcessing, Document, ApplicationProgramme, Application, Institution, IdSequence,
                   IssuerReferenceRecord):
         session.execute(delete(model))
+    # The audit log, users and scrutiny rules are kept; the reset itself is audited.
+    audit.record(session, "data.reset", "database", None, details={"stored_files": len(keys)})
     session.commit()
     # Remove files only after the commit, and only those referenced by the deleted rows.
     storage = DocumentStorage(settings.document_storage_path)

@@ -7,7 +7,7 @@ from sqlalchemy import event
 from app.main import create_app
 from app.schemas.application import ApplicationCreate
 from app.services import applications as service
-from tests.conftest import application_payload, institution_payload
+from tests.conftest import authed_client, application_payload, institution_payload
 
 BASE = "/api/v1/applications"
 
@@ -46,7 +46,7 @@ def test_concurrent_creation_produces_unique_ids(tmp_path) -> None:
     from tests.conftest import make_settings
 
     app = create_app(make_settings(tmp_path / "concurrent.db"))
-    with TestClient(app) as c:
+    with authed_client(app) as c:
         inst_code = c.post("/api/v1/institutions", json=institution_payload()).json()["institution_code"]
     factory = app.state.session_factory
     data = ApplicationCreate.model_validate(application_payload(inst_code))
@@ -191,7 +191,8 @@ def test_list_avoids_n_plus_one(client: TestClient, populated: dict, app) -> Non
         assert client.get(BASE, params={"page_size": 100}).json()["total"] == 5
     finally:
         event.remove(app.state.engine, "before_cursor_execute", listener)
-    selects = [s for s in statements if s.lstrip().upper().startswith("SELECT")]
+    selects = [s for s in statements if s.lstrip().upper().startswith("SELECT")
+               and "auth_sessions" not in s and "FROM users" not in s]  # authentication lookups excluded
     assert len(selects) <= 3, selects  # count + page (with institution join) + programmes selectin
 
 
@@ -312,10 +313,10 @@ def test_persistence_across_sessions_and_restarts(tmp_path) -> None:
     from tests.conftest import make_settings
 
     settings = make_settings(tmp_path / "persist.db")
-    with TestClient(create_app(settings)) as c1:
+    with authed_client(create_app(settings)) as c1:
         inst = c1.post("/api/v1/institutions", json=institution_payload()).json()
         created = c1.post(BASE, json=application_payload(inst["institution_code"])).json()
-    with TestClient(create_app(settings)) as c2:  # new engine, new sessions, same file
+    with authed_client(create_app(settings)) as c2:  # new engine, new sessions, same file
         assert c2.get(f"{BASE}/{created['application_code']}").json() == created
         nxt = c2.post(BASE, json=application_payload(inst["institution_code"])).json()
         assert nxt["application_code"] == "REG-EoA-2026-0002"

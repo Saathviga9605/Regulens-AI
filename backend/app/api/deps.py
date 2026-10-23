@@ -1,18 +1,24 @@
-"""Shared FastAPI dependencies.
+"""Shared FastAPI dependencies, including authentication and role checks.
 
-Authorization (planned) will be added as a router-level dependency in ``api/v1/router.py``
-so individual routes do not need rewriting.
+``get_current_actor`` is applied at router level (``api/v1/router.py``) to every protected router, and
+``require_admin`` to administrator-only routes. Both are async so the actor context variable they set is visible
+to the (threadpool-executed) endpoint and to audit records.
 """
 
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-from fastapi import Query, Request
+from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.core.context import Actor, current_actor
+from app.core.errors import AppError
 from app.db.session import session_scope
+from app.models.enums import AuditOutcome
 from app.schemas.common import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.services import audit
+from app.services.auth import resolve_token
 from app.services.storage import DocumentStorage
 
 
@@ -39,3 +45,39 @@ def get_storage(request: Request) -> DocumentStorage:
 
 def get_db(request: Request) -> Iterator[Session]:
     yield from session_scope(request.app.state.session_factory)
+
+
+def bearer_token(request: Request) -> str | None:
+    header = request.headers.get("Authorization", "")
+    scheme, _, token = header.partition(" ")
+    return token.strip() if scheme.lower() == "bearer" and token.strip() else None
+
+
+def _unauthenticated() -> AppError:
+    error = AppError(401, "not_authenticated", "Sign in to continue.")
+    error.headers = {"WWW-Authenticate": "Bearer"}
+    return error
+
+
+async def get_current_actor(request: Request) -> Actor:
+    token = bearer_token(request)
+    if not token:
+        raise _unauthenticated()
+    with request.app.state.session_factory() as session:
+        resolved = resolve_token(session, token)
+        if resolved is None:
+            raise _unauthenticated()
+        _, user = resolved
+        actor = Actor(user.id, user.username, user.role)
+    current_actor.set(actor)
+    request.state.actor = actor
+    return actor
+
+
+async def require_admin(request: Request, actor: Actor = Depends(get_current_actor)) -> Actor:
+    if not actor.is_admin:
+        audit.record_now(request.app.state.session_factory, "authorization.denied", "endpoint",
+                         f"{request.method} {request.url.path}"[:64], outcome=AuditOutcome.DENIED,
+                         details={"required_role": "admin"}, actor=actor)
+        raise AppError(403, "forbidden", "This action requires the administrator role.")
+    return actor

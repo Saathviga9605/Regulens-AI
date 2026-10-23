@@ -11,8 +11,10 @@ export function ApplicationCreatePage() {
   const institutions = useApiQuery(() => apiClient.listInstitutions({ status: "active", page_size: 100 }), "active");
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <PageHeader
+        eyebrow="Scrutiny work"
+        breadcrumbs={[{ label: "Overview", to: "/" }, { label: "Applications", to: "/applications" }, { label: "New" }]}
         title="New EoA application"
         description="Creates a draft in ReguLens. The application ID is assigned by the system. Nothing is sent to AICTE."
       />
@@ -44,7 +46,7 @@ export function ApplicationCreatePage() {
           />
         )}
         {institutions.data && institutions.data.total > institutions.data.items.length && (
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-ink-subtle">
             Showing the first {institutions.data.items.length} active institutions alphabetically.
           </p>
         )}

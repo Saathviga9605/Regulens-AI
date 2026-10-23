@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import Pagination, get_app_settings, get_db, get_pagination, get_storage
+from app.api.deps import Pagination, get_app_settings, get_db, get_pagination, get_storage, require_admin
 from app.core.config import Settings
 from app.core.errors import AppError, ConflictError, NotFoundError
 from app.db.types import utcnow
@@ -24,7 +24,6 @@ from app.schemas.scrutiny import (
     ExtractedFieldRead,
     FindingDetail,
     FindingRead,
-    FindingReviewUpdate,
     PageRead,
     PageSummary,
     ProcessingRead,
@@ -36,7 +35,7 @@ from app.schemas.scrutiny import (
     VerificationAttemptRead,
 )
 from app.services import documents as document_service
-from app.services import issuer_verification, processing as processing_service, rule_catalog, scrutiny
+from app.services import audit, issuer_verification, processing as processing_service, review, rule_catalog, scrutiny
 from app.services.applications import get_application
 from app.services.storage import DocumentStorage
 
@@ -167,7 +166,7 @@ def get_rule(rule_id: str, db: Session = Depends(get_db)) -> RuleRead:
     return RuleRead.model_validate(_get_rule(db, rule_id))
 
 
-@router.post("/scrutiny-rules", response_model=RuleRead, status_code=201)
+@router.post("/scrutiny-rules", response_model=RuleRead, status_code=201, dependencies=[Depends(require_admin)])
 def create_rule(body: RuleCreate, db: Session = Depends(get_db)) -> RuleRead:
     if db.get(ScrutinyRule, body.rule_id) is not None:
         raise ConflictError("rule_exists", f"Rule '{body.rule_id}' already exists.")
@@ -175,11 +174,13 @@ def create_rule(body: RuleCreate, db: Session = Depends(get_db)) -> RuleRead:
     data["parameters"] = _validated_params(body.rule_type, body.parameters)
     rule = ScrutinyRule(**data, version=1)
     db.add(rule)
+    audit.record(db, "rule.created", "scrutiny_rule", rule.rule_id,
+                 details={"rule_type": rule.rule_type.value, "is_demo_only": rule.is_demo_only})
     db.commit()
     return RuleRead.model_validate(rule)
 
 
-@router.patch("/scrutiny-rules/{rule_id}", response_model=RuleRead)
+@router.patch("/scrutiny-rules/{rule_id}", response_model=RuleRead, dependencies=[Depends(require_admin)])
 def update_rule(rule_id: str, body: RuleUpdate, db: Session = Depends(get_db)) -> RuleRead:
     rule = _get_rule(db, rule_id)
     changes = body.model_dump(exclude_unset=True)
@@ -191,6 +192,8 @@ def update_rule(rule_id: str, body: RuleUpdate, db: Session = Depends(get_db)) -
             setattr(rule, key, value)
         rule.version += 1  # runs snapshot rule versions, so history stays reproducible
         rule.updated_at = utcnow()
+        audit.record(db, "rule.updated", "scrutiny_rule", rule.rule_id,
+                     details={"changed": sorted(changed), "version": rule.version, "enabled": rule.enabled})
         db.commit()
     return RuleRead.model_validate(rule)
 
@@ -247,7 +250,9 @@ def get_run(application_code: str, run_id: str, db: Session = Depends(get_db)) -
 def _findings_page(db, run, pagination, severity, kind, outcome, review_status) -> Page[FindingRead]:
     rows, total = scrutiny.list_findings(db, run, page=pagination.page, page_size=pagination.page_size,
                                          severity=severity, kind=kind, outcome=outcome, review_status=review_status)
-    return Page.build([FindingRead.model_validate(f) for f in rows], total, pagination.page, pagination.page_size)
+    items = [FindingRead.model_validate(f).model_copy(update={"allowed_actions": review.allowed_actions(f.review_status)})
+             for f in rows]
+    return Page.build(items, total, pagination.page, pagination.page_size)
 
 
 @router.get("/applications/{application_code}/scrutiny-runs/{run_id}/findings", response_model=Page[FindingRead])
@@ -274,7 +279,9 @@ def list_latest_findings(application_code: str, pagination: Pagination = Depends
 
 def _finding_detail(db: Session, application: Application, finding) -> FindingDetail:
     run = scrutiny.get_run(db, finding.run_id)
-    return FindingDetail(**FindingRead.model_validate(finding).model_dump(),
+    base = FindingRead.model_validate(finding).model_dump()
+    base["allowed_actions"] = review.allowed_actions(finding.review_status)
+    return FindingDetail(**base,
                          application_code=application.application_code, run_number=run.run_number,
                          rule=scrutiny.evaluation_rule(run.rule_snapshot, finding.rule_id))
 
@@ -286,11 +293,3 @@ def get_finding(application_code: str, finding_id: str, db: Session = Depends(ge
     scrutiny.ensure_application_scope(finding, application.id)
     return _finding_detail(db, application, finding)
 
-
-@router.patch("/applications/{application_code}/findings/{finding_id}/review", response_model=FindingDetail)
-def review_finding(application_code: str, finding_id: str, body: FindingReviewUpdate,
-                   db: Session = Depends(get_db)) -> FindingDetail:
-    application = get_application(db, application_code)
-    scrutiny.ensure_application_scope(scrutiny.get_finding(db, finding_id), application.id)
-    finding = scrutiny.review_finding(db, finding_id, body.review_status, body.review_note)
-    return _finding_detail(db, application, finding)

@@ -16,6 +16,7 @@ from app.schemas.application import (
 )
 from app.schemas.institution import InstitutionSummary
 from app.services import workflow
+from app.services import audit
 from app.services.codes import next_application_code
 from app.services.querying import LIKE_ESCAPE, contains_pattern, paginate
 
@@ -115,6 +116,9 @@ def create_application(session: Session, data: ApplicationCreate, *, seed_key: s
         seed_key=seed_key,
     )
     session.add(application)
+    session.flush()
+    audit.record(session, "application.created", "application", application.application_code,
+                 application_id=application.id, details={"application_type": data.application_type.value})
     session.commit()
     return get_application(session, application.application_code)
 
@@ -193,6 +197,8 @@ def update_application(session: Session, application_code: str, data: Applicatio
         session.flush()  # delete old rows before inserting replacements (unique constraint)
         application.programmes.extend(_programme_rows(data.programmes))
     application.updated_at = utcnow()
+    audit.record(session, "application.updated", "application", application_code, application_id=application.id,
+                 details={"changed": sorted(changes)})
     session.commit()
     return get_application(session, application_code)
 
@@ -221,6 +227,8 @@ def change_status(session: Session, application_code: str, target: ApplicationSt
     application.status = target
     application.status_changed_at = now
     application.updated_at = now
+    audit.record(session, "application.status_changed", "application", application_code,
+                 application_id=application.id, details={"from": current.value, "to": target.value})
     session.commit()
     return get_application(session, application_code)
 

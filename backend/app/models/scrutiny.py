@@ -133,6 +133,8 @@ class Finding(Base):
         str_enum(ReviewStatus, "review_status"), nullable=False, default=ReviewStatus.NOT_REVIEWED
     )
     review_note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Optimistic concurrency for review actions: clients send the version they saw.
+    review_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
