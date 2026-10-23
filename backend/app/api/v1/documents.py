@@ -64,7 +64,8 @@ def list_documents(
 ) -> Page[DocumentRead]:
     rows, total = service.list_documents(db, application_code, pagination.page, pagination.page_size)
     matches = service.other_application_matches(db, rows)
-    return Page.build([service.to_read(d, matches[d.id], storage) for d in rows], total,
+    summaries = service.processing_summaries(db, rows)
+    return Page.build([service.to_read(d, matches[d.id], storage, summaries.get(d.id)) for d in rows], total,
                       pagination.page, pagination.page_size)
 
 
@@ -72,7 +73,8 @@ def list_documents(
 def get_document(document_id: str, db: Session = Depends(get_db),
                  storage: DocumentStorage = Depends(get_storage)) -> DocumentRead:
     document = service.get_document(db, document_id)
-    return service.to_read(document, service.other_application_matches(db, [document])[document.id], storage)
+    return service.to_read(document, service.other_application_matches(db, [document])[document.id], storage,
+                           service.processing_summaries(db, [document]).get(document.id))
 
 
 def _content_disposition(kind: str, filename: str) -> str:

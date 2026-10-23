@@ -16,6 +16,7 @@ dependencies = [
   "SQLAlchemy>=2.0.30,<2.1",
   "alembic>=1.13,<2",
   "python-multipart>=0.0.18,<1",
+  "pymupdf>=1.25,<2",
 ]
 
 [project.optional-dependencies]

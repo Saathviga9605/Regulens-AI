@@ -136,6 +136,7 @@ def store_document(
     filename: str,
     category: DocumentCategory,
     description: str | None,
+    seed_key: str | None = None,
 ) -> Document:
     """Persist metadata and move the temp file into storage atomically with the DB commit."""
     destination: Path | None = None
@@ -154,6 +155,7 @@ def store_document(
             status=DocumentStatus.DUPLICATE_DETECTED if original else DocumentStatus.UPLOADED,
             duplicate_of_id=original.id if original else None,
             description=description,
+            seed_key=seed_key,
             uploaded_at=now,
             created_at=now,
             updated_at=now,
@@ -230,7 +232,27 @@ def other_application_matches(session: Session, documents: list[Document]) -> di
     return {d.id: len(by_hash.get(d.sha256, set()) - {d.application_id}) for d in documents}
 
 
-def to_read(document: Document, other_matches: int, storage: DocumentStorage) -> DocumentRead:
+def processing_summaries(session: Session, documents: list[Document]) -> dict[str, dict]:
+    """Latest processing summary per document id (single query)."""
+    from app.models import DocumentProcessing
+    from app.services.processing import is_current
+
+    if not documents:
+        return {}
+    by_id = {d.id: d for d in documents}
+    rows = session.execute(select(DocumentProcessing).where(DocumentProcessing.document_id.in_(by_id))).scalars()
+    return {
+        r.document_id: {
+            "status": r.status, "pipeline_version": r.pipeline_version, "is_current": is_current(r, by_id[r.document_id]),
+            "predicted_category": r.predicted_category, "classification_confidence": r.classification_confidence,
+            "warning_count": len(r.warnings), "finished_at": r.finished_at,
+        }
+        for r in rows
+    }
+
+
+def to_read(document: Document, other_matches: int, storage: DocumentStorage,
+            processing: dict | None = None) -> DocumentRead:
     dup = document.duplicate_of
     return DocumentRead(
         id=document.id,
@@ -245,6 +267,7 @@ def to_read(document: Document, other_matches: int, storage: DocumentStorage) ->
                                         uploaded_at=dup.uploaded_at) if dup else None,
         other_application_match_count=other_matches,
         content_available=storage.open_path(document.storage_key) is not None,
+        processing=processing,
         description=document.description,
         uploaded_at=document.uploaded_at,
         created_at=document.created_at,

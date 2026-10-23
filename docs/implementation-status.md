@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last verified: 2026-10-23 (Deliverable 3) on Windows 11, Python 3.13.14, Node 24.19.0 / npm 11.17.0.
+Last verified: 2026-10-23 (Deliverable 4) on Windows 11, Python 3.13.14, Node 24.19.0 / npm 11.17.0.
 
 Statuses: **Implemented and tested** · **Implemented but not fully tested** · **Planned** · **Blocked**
 
@@ -62,15 +62,40 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Frontend documents panel (inventory, upload, validation, duplicate display, details, open/download, confirmed delete, errors) | Implemented and tested | `documents.test.tsx` (13); browser |
 | Upload progress percentage | Not implemented — "Uploading…" busy state only (fetch has no upload progress) | — |
 
+## Deliverable 4 — Document intelligence, preliminary scrutiny and simulated verification
+
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| Migration `0003` (additive; existing data preserved) | Implemented and tested | migration tests; ran on existing scratch DBs |
+| Page-level text extraction (PyMuPDF), 1-based pages | Implemented and tested | `test_text_pdf_extracts_pages_with_one_based_numbers`; browser |
+| OCR-unavailable behaviour (failed `ocr_unavailable`, never empty success) | Implemented and tested | `test_ocr_unavailable_…`; browser (no Tesseract on this machine) |
+| OCR fallback path / OCR failure handling | Implemented and tested (stub engine) | `test_ocr_fallback_…`, `test_ocr_failure_reported` |
+| OCR with real Tesseract | **Implemented but not fully tested** | `test_real_tesseract_ocr` **skipped**: Tesseract not installed on the verification machine |
+| Corrupt / empty / encrypted / missing-file PDFs | Implemented and tested | parametrised tests; encrypted demo PDF in browser run |
+| Caching by checksum + pipeline version; force reprocess; cross-document reuse | Implemented and tested | `test_results_cached_…` |
+| Classification with signals, documented confidence, uncertain outcome; mismatch warning, selected category kept | Implemented and tested | classification tests; browser |
+| Evidence-grounded extraction; grounding check; not found / ambiguous; no inferred validity | Implemented and tested | extraction tests |
+| Date and area normalisation | Implemented and tested | parametrised tests |
+| Rules as validated data; enable/disable; versioning; create; snapshot per run | Implemented and tested | rule tests; rules page in browser |
+| Rule families: expected document, required field, processing quality, classification, name/identifier/address/area consistency, date order, explicit expiry, simulated issuer outcome | Implemented and tested | `test_scrutiny.py` on the demo dataset |
+| Inconclusive instead of conflict for ambiguous/ungrounded values | Implemented and tested | `test_ambiguous_or_ungrounded_values_…` |
+| Anomaly indicators (duplicate, cross-application content, certificate-number reuse, mixed signals, incremental saves) | Implemented and tested (duplicate, certificate reuse); others implemented but not directly asserted | tests + browser |
+| Runs: history, determinism, stable finding keys, failure recording, concurrent-run guard | Implemented and tested | run tests; browser rerun |
+| Findings with evidence; detail; human review status (separate from system result) | Implemented and tested | backend + frontend tests; browser |
+| Application scoping of runs/findings | Implemented and tested | `test_records_are_scoped_to_their_application` |
+| Simulated issuer adapter: all outcomes, labels, no fabricated match, no reference leakage | Implemented and tested | `test_simulated_issuer_…`, `test_no_match_…`; browser |
+| Demo seed (12 fictional PDFs, 4 synthetic references), idempotent, user data preserved | Implemented and tested | seed tests; CLI run twice |
+| Frontend: processing controls, fields/evidence, page text, simulated checks, scrutiny panel, findings filters/detail/review, run history, rules page | Implemented and tested | `scrutiny.test.tsx` (13); browser |
+
 ## Later deliverables
 
 | Feature | Status |
 |---------|--------|
-| OCR, evidence-linked extraction | Planned (next) |
-| Regulatory rules with provenance, consistency checks | Planned |
-| Anomaly detection, simulated issuer verification | Planned |
-| Review queue, human decisions, audit trail, reports | Planned |
+| Verified regulatory sources for rules (replacing demo-only expectations) | Planned |
+| Cross-application review queue, final human decisions, audit trail, preliminary reports | Planned |
 | Authentication & roles | Planned |
+| Background processing worker | Planned (only if needed) |
+| Real issuer integrations | Not planned without official authorisation |
 
 ## Verification log (2026-10-23)
 
@@ -96,6 +121,18 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Real browser E2E (Playwright + headless Edge, scratch DB and storage) | all 12 acceptance steps passed; screenshots inspected |
 | Direct access to stored files | backend: 404 for every guessed path; Vite: `/@fs/` to repo `data/` → 403, other paths return the SPA HTML, never file bytes |
 
+## Verification log — Deliverable 4 (2026-10-23)
+
+| Check | Result |
+|-------|--------|
+| Baseline before changes | 104 backend passed, 40 frontend passed, tsc clean, build OK |
+| `python -m pytest` | **171 passed, 1 skipped** (skip = real Tesseract test; not installed) |
+| `npm test` | **53 passed** (40 existing + 13 new) |
+| `npm run typecheck` / `npm run build` | 0 errors / success (295 kB JS, 88 kB gzip) |
+| `npm audit` | 0 vulnerabilities |
+| Seed run twice | 12 demo documents + 4 references created, then 0 |
+| Real browser E2E (Playwright + headless Edge, scratch DB/storage, OCR unavailable) | all 12 acceptance steps passed; screenshots inspected |
+
 ## Known limitations
 
 - Application creation form loads at most the first 100 active institutions (alphabetical) into the selector.
@@ -109,5 +146,12 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 - No malware scanning, no encryption at rest, no upload progress percentage.
 - Duplicate detection is exact-byte only; re-saved or re-scanned copies are not detected (by design).
 - A crash between delete-commit and file discard can leave an orphan file in `.trash/`.
+- Extraction recognises only `Label: value` lines in English; tables, multi-line values and unusual wording are missed.
+  Accuracy has only been checked on synthetic documents and says nothing about real certificates.
+- Classification confidence is a keyword heuristic, not a calibrated probability.
+- All default expectation rules are demo-only and unverified against official sources; no regulatory citation exists.
+- Issuer verification is simulated against synthetic records only; there is no real integration.
+- Processing and scrutiny run synchronously in the HTTP request; very large or many scanned documents will be slow.
+- Human review records status/note without reviewer identity (no authentication yet).
 - Browser E2E script lives outside the repo (not part of the automated suite).
 - Port 5173 is occupied by an unrelated app on the verification machine; browser checks used port 5180.

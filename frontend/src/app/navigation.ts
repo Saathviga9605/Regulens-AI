@@ -6,6 +6,7 @@ import {
   History,
   LayoutDashboard,
   ShieldCheck,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,9 +27,9 @@ export const MODULES: ModuleDefinition[] = [
     path: "/applications",
     label: "Applications",
     icon: FileText,
-    summary: "Create, list and update EoA applications and their internal workflow status.",
+    summary: "EoA applications, their documents, extracted evidence and preliminary scrutiny findings.",
     available: true,
-    plannedScope: ["Upload PDF supporting documents", "OCR and evidence-linked structured extraction"],
+    plannedScope: [],
   },
   {
     path: "/institutions",
@@ -39,26 +40,33 @@ export const MODULES: ModuleDefinition[] = [
     plannedScope: [],
   },
   {
+    path: "/scrutiny-rules",
+    label: "Scrutiny Rules",
+    icon: SlidersHorizontal,
+    summary: "View and configure the deterministic preliminary-scrutiny rules and their source status.",
+    available: true,
+    plannedScope: [],
+  },
+  {
     path: "/review-queue",
     label: "Review Queue",
     icon: ClipboardList,
-    summary: "Prioritised queue of applications awaiting human scrutiny.",
+    summary: "Cross-application queue of findings awaiting human review.",
     available: false,
     plannedScope: [
-      "Rule-based validation findings with regulatory provenance",
-      "Cross-document consistency checks",
-      "Preliminary anomaly flags for reviewer attention",
+      "Prioritised list of open findings across applications",
+      "Reviewer assignment (requires authentication)",
     ],
   },
   {
     path: "/verification",
     label: "Verification",
     icon: ShieldCheck,
-    summary: "Issuer-verification workflows for supporting documents.",
+    summary: "Cross-application overview of issuer-verification attempts.",
     available: false,
     plannedScope: [
-      "Simulated issuer verification requests (no real government APIs)",
-      "Verification status tracking per document",
+      "Overview of simulated checks across applications (per-document simulated checks already exist)",
+      "Real issuer integrations only if officially authorised — none exist in this prototype",
     ],
   },
   {

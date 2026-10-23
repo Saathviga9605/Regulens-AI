@@ -211,6 +211,7 @@ export interface ApplicationDocument {
   duplicate_of: DuplicateReference | null;
   other_application_match_count: number;
   content_available: boolean;
+  processing: ProcessingSummary | null;
   description: string | null;
   uploaded_at: string;
   created_at: string;
@@ -229,4 +230,248 @@ export interface DocumentUpload {
   file: File;
   category: DocumentCategory;
   description?: string;
+}
+
+// --- Processing (Deliverable 4) ---------------------------------------------------------------
+
+export type ProcessingStatus = "completed" | "completed_with_warnings" | "failed";
+export type PageMethod = "text_layer" | "ocr" | "none";
+export type PageStatus = "ok" | "insufficient_text" | "ocr_failed" | "ocr_low_text";
+export type FieldStatus = "extracted" | "not_found" | "ambiguous" | "unverified";
+export type ConfidenceLevel = "high" | "medium" | "low";
+export type ClassificationConfidence = "high" | "medium" | "uncertain";
+
+export interface ProcessingSummary {
+  status: ProcessingStatus;
+  pipeline_version: string;
+  is_current: boolean;
+  predicted_category: DocumentCategory | null;
+  classification_confidence: ClassificationConfidence;
+  warning_count: number;
+  finished_at: string;
+}
+
+export interface ExtractedField {
+  id: string;
+  document_id: string;
+  field_name: string;
+  raw_value: string | null;
+  normalized_value: Record<string, string | number | null> | null;
+  page_number: number | null;
+  evidence_quote: string | null;
+  method: string;
+  confidence: ConfidenceLevel;
+  status: FieldStatus;
+  warnings: string[];
+  candidates: { value: string; page_number: number; evidence_quote: string }[];
+}
+
+export interface ClassificationSignal {
+  signal: string;
+  weight: number;
+  in_heading: boolean;
+}
+
+export interface Classification {
+  predicted_category: DocumentCategory | null;
+  selected_category: DocumentCategory;
+  confidence: ClassificationConfidence;
+  score: number;
+  signals: ClassificationSignal[];
+  alternatives: { category: string; score: number; signals: ClassificationSignal[] }[];
+  agrees_with_selected: boolean | null;
+}
+
+export interface PageSummary {
+  page_number: number;
+  method: PageMethod;
+  status: PageStatus;
+  char_count: number;
+  warnings: string[];
+}
+
+export interface DocumentPageText extends PageSummary {
+  text: string;
+}
+
+export interface ProcessingResult {
+  document_id: string;
+  application_code: string;
+  status: ProcessingStatus;
+  failure_code: string | null;
+  failure_reason: string | null;
+  pipeline_version: string;
+  is_current: boolean;
+  reused_from_cache: boolean;
+  ocr_available: boolean;
+  page_count: number;
+  pages_processed: number;
+  warnings: string[];
+  classification: Classification;
+  pages: PageSummary[];
+  fields: ExtractedField[];
+  started_at: string;
+  finished_at: string;
+}
+
+// --- Scrutiny ---------------------------------------------------------------------------------
+
+export type RuleOutcome = "pass" | "issue" | "inconclusive" | "not_applicable";
+export type Severity = "info" | "low" | "medium" | "high";
+export type FindingKind = "rule_finding" | "anomaly_indicator";
+export type ReviewStatus = "not_reviewed" | "acknowledged" | "needs_follow_up" | "dismissed";
+export type RunStatus = "running" | "completed" | "completed_with_warnings" | "failed";
+export type SourceVerificationStatus = "verified" | "unverified" | "not_applicable";
+
+export interface ScrutinyRule {
+  rule_id: string;
+  title: string;
+  description: string;
+  rule_type: string;
+  parameters: Record<string, unknown>;
+  severity: Severity;
+  enabled: boolean;
+  source: string;
+  source_reference: string | null;
+  source_verification_status: SourceVerificationStatus;
+  is_demo_only: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RuleUpdate {
+  enabled?: boolean;
+  severity?: Severity;
+}
+
+export interface EvidenceRef {
+  document_id: string;
+  document_filename: string;
+  field_id: string | null;
+  field_name: string | null;
+  value: string | null;
+  page_number: number | null;
+  quote: string | null;
+}
+
+export type ComparedValue = Record<string, unknown>;
+
+export interface RunSummaryCounts {
+  evaluation_outcomes: Record<RuleOutcome, number>;
+  finding_severities: Record<Severity, number>;
+  rule_findings: number;
+  anomaly_indicators: number;
+  documents_considered: number;
+  documents_processed_ok: number;
+  rules_evaluated: number;
+}
+
+export interface ScrutinyRunSummary {
+  id: string;
+  application_code: string;
+  run_number: number;
+  status: RunStatus;
+  scrutiny_date: string;
+  rule_set_version: string;
+  summary: Partial<RunSummaryCounts>;
+  warnings: string[];
+  failure_reason: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface RuleEvaluation {
+  id: string;
+  rule_id: string;
+  rule_version: number;
+  subject_key: string;
+  outcome: RuleOutcome;
+  severity: Severity;
+  explanation: string;
+  document_ids: string[];
+  field_ids: string[];
+  evidence: EvidenceRef[];
+  compared_values: ComparedValue[];
+  missing_evidence: string | null;
+  human_review_recommended: boolean;
+}
+
+export interface RuleSnapshot {
+  rule_id: string;
+  version: number;
+  title: string;
+  rule_type: string;
+  severity: Severity;
+  source: string;
+  source_reference: string | null;
+  source_verification_status: SourceVerificationStatus;
+  is_demo_only: boolean;
+}
+
+export interface ScrutinyRun extends ScrutinyRunSummary {
+  rule_snapshot: RuleSnapshot[];
+  documents_considered: Record<string, unknown>[];
+  evaluations: RuleEvaluation[];
+}
+
+export interface Finding {
+  id: string;
+  run_id: string;
+  finding_key: string;
+  kind: FindingKind;
+  finding_type: string;
+  title: string;
+  severity: Severity;
+  outcome: RuleOutcome;
+  explanation: string;
+  uncertainty: string | null;
+  rule_id: string | null;
+  rule_version: number | null;
+  detector: string | null;
+  document_ids: string[];
+  field_ids: string[];
+  evidence: EvidenceRef[];
+  compared_values: ComparedValue[];
+  missing_evidence: string | null;
+  human_review_recommended: boolean;
+  review_status: ReviewStatus;
+  review_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface FindingDetail extends Finding {
+  application_code: string;
+  run_number: number;
+  rule: RuleSnapshot | null;
+}
+
+export interface FindingQuery {
+  severity?: Severity;
+  kind?: FindingKind;
+  review_status?: ReviewStatus;
+}
+
+export type VerificationOutcome =
+  | "simulated_match"
+  | "simulated_mismatch"
+  | "simulated_expired"
+  | "simulated_unavailable"
+  | "manual_review"
+  | "unsupported";
+
+export interface VerificationAttempt {
+  id: string;
+  document_id: string | null;
+  document_filename: string;
+  adapter: string;
+  method: string;
+  simulated: boolean;
+  simulation_label: string | null;
+  outcome: VerificationOutcome;
+  explanation: string;
+  fields_compared: { field: string; document_value: string | null; result: string }[];
+  reference_code: string | null;
+  created_at: string;
 }

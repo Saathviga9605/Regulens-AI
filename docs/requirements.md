@@ -10,12 +10,12 @@ by authorised humans.
 |---|-----------|-------------|
 | 1 | Application and institutional-record management | Implemented (D2) |
 | 2 | PDF document upload and storage | Implemented (D3) |
-| 3 | OCR of scanned documents | Planned (D4, next) |
-| 4 | Structured extraction with page-level evidence (document, page, text span) | Planned (D4) |
-| 5 | Configurable regulatory validation rules with provenance (handbook, clause, version) | Planned (D4) |
-| 6 | Cross-document consistency checks | Planned (D4) |
-| 7 | Preliminary anomaly detection (flags for review, not conclusions) | Planned (D5) |
-| 8 | Issuer-verification workflow (simulated; no real government APIs) | Planned (D5) |
+| 3 | OCR of scanned documents | Implemented (D4; requires local Tesseract) |
+| 4 | Structured extraction with page-level evidence (document, page, text span) | Implemented (D4, deterministic baseline) |
+| 5 | Configurable regulatory validation rules with provenance (handbook, clause, version) | Engine implemented (D4); rules are demo-only until verified sources are added |
+| 6 | Cross-document consistency checks | Implemented (D4) |
+| 7 | Preliminary anomaly detection (flags for review, not conclusions) | Implemented (D4) |
+| 8 | Issuer-verification workflow (simulated; no real government APIs) | Implemented, simulated only (D4) |
 | 9 | Reviewer dashboard and review queue | Shell in D1; queue planned (D6) |
 | 10 | Audit trail of all user/system actions | Planned (D6) |
 | 11 | Preliminary scrutiny reports with cited evidence | Planned (D6) |

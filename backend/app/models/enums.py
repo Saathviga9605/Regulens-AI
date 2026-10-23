@@ -56,7 +56,7 @@ class DocumentCategory(StrEnum):
 
 
 class DocumentStatus(StrEnum):
-    """Intake status only. No OCR, validation or authenticity stage exists yet."""
+    """Intake status only. Processing and scrutiny results are stored separately."""
 
     UPLOADED = "uploaded"
     DUPLICATE_DETECTED = "duplicate_detected"
@@ -71,3 +71,113 @@ class ApplicationStatus(StrEnum):
     UNDER_PRELIMINARY_SCRUTINY = "under_preliminary_scrutiny"
     AWAITING_ADDITIONAL_EVIDENCE = "awaiting_additional_evidence"
     PRELIMINARY_SCRUTINY_COMPLETED = "preliminary_scrutiny_completed"
+
+
+# --- Document processing (Deliverable 4) ------------------------------------------------------
+
+
+class ProcessingStatus(StrEnum):
+    COMPLETED = "completed"
+    COMPLETED_WITH_WARNINGS = "completed_with_warnings"  # e.g. some pages unreadable / OCR unavailable
+    FAILED = "failed"  # corrupt, encrypted, empty or unavailable content
+
+
+class PageExtractionMethod(StrEnum):
+    TEXT_LAYER = "text_layer"
+    OCR = "ocr"
+    NONE = "none"
+
+
+class PageStatus(StrEnum):
+    OK = "ok"
+    INSUFFICIENT_TEXT = "insufficient_text"  # below the threshold and OCR not attempted/available
+    OCR_FAILED = "ocr_failed"
+    OCR_LOW_TEXT = "ocr_low_text"  # OCR ran but still produced little text
+
+
+class FieldStatus(StrEnum):
+    EXTRACTED = "extracted"
+    NOT_FOUND = "not_found"
+    AMBIGUOUS = "ambiguous"
+    UNVERIFIED = "unverified"  # evidence quote could not be grounded in the page text
+
+
+class Confidence(StrEnum):
+    """Qualitative heuristic confidence; not a calibrated probability."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+# --- Preliminary scrutiny ---------------------------------------------------------------------
+
+
+class RuleType(StrEnum):
+    EXPECTED_DOCUMENT = "expected_document"
+    REQUIRED_FIELD = "required_field"
+    PROCESSING_QUALITY = "processing_quality"
+    CLASSIFICATION_CONSISTENCY = "classification_consistency"
+    INSTITUTION_NAME_MATCH = "institution_name_match"
+    FIELD_CONSISTENCY = "field_consistency"
+    AREA_CONSISTENCY = "area_consistency"
+    DATE_ORDER = "date_order"
+    EXPIRY_BEFORE_SCRUTINY = "expiry_before_scrutiny"
+    SIMULATED_ISSUER_OUTCOME = "simulated_issuer_outcome"
+
+
+class Severity(StrEnum):
+    INFO = "info"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class SourceVerificationStatus(StrEnum):
+    VERIFIED = "verified"  # source text checked by a person against the cited official document
+    UNVERIFIED = "unverified"  # not checked against an official source; must be shown as such
+    NOT_APPLICABLE = "not_applicable"  # generic integrity/consistency check, not a regulatory requirement
+
+
+class RuleOutcome(StrEnum):
+    PASS = "pass"
+    ISSUE = "issue"
+    INCONCLUSIVE = "inconclusive"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class RunStatus(StrEnum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    COMPLETED_WITH_WARNINGS = "completed_with_warnings"
+    FAILED = "failed"
+
+
+class FindingKind(StrEnum):
+    RULE_FINDING = "rule_finding"
+    ANOMALY_INDICATOR = "anomaly_indicator"  # a prompt for attention, never a conclusion
+
+
+class ReviewStatus(StrEnum):
+    """Human-review outcome, set only by a person. System findings start as not_reviewed."""
+
+    NOT_REVIEWED = "not_reviewed"
+    ACKNOWLEDGED = "acknowledged"
+    NEEDS_FOLLOW_UP = "needs_follow_up"
+    DISMISSED = "dismissed"
+
+
+class VerificationOutcome(StrEnum):
+    """Outcomes of the SIMULATED issuer adapter. None means verification with a real authority."""
+
+    SIMULATED_MATCH = "simulated_match"
+    SIMULATED_MISMATCH = "simulated_mismatch"
+    SIMULATED_EXPIRED = "simulated_expired"
+    SIMULATED_UNAVAILABLE = "simulated_unavailable"
+    MANUAL_REVIEW = "manual_review"
+    UNSUPPORTED = "unsupported"
+
+
+class ReferenceAvailability(StrEnum):
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"

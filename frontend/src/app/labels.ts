@@ -5,6 +5,14 @@ import type {
   ApplicationType,
   DocumentCategory,
   DocumentStatus,
+  FieldStatus,
+  FindingKind,
+  PageStatus,
+  ProcessingStatus,
+  ReviewStatus,
+  RuleOutcome,
+  Severity,
+  VerificationOutcome,
   InstitutionType,
   ProgrammeLevel,
   RecordStatus,
@@ -22,7 +30,7 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
 export const STATUS_DESCRIPTIONS: Record<ApplicationStatus, string> = {
   draft: "Being prepared in ReguLens. Details can still be edited.",
   ready_for_preliminary_scrutiny:
-    "Details are frozen for internal scrutiny. This is a prototype step: document intake and validation are not implemented yet, so it does not confirm that required documents are present.",
+    "Details are frozen for internal scrutiny. This is a prototype workflow step: it does not confirm that required documents are present, valid or authentic.",
   under_preliminary_scrutiny: "A reviewer is carrying out internal preliminary scrutiny.",
   awaiting_additional_evidence: "Internal scrutiny is paused until additional evidence is provided.",
   preliminary_scrutiny_completed:
@@ -94,6 +102,90 @@ export const DOCUMENT_STATUS_STYLES: Record<DocumentStatus, string> = {
   duplicate_detected: "bg-amber-50 text-amber-900 ring-amber-200",
   intake_failed: "bg-red-50 text-red-800 ring-red-200",
 };
+
+export const PROCESSING_STATUS_LABELS: Record<ProcessingStatus, string> = {
+  completed: "Processed",
+  completed_with_warnings: "Processed with warnings",
+  failed: "Processing failed",
+};
+
+export const PROCESSING_STATUS_STYLES: Record<ProcessingStatus, string> = {
+  completed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  completed_with_warnings: "bg-amber-50 text-amber-900 ring-amber-200",
+  failed: "bg-red-50 text-red-800 ring-red-200",
+};
+
+export const PAGE_STATUS_LABELS: Record<PageStatus, string> = {
+  ok: "Readable",
+  insufficient_text: "Too little text (OCR not available)",
+  ocr_failed: "OCR failed",
+  ocr_low_text: "OCR produced little text",
+};
+
+export const FIELD_STATUS_LABELS: Record<FieldStatus, string> = {
+  extracted: "Extracted",
+  not_found: "Not found",
+  ambiguous: "Ambiguous",
+  unverified: "Unverified",
+};
+
+export const FIELD_STATUS_STYLES: Record<FieldStatus, string> = {
+  extracted: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  not_found: "bg-slate-100 text-slate-700 ring-slate-300",
+  ambiguous: "bg-amber-50 text-amber-900 ring-amber-200",
+  unverified: "bg-red-50 text-red-800 ring-red-200",
+};
+
+export function fieldLabel(name: string): string {
+  const label = name.replace(/_/g, " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+export const OUTCOME_LABELS: Record<RuleOutcome, string> = {
+  pass: "Pass",
+  issue: "Issue",
+  inconclusive: "Inconclusive",
+  not_applicable: "Not applicable",
+};
+
+export const OUTCOME_STYLES: Record<RuleOutcome, string> = {
+  pass: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  issue: "bg-red-50 text-red-800 ring-red-200",
+  inconclusive: "bg-amber-50 text-amber-900 ring-amber-200",
+  not_applicable: "bg-slate-100 text-slate-600 ring-slate-300",
+};
+
+export const SEVERITY_LABELS: Record<Severity, string> = { high: "High", medium: "Medium", low: "Low", info: "Info" };
+
+export const SEVERITY_STYLES: Record<Severity, string> = {
+  high: "bg-red-700 text-white ring-red-700",
+  medium: "bg-orange-100 text-orange-900 ring-orange-300",
+  low: "bg-sky-50 text-sky-900 ring-sky-200",
+  info: "bg-slate-100 text-slate-700 ring-slate-300",
+};
+
+export const FINDING_KIND_LABELS: Record<FindingKind, string> = {
+  rule_finding: "Rule finding",
+  anomaly_indicator: "Anomaly indicator",
+};
+
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  not_reviewed: "Not reviewed",
+  acknowledged: "Acknowledged",
+  needs_follow_up: "Needs follow-up",
+  dismissed: "Dismissed",
+};
+
+export const VERIFICATION_OUTCOME_LABELS: Record<VerificationOutcome, string> = {
+  simulated_match: "Simulated match",
+  simulated_mismatch: "Simulated mismatch",
+  simulated_expired: "Simulated expired",
+  simulated_unavailable: "Simulated registry unavailable",
+  manual_review: "Manual review required",
+  unsupported: "Unsupported document type",
+};
+
+export const SIMULATION_LABEL = "SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY";
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

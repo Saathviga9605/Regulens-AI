@@ -32,6 +32,8 @@ class Document(Base):
         String(36), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True
     )
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Set only for synthetic demo documents inserted by the seed; keeps reseeding idempotent.
+    seed_key: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
@@ -40,6 +42,7 @@ class Document(Base):
 
     __table_args__ = (
         Index("ix_documents_application_uploaded", "application_id", "uploaded_at"),
+        Index("uq_documents_seed_key", "seed_key", unique=True),
         Index("ix_documents_application_sha256", "application_id", "sha256"),
         CheckConstraint("size_bytes >= 0", name="ck_documents_size_non_negative"),
         CheckConstraint("length(sha256) = 64", name="ck_documents_sha256_length"),

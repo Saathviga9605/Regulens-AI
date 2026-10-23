@@ -1,7 +1,8 @@
 """Developer commands. Run from backend/:  python -m app.cli <command>
 
   migrate                     Upgrade the database schema to the latest migration.
-  seed                        Insert the synthetic demo dataset (idempotent).
+  seed                        Insert the synthetic demo dataset incl. demo PDFs and synthetic issuer
+                              reference records (idempotent; never modifies existing records).
   seed-summary                Print record counts.
   reset-data --confirm-reset  DELETE all institution/application/document data and stored files (development/test only).
 """
@@ -14,7 +15,9 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.init_db import run_migrations
 from app.db.session import build_engine, build_session_factory
+from app.services import demo_documents, rule_catalog
 from app.services import seed as seed_service
+from app.services.storage import DocumentStorage
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -34,12 +37,20 @@ def main(argv: list[str] | None = None) -> int:
         run_migrations(engine)
         factory = build_session_factory(engine)
         with factory() as session:
+            rule_catalog.ensure_default_rules(session)
             if args.command == "migrate":
                 print("Database schema is up to date.")
             elif args.command == "seed":
                 result = seed_service.seed(session)
                 print(f"Institutions: {result.institutions_created} created, {result.institutions_skipped} already present")
                 print(f"Applications: {result.applications_created} created, {result.applications_skipped} already present")
+                storage = DocumentStorage(settings.document_storage_path)
+                storage.ensure_dirs()
+                demo = demo_documents.seed_demo_documents(session, storage, settings.max_upload_bytes)
+                print(f"Demo documents: {demo.documents_created} created, {demo.documents_skipped} already present")
+                print(f"Synthetic issuer reference records: {demo.references_created} created")
+                for note in demo.notes:
+                    print(f"  note: {note}")
                 print(json.dumps(seed_service.summary(session), indent=2))
             elif args.command == "seed-summary":
                 print(json.dumps(seed_service.summary(session), indent=2))

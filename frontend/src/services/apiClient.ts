@@ -7,7 +7,11 @@ import type {
   ApplicationListItem,
   ApplicationQuery,
   ApplicationStatus,
+  DocumentPageText,
   DocumentUpload,
+  Finding,
+  FindingDetail,
+  FindingQuery,
   HealthResponse,
   Institution,
   InstitutionInput,
@@ -15,11 +19,20 @@ import type {
   InstitutionUpdate,
   IntakePolicy,
   Page,
+  ProcessingResult,
+  ReviewStatus,
+  RuleUpdate,
+  ScrutinyRule,
+  ScrutinyRun,
+  ScrutinyRunSummary,
   SystemInfoResponse,
+  VerificationAttempt,
 } from "../types/api";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:8000/api/v1";
 const REQUEST_TIMEOUT_MS = 8000;
+// Processing and scrutiny run synchronously on the server (text extraction, optional OCR).
+const LONG_TIMEOUT_MS = 180_000;
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
 
@@ -62,9 +75,16 @@ function buildUrl(path: string, query?: Query): string {
   return `${API_BASE_URL}${path}${qs ? `?${qs}` : ""}`;
 }
 
-async function request<T>(path: string, options: { method?: string; body?: unknown; query?: Query } = {}): Promise<T> {
+interface RequestOptions {
+  method?: string;
+  body?: unknown;
+  query?: Query;
+  timeoutMs?: number;
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
   const headers: Record<string, string> = { Accept: "application/json" };
   const isForm = options.body instanceof FormData;
   // FormData sets its own multipart Content-Type (with boundary).
@@ -174,6 +194,55 @@ export const apiClient = {
   },
   deleteDocument(id: string): Promise<void> {
     return request(`/documents/${enc(id)}`, { method: "DELETE" });
+  },
+  processDocument(id: string, force = false): Promise<ProcessingResult> {
+    return request(`/documents/${enc(id)}/processing`, {
+      method: "POST",
+      query: force ? { force: "true" } : undefined,
+      timeoutMs: LONG_TIMEOUT_MS,
+    });
+  },
+  getProcessing(id: string): Promise<ProcessingResult> {
+    return request(`/documents/${enc(id)}/processing`);
+  },
+  getDocumentPages(id: string): Promise<Page<DocumentPageText>> {
+    return request(`/documents/${enc(id)}/pages`, { query: { page_size: 100 } });
+  },
+  runSimulatedIssuerCheck(id: string): Promise<VerificationAttempt> {
+    return request(`/documents/${enc(id)}/issuer-verifications`, { method: "POST" });
+  },
+  listIssuerChecks(id: string): Promise<VerificationAttempt[]> {
+    return request(`/documents/${enc(id)}/issuer-verifications`);
+  },
+
+  listRules(): Promise<ScrutinyRule[]> {
+    return request("/scrutiny-rules");
+  },
+  updateRule(ruleId: string, update: RuleUpdate): Promise<ScrutinyRule> {
+    return request(`/scrutiny-rules/${enc(ruleId)}`, { method: "PATCH", body: update });
+  },
+  startScrutinyRun(applicationCode: string): Promise<ScrutinyRun> {
+    return request(`/applications/${enc(applicationCode)}/scrutiny-runs`, { method: "POST", timeoutMs: LONG_TIMEOUT_MS });
+  },
+  listScrutinyRuns(applicationCode: string): Promise<Page<ScrutinyRunSummary>> {
+    return request(`/applications/${enc(applicationCode)}/scrutiny-runs`, { query: { page_size: 50 } });
+  },
+  getScrutinyRun(applicationCode: string, runId: string): Promise<ScrutinyRun> {
+    return request(`/applications/${enc(applicationCode)}/scrutiny-runs/${enc(runId)}`);
+  },
+  listRunFindings(applicationCode: string, runId: string, query: FindingQuery = {}): Promise<Page<Finding>> {
+    return request(`/applications/${enc(applicationCode)}/scrutiny-runs/${enc(runId)}/findings`, {
+      query: { page_size: 100, ...query },
+    });
+  },
+  getFinding(applicationCode: string, findingId: string): Promise<FindingDetail> {
+    return request(`/applications/${enc(applicationCode)}/findings/${enc(findingId)}`);
+  },
+  reviewFinding(applicationCode: string, findingId: string, reviewStatus: ReviewStatus, note?: string): Promise<FindingDetail> {
+    return request(`/applications/${enc(applicationCode)}/findings/${enc(findingId)}/review`, {
+      method: "PATCH",
+      body: { review_status: reviewStatus, review_note: note?.trim() || null },
+    });
   },
   /** URL served by the backend (never a storage path). Opened via a normal link so the browser handles the PDF. */
   documentContentUrl(id: string, disposition: "inline" | "attachment" = "inline"): string {

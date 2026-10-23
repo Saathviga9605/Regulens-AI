@@ -10,6 +10,7 @@ import { InstitutionDetailPage } from "../pages/institutions/InstitutionDetailPa
 import { InstitutionsListPage } from "../pages/institutions/InstitutionsListPage";
 import { ModulePlaceholderPage } from "../pages/ModulePlaceholderPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
+import { ScrutinyRulesPage } from "../pages/ScrutinyRulesPage";
 import { BackendHealthProvider } from "./BackendHealthContext";
 import { MODULES } from "./navigation";
 
@@ -26,6 +27,7 @@ export function App() {
           <Route path="institutions" element={<InstitutionsListPage />} />
           <Route path="institutions/new" element={<InstitutionCreatePage />} />
           <Route path="institutions/:institutionCode" element={<InstitutionDetailPage />} />
+          <Route path="scrutiny-rules" element={<ScrutinyRulesPage />} />
           {MODULES.filter((m) => !m.available).map((m) => (
             <Route key={m.path} path={m.path} element={<ModulePlaceholderPage module={m} />} />
           ))}

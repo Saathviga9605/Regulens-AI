@@ -88,3 +88,13 @@ def draft(client: TestClient, institution: dict) -> dict:
     response = client.post("/api/v1/applications", json=application_payload(institution["institution_code"]))
     assert response.status_code == 201, response.text
     return response.json()
+
+
+@pytest.fixture
+def code(draft: dict) -> str:
+    return draft["application_code"]
+
+
+@pytest.fixture
+def storage(app):
+    return app.state.document_storage

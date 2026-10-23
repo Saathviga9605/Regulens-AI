@@ -39,16 +39,6 @@ def leftovers(storage: DocumentStorage) -> list[Path]:
     return list(storage.incoming.glob("*")) + list(storage.trash.glob("*"))
 
 
-@pytest.fixture
-def storage(app) -> DocumentStorage:
-    return app.state.document_storage
-
-
-@pytest.fixture
-def code(draft: dict) -> str:
-    return draft["application_code"]
-
-
 # --- upload ---------------------------------------------------------------------------------
 
 def test_upload_valid_pdf(client: TestClient, code: str, storage: DocumentStorage) -> None:

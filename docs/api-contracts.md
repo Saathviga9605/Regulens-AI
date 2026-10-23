@@ -217,6 +217,108 @@ Permanent deletion of the row and the stored file (409 `document_intake_closed` 
 document is an original with duplicates, the earliest duplicate becomes `uploaded` and the remaining duplicates are
 re-linked to it. A missing stored file does not block deletion.
 
+`DocumentRead` also includes `processing`: `null` or
+`{status, pipeline_version, is_current, predicted_category, classification_confidence, warning_count, finished_at}`.
+
+## Document processing
+
+Synchronous within the request; bounded by `REGULENS_MAX_PROCESSING_PAGES` and OCR timeouts. Error responses never
+contain filesystem paths or stack traces. Details: [scrutiny-and-extraction.md](scrutiny-and-extraction.md).
+
+### POST /documents/{document_id}/processing[?force=true] → 200 ProcessingResult | 404 | 409
+409 `document_not_processable` for intake-failed documents. Returns the cached result (`reused_from_cache: true`)
+when content and pipeline version are unchanged, unless `force=true`.
+
+```json
+{
+  "document_id": "…", "application_code": "REG-EoA-2026-0005",
+  "status": "completed | completed_with_warnings | failed",
+  "failure_code": "ocr_unavailable", "failure_reason": "No page has a usable text layer and OCR is not available. …",
+  "pipeline_version": "p1+cls-1+label_regex_v1", "is_current": true, "reused_from_cache": false,
+  "ocr_available": false, "page_count": 1, "pages_processed": 1, "warnings": ["…"],
+  "classification": {"predicted_category": "occupancy_certificate", "selected_category": "occupancy_certificate",
+                     "confidence": "high | medium | uncertain", "score": 0.92,
+                     "signals": [{"signal": "phrase 'occupancy certificate'", "weight": 10, "in_heading": true}],
+                     "alternatives": [], "agrees_with_selected": true},
+  "pages": [{"page_number": 1, "method": "text_layer | ocr | none",
+             "status": "ok | insufficient_text | ocr_failed | ocr_low_text", "char_count": 412, "warnings": []}],
+  "fields": [{"id": "…", "document_id": "…", "field_name": "survey_number", "raw_value": "318",
+              "normalized_value": {"text": "318"}, "page_number": 1, "evidence_quote": "Survey No.: 318",
+              "method": "label_regex_v1", "confidence": "high | medium | low",
+              "status": "extracted | not_found | ambiguous | unverified", "warnings": [], "candidates": []}],
+  "started_at": "…", "finished_at": "…"
+}
+```
+`normalized_value`: `{"date": "YYYY-MM-DD"}`, `{"value", "unit": "sq_m|sq_ft|null", "value_sq_m"}`, or `{"text"}`;
+`null` when not safely normalisable (e.g. ambiguous date — `raw_value` keeps the original).
+
+### GET /documents/{document_id}/processing → 200 ProcessingResult | 404 (`not_found` / `not_processed`)
+### GET /documents/{document_id}/pages → 200 Page[{page_number, method, status, char_count, text, warnings}]
+
+## Simulated issuer verification
+
+### POST /documents/{document_id}/issuer-verifications → 201 | 404 | 409 `document_not_processed`
+### GET /documents/{document_id}/issuer-verifications → 200 [Attempt] (latest 50)
+### GET /applications/{application_code}/issuer-verifications → 200 Page[Attempt]
+```json
+{"id": "…", "document_id": "…", "document_filename": "occupancy-certificate.pdf",
+ "adapter": "mock_synthetic_registry", "method": "simulated_reference_lookup", "simulated": true,
+ "simulation_label": "SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY",
+ "outcome": "simulated_match | simulated_mismatch | simulated_expired | simulated_unavailable | manual_review | unsupported",
+ "explanation": "…", "fields_compared": [{"field": "institution_name", "document_value": "…", "result": "match | mismatch | not_available | no_reference"}],
+ "reference_code": "SYN-REF-0004", "created_at": "…"}
+```
+Synthetic reference values are never returned.
+
+## Scrutiny rules
+
+### GET /scrutiny-rules → 200 [Rule]  ·  GET /scrutiny-rules/{rule_id} → 200 | 404
+`Rule`: `rule_id, title, description, rule_type, parameters, severity (info|low|medium|high), enabled, source,
+source_reference, source_verification_status (verified|unverified|not_applicable), is_demo_only, version, created_at,
+updated_at`.
+
+### POST /scrutiny-rules → 201 | 409 `rule_exists` | 422
+Body: `rule_id` (`^[A-Z]{2,6}-\d{3}$`), `title`, `description`, `rule_type`, `parameters`, `severity`, optional
+`enabled`, `source`, `source_reference`, `source_verification_status` (default `unverified`), `is_demo_only`
+(default `true`). Parameters are validated against the rule type's schema; unknown keys → 422.
+
+### PATCH /scrutiny-rules/{rule_id} → 200 | 404 | 422
+Any of `title, description, parameters, severity, enabled, source, source_reference, source_verification_status,
+is_demo_only`. `rule_type`, `rule_id` and `version` cannot be set. A real change increments `version`.
+
+## Scrutiny runs and findings
+
+Runs and findings are addressed under their application; a run/finding of another application returns 404.
+
+### POST /applications/{application_code}/scrutiny-runs → 201 Run | 404 | 409 `scrutiny_run_in_progress` | 422
+Optional body `{"scrutiny_date": "YYYY-MM-DD"}` (2000–2100; default today) — the date used for expiry checks.
+Processes documents with missing/stale results first. An unexpected engine error yields a run with
+`status: "failed"` and a generic `failure_reason`; earlier runs are untouched.
+
+### GET /applications/{application_code}/scrutiny-runs → 200 Page[RunSummary] (newest first)
+### GET /applications/{application_code}/scrutiny-runs/{run_id} → 200 Run | 404
+`RunSummary`: `id, application_code, run_number, status (running|completed|completed_with_warnings|failed),
+scrutiny_date, rule_set_version, summary {evaluation_outcomes, finding_severities, rule_findings, anomaly_indicators,
+documents_considered, documents_processed_ok, rules_evaluated}, warnings, failure_reason, started_at, finished_at`.
+`Run` adds `rule_snapshot`, `documents_considered` and `evaluations[]`
+(`rule_id, rule_version, subject_key, outcome (pass|issue|inconclusive|not_applicable), severity, explanation,
+document_ids, field_ids, evidence[], compared_values[], missing_evidence, human_review_recommended`).
+
+### GET /applications/{application_code}/scrutiny-runs/{run_id}/findings → 200 Page[Finding]
+### GET /applications/{application_code}/findings → 200 Page[Finding] (latest run; empty page if none)
+Filters: `severity`, `kind` (`rule_finding | anomaly_indicator`), `outcome`, `review_status`; `page`, `page_size ≤ 100`.
+`Finding`: `id, run_id, finding_key (stable across runs), kind, finding_type, title, severity, outcome, explanation,
+uncertainty, rule_id, rule_version, detector, document_ids, field_ids, evidence[{document_id, document_filename,
+field_id, field_name, value, page_number, quote}], compared_values, missing_evidence, human_review_recommended,
+review_status (not_reviewed|acknowledged|needs_follow_up|dismissed), review_note, reviewed_at, created_at`.
+
+### GET /applications/{application_code}/findings/{finding_id} → 200 FindingDetail | 404
+Adds `application_code`, `run_number` and `rule` (the rule as snapshotted for that run, incl. source and demo flag).
+
+### PATCH /applications/{application_code}/findings/{finding_id}/review → 200 FindingDetail | 404 | 422
+Body `{"review_status": "...", "review_note": "≤1000 chars"}`. Records a human assessment; the system outcome and
+the application status are not changed.
+
 ## CORS
 Allowed origins from `REGULENS_CORS_ORIGINS` (exact match); credentials not allowed; `*` rejected in production.
 `/docs` and `/openapi.json` are served outside production only.

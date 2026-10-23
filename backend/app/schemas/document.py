@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.models.enums import ApplicationStatus, DocumentCategory, DocumentStatus
+from app.schemas.scrutiny import ProcessingSummary
 
 
 class DuplicateReference(BaseModel):
@@ -27,6 +28,8 @@ class DocumentRead(BaseModel):
     # Number of *other* applications holding identical content. No details are exposed.
     other_application_match_count: int
     content_available: bool
+    # Latest processing result (text extraction / classification), or null if never processed.
+    processing: ProcessingSummary | None = None
     description: str | None
     uploaded_at: datetime
     created_at: datetime

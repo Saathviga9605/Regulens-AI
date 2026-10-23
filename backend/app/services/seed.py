@@ -12,7 +12,21 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.models import Application, ApplicationProgramme, Document, IdSequence, Institution
+from app.models import (
+    Application,
+    ApplicationProgramme,
+    Document,
+    DocumentPage,
+    DocumentProcessing,
+    ExtractedField,
+    Finding,
+    IdSequence,
+    Institution,
+    IssuerReferenceRecord,
+    RuleEvaluation,
+    ScrutinyRun,
+    VerificationAttempt,
+)
 from app.models.enums import ApplicationStatus as S
 from app.models.enums import ApplicationType as T
 from app.models.enums import InstitutionType as IT
@@ -147,6 +161,10 @@ def summary(session: Session) -> dict:
         "applications_total": count(Application),
         "applications_seeded": count(Application, Application.seed_key.is_not(None)),
         "applications_by_status": {s.value: by_status.get(s, 0) for s in S},
+        "documents_total": count(Document),
+        "documents_seeded": count(Document, Document.seed_key.is_not(None)),
+        "synthetic_issuer_references": count(IssuerReferenceRecord),
+        "scrutiny_runs": count(ScrutinyRun),
     }
 
 
@@ -155,8 +173,9 @@ class ResetRefused(Exception):
 
 
 def reset_data(session: Session, settings: Settings, *, confirm: bool) -> int:
-    """Delete ALL institution, application and document rows (user-created included) and the stored files
-    those document rows reference. Schema is kept. Returns the number of stored files removed.
+    """Delete ALL institution, application, document, processing, scrutiny and synthetic issuer-reference rows
+    (user-created included) and the stored files those document rows reference. Scrutiny rules and the schema
+    are kept. Returns the number of stored files removed.
 
     Requires ``confirm=True`` and a development/test environment. Never called at startup or by tests
     against a developer database.
@@ -169,7 +188,9 @@ def reset_data(session: Session, settings: Settings, *, confirm: bool) -> int:
         raise ResetRefused(f"Refusing to reset in the '{settings.environment}' environment.")
     keys = [k for k in session.execute(select(Document.storage_key)).scalars() if k]
     session.execute(update(Document).values(duplicate_of_id=None))
-    for model in (Document, ApplicationProgramme, Application, Institution, IdSequence):
+    for model in (VerificationAttempt, Finding, RuleEvaluation, ScrutinyRun, ExtractedField, DocumentPage,
+                  DocumentProcessing, Document, ApplicationProgramme, Application, Institution, IdSequence,
+                  IssuerReferenceRecord):
         session.execute(delete(model))
     session.commit()
     # Remove files only after the commit, and only those referenced by the deleted rows.

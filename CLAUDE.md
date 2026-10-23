@@ -84,6 +84,21 @@ npm test; npm run typecheck; npm run build; npm run dev
 - Tests must use the per-test storage dir from `tests/conftest.py:make_settings`; never touch `data/documents/`.
 - A checksum identifies content; never describe it (or "is a PDF") as proof of authenticity.
 
+## Processing and scrutiny conventions
+
+- Bump `PIPELINE_VERSION` (`services/processing.py`) or the classifier/extractor version whenever their behaviour
+  changes, so cached results refresh.
+- Extracted values must come from explicit text with a grounded evidence quote; never infer missing values, validity
+  periods or authorities. Ambiguous → keep the raw value, normalised `null`, status `ambiguous`.
+- New rule types need: an enum value, a parameter schema in `rule_catalog.py`, an evaluator in `scrutiny.py`, tests.
+  Rules without a verified official source must be `is_demo_only=true`, `source_verification_status=unverified`.
+- Evaluators must return `inconclusive` (not `issue`) when evidence is missing, unreadable or ambiguous, and never
+  treat absence in one document as a conflict. Wording must never say fraud, forged, approved or rejected.
+- Anomaly detectors produce indicators with an explicit uncertainty statement; never conclusions.
+- Issuer verification goes through `IssuerVerificationAdapter`; anything simulated must carry the label
+  "SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY". No network calls to real authorities.
+- Demo data must be fictional and bannered; seeds are idempotent via `seed_key` and never modify existing rows.
+
 ## Request/response schema conventions
 
 - Request bodies inherit `StrictInputModel` (unknown fields → 422, prevents mass assignment); PATCH bodies inherit

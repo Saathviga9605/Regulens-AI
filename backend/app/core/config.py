@@ -46,6 +46,17 @@ class Settings(BaseSettings):
     # Maximum accepted PDF size in bytes (default 20 MiB). Allowed range: 1 KiB – 200 MiB.
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1024, le=200 * 1024 * 1024)
 
+    # --- Document processing / OCR -------------------------------------------------------------
+    # Tesseract executable. Empty = auto-detect on PATH or the default Windows install location.
+    tesseract_cmd: str = ""
+    ocr_enabled: bool = True
+    ocr_language: str = Field(default="eng", pattern=r"^[A-Za-z_+]{3,40}$")
+    ocr_dpi: int = Field(default=200, ge=72, le=400)
+    ocr_timeout_seconds: int = Field(default=30, ge=5, le=300)
+    # Pages whose text layer has fewer non-whitespace characters than this are OCR candidates.
+    min_page_text_chars: int = Field(default=25, ge=1, le=2000)
+    max_processing_pages: int = Field(default=50, ge=1, le=500)
+
     @field_validator("document_storage_dir")
     @classmethod
     def _check_storage_dir(cls, value: str) -> str:

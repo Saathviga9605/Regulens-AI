@@ -62,14 +62,46 @@ can report `degraded` truthfully.
 Deletion isolates the file in `<storage>/.trash/`, deletes the row (promoting/relinking duplicates), commits, then
 discards the isolated file; on commit failure the file is moved back.
 
+## Document intelligence and scrutiny (Deliverable 4)
+
+```
+stored PDF ──► pdf_text (PyMuPDF; Tesseract subprocess if available)
+             ──► classification (weighted keyword/heading signals)
+             ──► extraction (label regex, evidence quote grounded in page text)
+             ──► document_processing / document_pages / extracted_fields   (cached by sha256 + pipeline version)
+
+application + institution record + processed documents + latest simulated issuer checks
+             ──► scrutiny engine: enabled rules (validated JSON parameters) → rule_evaluations
+                                  anomaly detectors → findings (kind = anomaly_indicator)
+             ──► scrutiny_runs (rule snapshot, summary, warnings) — history kept per application
+
+issuer_verification.IssuerVerificationAdapter ◄── MockIssuerAdapter (synthetic reference records only; no network)
+```
+
+| Module | Responsibility |
+|--------|----------------|
+| `services/pdf_text.py` | Page extraction, OCR heuristic and bounds, safe failure codes |
+| `services/classification.py` | Explainable classifier and documented confidence |
+| `services/extraction.py`, `services/normalize.py` | Field specs, grounding, date/area/name/identifier normalisation |
+| `services/processing.py` | Orchestration, caching, persistence; never changes the selected category |
+| `services/rule_catalog.py` | Rule types, parameter schemas, default (demo-only / integrity) rules |
+| `services/scrutiny.py` | Evaluators per rule type, anomaly detectors, run execution and queries |
+| `services/issuer_verification.py` | Adapter protocol and the mock synthetic adapter |
+| `services/demo_documents.py` | Fictional demo PDFs and synthetic reference records for the seed |
+| `api/v1/scrutiny.py` | Processing, verification, rules, runs and findings endpoints |
+
+Processing and runs execute synchronously in the request (threadpool), bounded by page limits and OCR timeouts.
+A background worker would be the next step if documents grow large. See
+[scrutiny-and-extraction.md](scrutiny-and-extraction.md) for heuristics, rules and limitations.
+
 ## Frontend (`frontend/src`)
 
 | Dir | Responsibility |
 |-----|----------------|
 | `app/` | `App.tsx` (routes), `navigation.ts` (module definitions), `BackendHealthContext.tsx` (shared health state + refresh). |
 | `layouts/` | `AppLayout` — responsive navy sidebar, skip link, connection indicator, `<main>` outlet. |
-| `pages/` | Dashboard, applications (list/create/detail), institutions (list/create/detail), `ModulePlaceholderPage`, `NotFoundPage`. |
-| `components/` | `ConnectionIndicator`, `SystemStatusPanel`, `ApplicationForm`, `InstitutionForm`, `DocumentsPanel` (inventory, upload, details, open/download, confirmed delete), `ui.tsx` primitives. |
+| `pages/` | Dashboard, applications (list/create/detail), institutions (list/create/detail), `ScrutinyRulesPage`, `ModulePlaceholderPage`, `NotFoundPage`. |
+| `components/` | `ConnectionIndicator`, `SystemStatusPanel`, `ApplicationForm`, `InstitutionForm`, `DocumentsPanel` (inventory, upload, processing status, process all, details, open/download, confirmed delete), `DocumentAnalysis` (classification, fields with evidence, page text, simulated issuer checks), `ScrutinyPanel` (runs, history, summary, findings, finding detail, human review), `ui.tsx` primitives. |
 | `services/` | `apiClient.ts` — typed fetch wrapper with timeout, error normalisation (`ApiError`), response shape check. |
 | `types/` | API types mirroring backend schemas, `ConnectionState` union. |
 
@@ -84,11 +116,9 @@ Each future domain gets its own `models/<x>.py`, `schemas/<x>.py`, `services/<x>
 page + typed client functions:
 
 - **applications** — application + institution records (implemented, D2).
-- **documents** — PDF intake, private storage, exact-duplicate detection (implemented, D3); OCR pipeline next.
-- **extraction** — structured fields with evidence (document, page, span, confidence).
-- **rules** — versioned rule definitions with regulatory provenance; rule engine producing findings.
-- **consistency / anomalies** — cross-document checks, anomaly flags (non-conclusive).
-- **verification** — simulated issuer verification adapters behind an interface.
+- **documents** — PDF intake, private storage, exact-duplicate detection (D3); processing, OCR, extraction (D4).
+- **scrutiny** — rules, runs, findings, anomaly indicators, simulated issuer checks (D4).
+- **regulatory sources** — verified official source documents that rules can cite (planned; current rules are demo-only or integrity checks).
 - **review / reports / audit** — reviewer queue, human decisions, preliminary reports, append-only audit log.
 - **auth** — users, roles, session/token handling.
 

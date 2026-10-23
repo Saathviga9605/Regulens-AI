@@ -206,3 +206,11 @@ export const TABLE = {
   th: "px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 bg-slate-50",
   td: "px-4 py-3 align-top text-slate-700",
 };
+
+export function Pill({ className, children }: { className: string; children: ReactNode }) {
+  return (
+    <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${className}`}>
+      {children}
+    </span>
+  );
+}

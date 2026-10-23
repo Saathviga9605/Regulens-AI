@@ -96,6 +96,7 @@ export const DOC: ApplicationDocument = {
   duplicate_of: null,
   other_application_match_count: 0,
   content_available: true,
+  processing: null,
   description: null,
   uploaded_at: "2026-10-23T10:30:00Z",
   created_at: "2026-10-23T10:30:00Z",
@@ -136,6 +137,7 @@ export function mockApi(routes: Record<string, Handler>) {
     // Panels on detail pages: default to the real-shaped policy and an empty document list.
     if (method === "GET" && call.path === "/documents/intake-policy") return jsonResponse(POLICY);
     if (method === "GET" && /^\/applications\/[^/]+\/documents$/.test(call.path)) return jsonResponse(page([]));
+    if (method === "GET" && /^\/applications\/[^/]+\/scrutiny-runs$/.test(call.path)) return jsonResponse(page([]));
     return jsonResponse({ error: { code: "unmocked", message: `Unmocked ${method} ${path}`, request_id: "t" } }, 599);
   });
   return { spy, calls, callsTo: (method: string, path: string) => calls.filter((c) => c.method === method && c.path === path) };

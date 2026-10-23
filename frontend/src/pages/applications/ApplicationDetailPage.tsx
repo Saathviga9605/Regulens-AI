@@ -15,6 +15,7 @@ import {
 import { useApiQuery } from "../../app/useApiQuery";
 import { ApplicationForm, toFormValues } from "../../components/ApplicationForm";
 import { DocumentsPanel } from "../../components/DocumentsPanel";
+import { ScrutinyPanel } from "../../components/ScrutinyPanel";
 import {
   Alert,
   Card,
@@ -39,6 +40,7 @@ export function ApplicationDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [institutions, setInstitutions] = useState<Institution[] | null>(null);
+  const [documentsVersion, setDocumentsVersion] = useState(0);
 
   if (app.loading && !app.data) return <LoadingState label="Loading application…" />;
   if (app.error && !app.data) return <ErrorState message={app.error} onRetry={app.reload} />;
@@ -119,8 +121,8 @@ export function ApplicationDetailPage() {
           )}
           {a.status === "draft" && (
             <p className="text-xs text-slate-500">
-              Marking ready freezes the application details. Document checks are not implemented yet, so this step
-              does not confirm that required documents are present.
+              Marking ready freezes the application details. It does not confirm that required documents are present
+              or valid — use preliminary scrutiny below and review its findings.
             </p>
           )}
         </div>
@@ -189,7 +191,9 @@ export function ApplicationDetailPage() {
         </>
       )}
 
-      <DocumentsPanel applicationCode={a.application_code} intakeOpen={a.document_intake_open} />
+      <DocumentsPanel applicationCode={a.application_code} intakeOpen={a.document_intake_open} refreshKey={documentsVersion} />
+
+      <ScrutinyPanel applicationCode={a.application_code} onRunCompleted={() => setDocumentsVersion((v) => v + 1)} />
 
       <Card
         title="Institution"

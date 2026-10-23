@@ -7,7 +7,8 @@ relative to the repo root; directory auto-created; git-ignored). `PRAGMA foreign
 ## Schema management (Alembic)
 
 - Migrations live in `backend/app/db/migrations/versions/`. Revision `0001` creates institutions, applications, application_programmes and id_sequences; `0002` adds
-  documents (purely additive — existing rows untouched).
+  documents; `0003` adds processing, scrutiny and simulated-verification tables plus `documents.seed_key` (all additive:
+  plain ADD COLUMN + new tables, no rebuild of existing tables; existing rows untouched).
 - `init_db` (FastAPI startup) and `python -m app.cli migrate` run `alembic upgrade head` on the configured database.
   This works on fresh databases and on existing ones (e.g. a Deliverable 1 database): only missing structures are
   added and existing tables/rows are untouched. `create_all` is no longer used.
@@ -89,6 +90,29 @@ relative to the repo root; directory auto-created; git-ignored). `PRAGMA foreign
 | created_at, updated_at | DATETIME (UTC) | |
 | | | INDEX (application_id, uploaded_at), INDEX (application_id, sha256) |
 
+`documents.seed_key` (migration `0003`, unique index) marks synthetic demo documents.
+
+### Processing tables (migration `0003`)
+| Table | Key columns | Notes |
+|-------|-------------|-------|
+| document_processing | id, document_id (FK CASCADE, UNIQUE), sha256 (INDEX), pipeline_version, status, failure_code/reason, page_count, pages_processed, ocr_available, warnings JSON, predicted_category, classification_score/confidence/signals/alternatives, reused_from_cache, pdf_properties JSON, started_at, finished_at | Latest result per document |
+| document_pages | id, processing_id (FK CASCADE), page_number (1-based), method, status, text, char_count, warnings | UNIQUE (processing_id, page_number) |
+| extracted_fields | id (UUID), processing_id (FK CASCADE), document_id (FK CASCADE), position, field_name, raw_value, normalized_value JSON, page_number, evidence_quote, method, confidence, status, warnings, candidates | INDEX (document_id, field_name) |
+
+### Scrutiny tables (migration `0003`)
+| Table | Key columns | Notes |
+|-------|-------------|-------|
+| scrutiny_rules | rule_id (PK), title, description, rule_type, parameters JSON, severity, enabled, source, source_reference, source_verification_status, is_demo_only, version, timestamps | Configuration; kept by reset |
+| scrutiny_runs | id, application_id (FK RESTRICT), run_number, status, scrutiny_date, rule_set_version, rule_snapshot JSON, documents_considered JSON, warnings, summary JSON, failure_reason, started_at, finished_at | UNIQUE (application_id, run_number); history is never deleted by reruns |
+| rule_evaluations | id, run_id (FK CASCADE), position, rule_id, rule_version, subject_key, outcome, severity, explanation, document_ids/field_ids/evidence/compared_values JSON, missing_evidence, human_review_recommended | UNIQUE (run_id, rule_id, subject_key) |
+| findings | id, application_id (FK RESTRICT), run_id (FK CASCADE), evaluation_id (FK CASCADE, nullable), finding_key, kind, finding_type, title, severity, outcome, explanation, uncertainty, rule_id/version or detector, evidence JSON, review_status, review_note, reviewed_at, created_at | UNIQUE (run_id, finding_key) — stable keys across runs |
+| issuer_reference_records | id, reference_code (UNIQUE), document_category, issuing_authority, certificate_number(_normalized INDEX), institution_name, issue_date, valid_until, availability, seed_key | **Synthetic only** |
+| verification_attempts | id, application_id (FK RESTRICT), document_id (FK SET NULL), document_filename, adapter, method, simulated, outcome, explanation, fields_compared JSON, reference_code, created_at | |
+
+Evidence in evaluations/findings is stored as JSON snapshots (document id, filename, page, quote, value) rather than
+foreign keys, so run history remains readable after a document is deleted or reprocessed. Each run is committed in
+its own transaction; a failed run is recorded as `failed` without affecting earlier runs.
+
 ## Relationships
 
 Institution 1 — * Application 1 — * ApplicationProgramme; Application 1 — * Document; Document 0..1 — * Document
@@ -112,7 +136,8 @@ endpoint exists for them.
   provide. Duplicate integrity: deleting an original promotes its earliest duplicate to `uploaded` and re-links the
   rest. File removal is two-phase (isolate → commit → discard; restore on failure). If a crash happens between
   commit and discard, an orphan file may remain in `.trash/` (safe: never served).
-- **Reset**: `reset-data --confirm-reset` also deletes document rows and the stored files they reference.
+- **Reset**: `reset-data --confirm-reset` also deletes document, processing, scrutiny, verification and synthetic
+  reference rows and the stored files documents reference. Scrutiny rules are kept.
 
 ## Identifier generation (concurrency-safe)
 
@@ -160,6 +185,5 @@ never updates or deletes any row. `reset-data` deletes all institution/applicati
 
 ## Planned entities (not implemented)
 
-DocumentPage (OCR text), ExtractedField (with page-level evidence), RegulatorySource, Rule (versioned, with
-provenance), Finding, VerificationRequest, ReviewDecision, AuditEvent, User. These will reference `applications.id`
-and `institutions.id`.
+RegulatorySource (verified official documents that rules cite), ReviewDecision (final human decision with rationale),
+AuditEvent (append-only), User/Role. These will reference `applications.id` and `institutions.id`.

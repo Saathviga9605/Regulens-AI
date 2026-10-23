@@ -10,6 +10,10 @@ const IMPLEMENTED = [
   "Connection status: connected, degraded and disconnected states",
   "Institution records: create, search, view and edit (fictional data)",
   "EoA applications: create drafts, search, filter, edit drafts and move through internal workflow statuses",
+  "Secure PDF intake with private storage and exact-duplicate detection",
+  "Document processing: page text (OCR when Tesseract is installed), type detection, evidence-quoted fields",
+  "Preliminary scrutiny: configurable rules, cross-document checks, anomaly indicators and run history",
+  "Simulated issuer checks against synthetic records (clearly labelled, not real verification)",
 ];
 
 export function DashboardPage() {

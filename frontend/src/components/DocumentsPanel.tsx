@@ -1,10 +1,12 @@
-import { Download, ExternalLink, Info, Trash2, Upload } from "lucide-react";
+import { Cog, Download, ExternalLink, Info, Trash2, Upload } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 
 import {
   DOCUMENT_CATEGORY_LABELS,
   DOCUMENT_STATUS_LABELS,
   DOCUMENT_STATUS_STYLES,
+  PROCESSING_STATUS_LABELS,
+  PROCESSING_STATUS_STYLES,
   entries,
   formatBytes,
   formatDateTime,
@@ -12,6 +14,7 @@ import {
 import { useApiQuery } from "../app/useApiQuery";
 import { ApiError, apiClient } from "../services/apiClient";
 import type { ApplicationDocument, DocumentCategory, IntakePolicy } from "../types/api";
+import { DocumentAnalysis } from "./DocumentAnalysis";
 import {
   Alert,
   Card,
@@ -19,6 +22,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  Pill,
   SelectField,
   TABLE,
   TextField,
@@ -166,7 +170,7 @@ function DocumentDetails({ doc }: { doc: ApplicationDocument }) {
       />
       <p className="text-xs text-slate-500">
         The SHA-256 checksum identifies the exact file content for comparison. It does not establish that the document
-        is authentic or that its issuer is legitimate. No OCR or validation has been performed.
+        is authentic or that its issuer is legitimate.
       </p>
     </div>
   );
@@ -174,14 +178,43 @@ function DocumentDetails({ doc }: { doc: ApplicationDocument }) {
 
 // --- Panel -------------------------------------------------------------------------------------
 
-export function DocumentsPanel({ applicationCode, intakeOpen }: { applicationCode: string; intakeOpen: boolean }) {
-  const docs = useApiQuery(() => apiClient.listDocuments(applicationCode), applicationCode);
+interface PanelProps {
+  applicationCode: string;
+  intakeOpen: boolean;
+  /** Changing this value reloads the inventory (e.g. after a scrutiny run processed documents). */
+  refreshKey?: number;
+}
+
+export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0 }: PanelProps) {
+  const docs = useApiQuery(() => apiClient.listDocuments(applicationCode), `${applicationCode}:${refreshKey}`);
   const policy = useApiQuery(() => apiClient.getIntakePolicy(), "policy");
   const [uploading, setUploading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<ApplicationDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [flash, setFlash] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [batch, setBatch] = useState<string | null>(null);
+
+  async function processAll() {
+    const pending = (docs.data?.items ?? []).filter((d) => d.status !== "intake_failed" && !d.processing?.is_current);
+    setFlash(null);
+    let failed = 0;
+    for (const [i, d] of pending.entries()) {
+      setBatch(`Processing ${i + 1} of ${pending.length}: ${d.original_filename}…`);
+      try {
+        const result = await apiClient.processDocument(d.id);
+        if (result.status === "failed") failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBatch(null);
+    setFlash(pending.length === 0
+      ? { tone: "success", text: "All documents already have current processing results." }
+      : { tone: failed ? "error" : "success",
+          text: `Processed ${pending.length} document(s)${failed ? `; ${failed} could not be read — see each document's details` : ""}.` });
+    docs.reload();
+  }
 
   function onUploaded(doc: ApplicationDocument) {
     setUploading(false);
@@ -218,11 +251,18 @@ export function DocumentsPanel({ applicationCode, intakeOpen }: { applicationCod
     <Card
       title="Supporting documents"
       actions={
-        intakeOpen && !uploading && policy.data ? (
-          <button type="button" className={buttonStyles.primary} onClick={() => { setFlash(null); setUploading(true); }}>
-            <Upload aria-hidden="true" className="h-4 w-4" /> Upload PDF
-          </button>
-        ) : undefined
+        <div className="flex flex-wrap gap-2">
+          {items.length > 0 && (
+            <button type="button" className={buttonStyles.secondary} onClick={processAll} disabled={batch !== null}>
+              <Cog aria-hidden="true" className="h-4 w-4" /> {batch ? "Processing…" : "Process all"}
+            </button>
+          )}
+          {intakeOpen && !uploading && policy.data && (
+            <button type="button" className={buttonStyles.primary} onClick={() => { setFlash(null); setUploading(true); }}>
+              <Upload aria-hidden="true" className="h-4 w-4" /> Upload PDF
+            </button>
+          )}
+        </div>
       }
     >
       <div className="space-y-4">
@@ -231,6 +271,7 @@ export function DocumentsPanel({ applicationCode, intakeOpen }: { applicationCod
             Documents can be added or removed only while the application is a draft or awaiting additional evidence.
           </Alert>
         )}
+        {batch && <div role="status" className="text-sm text-slate-700">{batch}</div>}
         {flash && <Alert tone={flash.tone}>{flash.text}</Alert>}
         {policy.error && <ErrorState message={policy.error} onRetry={policy.reload} />}
         {uploading && policy.data && (
@@ -255,6 +296,7 @@ export function DocumentsPanel({ applicationCode, intakeOpen }: { applicationCod
                   <th scope="col" className={TABLE.th}>Size</th>
                   <th scope="col" className={TABLE.th}>Uploaded</th>
                   <th scope="col" className={TABLE.th}>Intake status</th>
+                  <th scope="col" className={TABLE.th}>Processing</th>
                   <th scope="col" className={TABLE.th}>Actions</th>
                 </tr>
               </thead>
@@ -271,6 +313,7 @@ export function DocumentsPanel({ applicationCode, intakeOpen }: { applicationCod
                     onAskDelete={() => { setFlash(null); setConfirming(doc); }}
                     onCancelDelete={() => setConfirming(null)}
                     onConfirmDelete={confirmDelete}
+                    onProcessed={docs.reload}
                   />
                 ))}
               </tbody>
@@ -292,9 +335,28 @@ interface RowProps {
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
+  onProcessed: () => void;
 }
 
-function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting, onAskDelete, onCancelDelete, onConfirmDelete }: RowProps) {
+function ProcessingCell({ doc }: { doc: ApplicationDocument }) {
+  const p = doc.processing;
+  if (!p) return <span className="text-xs text-slate-500">Not processed</span>;
+  return (
+    <>
+      <Pill className={PROCESSING_STATUS_STYLES[p.status]}>{PROCESSING_STATUS_LABELS[p.status]}</Pill>
+      {!p.is_current && <div className="mt-1 text-xs text-amber-800">Outdated — reprocess</div>}
+      {p.status !== "failed" && (
+        <div className="mt-1 text-xs text-slate-600">
+          {p.predicted_category
+            ? `Detected: ${DOCUMENT_CATEGORY_LABELS[p.predicted_category]}${p.predicted_category !== doc.category ? " (differs)" : ""}`
+            : "Type uncertain"}
+        </div>
+      )}
+    </>
+  );
+}
+
+function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting, onAskDelete, onCancelDelete, onConfirmDelete, onProcessed }: RowProps) {
   const detailsId = `doc-details-${doc.id}`;
   const small = "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
   return (
@@ -315,6 +377,9 @@ function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting,
           {doc.other_application_match_count > 0 && (
             <div className="mt-1 text-xs text-slate-600">Also present in another application</div>
           )}
+        </td>
+        <td className={TABLE.td}>
+          <ProcessingCell doc={doc} />
         </td>
         <td className={TABLE.td}>
           <div className="flex flex-wrap gap-1">
@@ -345,7 +410,7 @@ function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting,
       </tr>
       {confirming && (
         <tr>
-          <td colSpan={6} className="bg-red-50 px-4 py-3">
+          <td colSpan={7} className="bg-red-50 px-4 py-3">
             <div role="alertdialog" aria-labelledby={`${detailsId}-confirm`} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p id={`${detailsId}-confirm`} className="text-sm text-red-900">
                 Delete “{doc.original_filename}”? The stored file and its metadata are removed permanently.
@@ -365,8 +430,9 @@ function DocumentRow({ doc, expanded, onToggle, canDelete, confirming, deleting,
       )}
       {expanded && (
         <tr>
-          <td id={detailsId} colSpan={6} className="bg-slate-50 px-4 py-4">
+          <td id={detailsId} colSpan={7} className="space-y-4 bg-slate-50 px-4 py-4">
             <DocumentDetails doc={doc} />
+            {doc.status !== "intake_failed" && <DocumentAnalysis doc={doc} onProcessed={onProcessed} />}
           </td>
         </tr>
       )}
