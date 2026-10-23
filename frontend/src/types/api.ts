@@ -161,6 +161,7 @@ export interface Application extends ApplicationListItem {
   programmes: Programme[];
   status_changed_at: string;
   is_editable: boolean;
+  document_intake_open: boolean;
   allowed_transitions: ApplicationStatus[];
   institution_snapshot: InstitutionSnapshot | null;
 }
@@ -173,4 +174,59 @@ export interface ApplicationQuery {
   institution_code?: string;
   page?: number;
   page_size?: number;
+}
+
+// --- Documents -------------------------------------------------------------------------------
+
+export type DocumentCategory =
+  | "fire_safety_certificate"
+  | "occupancy_certificate"
+  | "completion_certificate"
+  | "structural_stability_certificate"
+  | "building_plan"
+  | "university_noc"
+  | "trust_resolution"
+  | "other";
+
+/** Intake status only — no OCR, validation or authenticity checks exist yet. */
+export type DocumentStatus = "uploaded" | "duplicate_detected" | "intake_failed";
+
+export interface DuplicateReference {
+  id: string;
+  original_filename: string;
+  category: DocumentCategory;
+  uploaded_at: string;
+}
+
+/** Named to avoid clashing with the DOM `Document` type. */
+export interface ApplicationDocument {
+  id: string;
+  application_code: string;
+  original_filename: string;
+  category: DocumentCategory;
+  mime_type: string;
+  size_bytes: number;
+  sha256: string;
+  status: DocumentStatus;
+  duplicate_of: DuplicateReference | null;
+  other_application_match_count: number;
+  content_available: boolean;
+  description: string | null;
+  uploaded_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntakePolicy {
+  max_upload_bytes: number;
+  accepted_content_types: string[];
+  accepted_extensions: string[];
+  categories: DocumentCategory[];
+  intake_open_statuses: ApplicationStatus[];
+}
+
+export interface DocumentUpload {
+  file: File;
+  category: DocumentCategory;
+  description?: string;
 }

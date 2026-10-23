@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.db.session import session_scope
 from app.schemas.common import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.services.storage import DocumentStorage
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,10 @@ def get_pagination(
 
 def get_app_settings(request: Request) -> Settings:
     return request.app.state.settings
+
+
+def get_storage(request: Request) -> DocumentStorage:
+    return request.app.state.document_storage
 
 
 def get_db(request: Request) -> Iterator[Session]:

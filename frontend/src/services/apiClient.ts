@@ -1,16 +1,19 @@
 import type {
   ApiErrorBody,
+  ApplicationDocument,
   ApiErrorDetail,
   Application,
   ApplicationInput,
   ApplicationListItem,
   ApplicationQuery,
   ApplicationStatus,
+  DocumentUpload,
   HealthResponse,
   Institution,
   InstitutionInput,
   InstitutionQuery,
   InstitutionUpdate,
+  IntakePolicy,
   Page,
   SystemInfoResponse,
 } from "../types/api";
@@ -63,13 +66,15 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  const isForm = options.body instanceof FormData;
+  // FormData sets its own multipart Content-Type (with boundary).
+  if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   let response: Response;
   try {
     response = await fetch(buildUrl(path, options.query), {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body === undefined ? undefined : isForm ? (options.body as FormData) : JSON.stringify(options.body),
       signal: controller.signal,
     });
   } catch {
@@ -77,6 +82,8 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
   } finally {
     clearTimeout(timer);
   }
+
+  if (response.status === 204) return undefined as T;
 
   let body: unknown;
   try {
@@ -147,5 +154,29 @@ export const apiClient = {
   },
   changeApplicationStatus(code: string, target: ApplicationStatus): Promise<Application> {
     return request(`/applications/${enc(code)}/status`, { method: "POST", body: { target_status: target } });
+  },
+
+  getIntakePolicy(): Promise<IntakePolicy> {
+    return request("/documents/intake-policy");
+  },
+  listDocuments(applicationCode: string): Promise<Page<ApplicationDocument>> {
+    return request(`/applications/${enc(applicationCode)}/documents`, { query: { page_size: 100 } });
+  },
+  getDocument(id: string): Promise<ApplicationDocument> {
+    return request(`/documents/${enc(id)}`);
+  },
+  uploadDocument(applicationCode: string, upload: DocumentUpload): Promise<ApplicationDocument> {
+    const form = new FormData();
+    form.append("file", upload.file, upload.file.name);
+    form.append("category", upload.category);
+    if (upload.description) form.append("description", upload.description);
+    return request(`/applications/${enc(applicationCode)}/documents`, { method: "POST", body: form });
+  },
+  deleteDocument(id: string): Promise<void> {
+    return request(`/documents/${enc(id)}`, { method: "DELETE" });
+  },
+  /** URL served by the backend (never a storage path). Opened via a normal link so the browser handles the PDF. */
+  documentContentUrl(id: string, disposition: "inline" | "attachment" = "inline"): string {
+    return buildUrl(`/documents/${enc(id)}/content`, disposition === "attachment" ? { disposition } : undefined);
   },
 };

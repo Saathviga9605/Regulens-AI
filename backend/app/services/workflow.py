@@ -16,6 +16,8 @@ TRANSITIONS: dict[S, frozenset[S]] = {
 }
 
 EDITABLE_STATUSES = frozenset({S.DRAFT})
+# Documents may be added/removed while preparing the application or when evidence was requested.
+DOCUMENT_INTAKE_STATUSES = (S.DRAFT, S.AWAITING_ADDITIONAL_EVIDENCE)
 
 _ORDER = list(S)
 
@@ -30,3 +32,7 @@ def can_transition(current: S, target: S) -> bool:
 
 def is_editable(status: S) -> bool:
     return status in EDITABLE_STATUSES
+
+
+def document_intake_open(status: S) -> bool:
+    return status in DOCUMENT_INTAKE_STATUSES

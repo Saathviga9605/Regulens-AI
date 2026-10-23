@@ -3,7 +3,15 @@ import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 
 import { App } from "../src/app/App";
-import type { Application, ApplicationListItem, HealthResponse, Institution, Page } from "../src/types/api";
+import type {
+  Application,
+  ApplicationDocument,
+  ApplicationListItem,
+  HealthResponse,
+  Institution,
+  IntakePolicy,
+  Page,
+} from "../src/types/api";
 
 export const HEALTHY: HealthResponse = {
   app_name: "ReguLens AI",
@@ -62,8 +70,36 @@ export const DRAFT: Application = {
   ],
   status_changed_at: "2026-10-23T10:00:00Z",
   is_editable: true,
+  document_intake_open: true,
   allowed_transitions: ["ready_for_preliminary_scrutiny"],
   institution_snapshot: null,
+};
+
+export const POLICY: IntakePolicy = {
+  max_upload_bytes: 20 * 1024 * 1024,
+  accepted_content_types: ["application/pdf"],
+  accepted_extensions: [".pdf"],
+  categories: ["fire_safety_certificate", "occupancy_certificate", "completion_certificate",
+    "structural_stability_certificate", "building_plan", "university_noc", "trust_resolution", "other"],
+  intake_open_statuses: ["draft", "awaiting_additional_evidence"],
+};
+
+export const DOC: ApplicationDocument = {
+  id: "11111111-1111-4111-8111-111111111111",
+  application_code: "REG-EoA-2026-0001",
+  original_filename: "fire-safety.pdf",
+  category: "fire_safety_certificate",
+  mime_type: "application/pdf",
+  size_bytes: 245760,
+  sha256: "a".repeat(64),
+  status: "uploaded",
+  duplicate_of: null,
+  other_application_match_count: 0,
+  content_available: true,
+  description: null,
+  uploaded_at: "2026-10-23T10:30:00Z",
+  created_at: "2026-10-23T10:30:00Z",
+  updated_at: "2026-10-23T10:30:00Z",
 };
 
 export interface RecordedCall {
@@ -89,7 +125,7 @@ export function mockApi(routes: Record<string, Handler>) {
       method,
       path: decodeURIComponent(path),
       params: url.searchParams,
-      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      body: init?.body instanceof FormData ? init.body : init?.body ? JSON.parse(String(init.body)) : undefined,
     };
     calls.push(call);
     for (const [pattern, handler] of Object.entries(routes)) {
@@ -97,6 +133,9 @@ export function mockApi(routes: Record<string, Handler>) {
       if (m === method && new RegExp(`^${p}$`).test(call.path)) return handler(call);
     }
     if (method === "GET" && call.path === "/health") return jsonResponse(HEALTHY);
+    // Panels on detail pages: default to the real-shaped policy and an empty document list.
+    if (method === "GET" && call.path === "/documents/intake-policy") return jsonResponse(POLICY);
+    if (method === "GET" && /^\/applications\/[^/]+\/documents$/.test(call.path)) return jsonResponse(page([]));
     return jsonResponse({ error: { code: "unmocked", message: `Unmocked ${method} ${path}`, request_id: "t" } }, 599);
   });
   return { spy, calls, callsTo: (method: string, path: string) => calls.filter((c) => c.method === method && c.path === path) };

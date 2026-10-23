@@ -6,7 +6,8 @@ relative to the repo root; directory auto-created; git-ignored). `PRAGMA foreign
 
 ## Schema management (Alembic)
 
-- Migrations live in `backend/app/db/migrations/versions/`. Revision `0001` creates the four tables below.
+- Migrations live in `backend/app/db/migrations/versions/`. Revision `0001` creates institutions, applications, application_programmes and id_sequences; `0002` adds
+  documents (purely additive — existing rows untouched).
 - `init_db` (FastAPI startup) and `python -m app.cli migrate` run `alembic upgrade head` on the configured database.
   This works on fresh databases and on existing ones (e.g. a Deliverable 1 database): only missing structures are
   added and existing tables/rows are untouched. `create_all` is no longer used.
@@ -70,10 +71,48 @@ relative to the repo root; directory auto-created; git-ignored). `PRAGMA foreign
 | name | VARCHAR(50) PK | `institution`, `application:2026`, … |
 | last_value | INTEGER | last issued number |
 
+### documents (migration `0002`)
+| Column | Type | Constraints / notes |
+|--------|------|---------------------|
+| id | VARCHAR(36) | PK, UUID4 (public opaque id) |
+| application_id | VARCHAR(36) | FK → applications.id `ON DELETE RESTRICT` |
+| original_filename | VARCHAR(255) | sanitised base name; display only, never a path |
+| storage_key | VARCHAR(32) | UNIQUE, server-generated hex; NULL only for `intake_failed` |
+| category | VARCHAR(40) | CHECK enum (8 prototype categories) |
+| mime_type | VARCHAR(100) | detected from content (`application/pdf`) |
+| size_bytes | BIGINT | CHECK ≥ 0 |
+| sha256 | VARCHAR(64) | CHECK length 64, INDEX |
+| uploaded_at | DATETIME (UTC) | |
+| status | VARCHAR(40) | CHECK `uploaded` / `duplicate_detected` / `intake_failed` |
+| duplicate_of_id | VARCHAR(36) | FK → documents.id `ON DELETE SET NULL`, INDEX; CHECK ≠ id |
+| description | VARCHAR(500) | optional |
+| created_at, updated_at | DATETIME (UTC) | |
+| | | INDEX (application_id, uploaded_at), INDEX (application_id, sha256) |
+
 ## Relationships
 
-Institution 1 — * Application 1 — * ApplicationProgramme. Institutions cannot be deleted while applications
-reference them (RESTRICT); no delete endpoint exists.
+Institution 1 — * Application 1 — * ApplicationProgramme; Application 1 — * Document; Document 0..1 — * Document
+(duplicates → original). Institutions and applications cannot be deleted while referenced (RESTRICT); no delete
+endpoint exists for them.
+
+## Document storage, duplicates and deletion
+
+- **Layout** (root = `REGULENS_DOCUMENT_STORAGE_DIR`, default `data/documents/`): `<key[0:2]>/<key>.pdf`;
+  `.incoming/` for in-progress uploads; `.trash/` for files isolated during deletion. Keys must match `^[0-9a-f]{32}$`
+  and every resolved path must stay under the root, so neither filenames nor tampered keys can reach other files.
+- **Consistency**: the file is moved into place after the row is flushed and before commit; commit failure removes
+  the file; validation or I/O failure removes the temp file. A storage write failure records an `intake_failed` row
+  without content (the only failure persisted; validation rejections are not stored).
+- **Duplicate policy**: same SHA-256 within the same application → new row kept as `duplicate_detected`, linked to the
+  earliest `uploaded` original. The original is never modified or overwritten. Other applications are reported only
+  as a count. Same filename with different content is *not* a duplicate. Identical hashes indicate identical bytes —
+  not misconduct, and not authenticity.
+- **Deletion policy**: explicit hard delete (row + file), allowed in intake statuses only. Rationale: there is no audit
+  subsystem yet, so retaining "soft-deleted" files would imply a retention/audit guarantee the prototype does not
+  provide. Duplicate integrity: deleting an original promotes its earliest duplicate to `uploaded` and re-links the
+  rest. File removal is two-phase (isolate → commit → discard; restore on failure). If a crash happens between
+  commit and discard, an orphan file may remain in `.trash/` (safe: never served).
+- **Reset**: `reset-data --confirm-reset` also deletes document rows and the stored files they reference.
 
 ## Identifier generation (concurrency-safe)
 
@@ -121,6 +160,6 @@ never updates or deletes any row. `reset-data` deletes all institution/applicati
 
 ## Planned entities (not implemented)
 
-Document, DocumentPage, ExtractedField (with page-level evidence), RegulatorySource, Rule (versioned, with
+DocumentPage (OCR text), ExtractedField (with page-level evidence), RegulatorySource, Rule (versioned, with
 provenance), Finding, VerificationRequest, ReviewDecision, AuditEvent, User. These will reference `applications.id`
 and `institutions.id`.

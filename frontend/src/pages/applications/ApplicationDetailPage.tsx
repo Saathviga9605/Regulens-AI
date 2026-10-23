@@ -14,6 +14,7 @@ import {
 } from "../../app/labels";
 import { useApiQuery } from "../../app/useApiQuery";
 import { ApplicationForm, toFormValues } from "../../components/ApplicationForm";
+import { DocumentsPanel } from "../../components/DocumentsPanel";
 import {
   Alert,
   Card,
@@ -187,6 +188,8 @@ export function ApplicationDetailPage() {
           </Card>
         </>
       )}
+
+      <DocumentsPanel applicationCode={a.application_code} intakeOpen={a.document_intake_open} />
 
       <Card
         title="Institution"

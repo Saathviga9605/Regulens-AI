@@ -42,6 +42,27 @@ class Shift(StrEnum):
     SECOND = "second"
 
 
+class DocumentCategory(StrEnum):
+    """Prototype categories. Offering a category does not mean it is mandatory for every application."""
+
+    FIRE_SAFETY_CERTIFICATE = "fire_safety_certificate"
+    OCCUPANCY_CERTIFICATE = "occupancy_certificate"
+    COMPLETION_CERTIFICATE = "completion_certificate"
+    STRUCTURAL_STABILITY_CERTIFICATE = "structural_stability_certificate"
+    BUILDING_PLAN = "building_plan"
+    UNIVERSITY_NOC = "university_noc"
+    TRUST_RESOLUTION = "trust_resolution"
+    OTHER = "other"
+
+
+class DocumentStatus(StrEnum):
+    """Intake status only. No OCR, validation or authenticity stage exists yet."""
+
+    UPLOADED = "uploaded"
+    DUPLICATE_DETECTED = "duplicate_detected"
+    INTAKE_FAILED = "intake_failed"
+
+
 class ApplicationStatus(StrEnum):
     """Internal ReguLens workflow statuses. None of these is an AICTE decision."""
 

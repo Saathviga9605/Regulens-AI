@@ -73,6 +73,17 @@ npm test; npm run typecheck; npm run build; npm run dev
   flag and are never run at startup or against the developer database in tests.
 - Database files live in `data/` and are git-ignored. Tests must use temporary databases (see `tests/conftest.py`).
 
+## File handling conventions
+
+- All document file access goes through `services/storage.py:DocumentStorage`. Never build paths from user input;
+  keys are server-generated hex and every resolved path must stay under the storage root.
+- Uploads: stream in chunks (never `await file.read()` whole), hash while streaming, validate by content signature,
+  clean up temp files on every failure path, move into place before commit and remove on commit failure.
+- Never return storage keys or filesystem paths. Serve content only via the content endpoint with
+  `X-Content-Type-Options: nosniff` and a sanitised `Content-Disposition`.
+- Tests must use the per-test storage dir from `tests/conftest.py:make_settings`; never touch `data/documents/`.
+- A checksum identifies content; never describe it (or "is a PDF") as proof of authenticity.
+
 ## Request/response schema conventions
 
 - Request bodies inherit `StrictInputModel` (unknown fields → 422, prevents mass assignment); PATCH bodies inherit

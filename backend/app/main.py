@@ -1,6 +1,7 @@
 """FastAPI application factory and ASGI entrypoint (``uvicorn app.main:app``)."""
 
 import logging
+import re
 import uuid
 from contextlib import asynccontextmanager
 
@@ -10,9 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
+from app.core.limits import UploadSizeLimitMiddleware
 from app.core.logging import configure_logging
 from app.db.init_db import init_db
 from app.db.session import build_engine, build_session_factory
+from app.services.storage import DocumentStorage
 
 logger = logging.getLogger("regulens.app")
 
@@ -28,6 +31,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception as exc:
             # Keep serving so /health can report the degraded state accurately.
             logger.error("Database initialisation failed", extra={"error_type": type(exc).__name__})
+        try:
+            app.state.document_storage.ensure_dirs()
+        except OSError as exc:
+            logger.error("Document storage unavailable", extra={"error_type": type(exc).__name__})
         logger.info(f"{settings.app_name} started in {settings.environment} mode")
         yield
         app.state.engine.dispose()
@@ -44,6 +51,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = build_engine(settings)
     app.state.session_factory = build_session_factory(app.state.engine)
+    app.state.document_storage = DocumentStorage(settings.document_storage_path)
+
+    # Middleware order: the last added is outermost. CORS wraps everything (so 413s carry CORS headers),
+    # then request IDs, then the upload size limit.
+    app.add_middleware(
+        UploadSizeLimitMiddleware,
+        max_bytes=settings.max_upload_bytes,
+        path_pattern=rf"{re.escape(settings.api_prefix)}/applications/[^/]+/documents",
+    )
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):

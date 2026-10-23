@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last verified: 2026-10-23 on Windows 11, Python 3.13.14, Node 24.19.0 / npm 11.17.0.
+Last verified: 2026-10-23 (Deliverable 3) on Windows 11, Python 3.13.14, Node 24.19.0 / npm 11.17.0.
 
 Statuses: **Implemented and tested** · **Implemented but not fully tested** · **Planned** · **Blocked**
 
@@ -39,12 +39,34 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Frontend: application detail, draft edit, status actions | Implemented and tested | `applications.test.tsx`; real browser |
 | Frontend: institutions list/search/detail/create/edit, linked applications | Implemented and tested | `institutions.test.tsx`; real browser |
 
+## Deliverable 3 — Document intake, storage and integrity
+
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| `documents` table via migration `0002` (existing data preserved) | Implemented and tested | `test_migrations_preserve_existing_data_and_are_repeatable` |
+| Upload to existing / nonexistent application | Implemented and tested | `test_upload_valid_pdf`, `test_upload_to_nonexistent_application` |
+| Empty, non-PDF, misleading MIME, bad signature, truncated, bad filename rejection | Implemented and tested | `test_rejected_uploads_leave_nothing_behind` (10 cases) |
+| Size limit (streamed and Content-Length) | Implemented and tested | `test_oversized_upload_rejected` |
+| Streaming SHA-256, server-generated storage keys | Implemented and tested | upload + integrity tests |
+| Exact duplicate detection (same app), cross-app count only | Implemented and tested | `test_exact_duplicate_…`, `test_match_in_other_application_…` |
+| Same filename / different content; many per category | Implemented and tested | dedicated tests |
+| Persistence across sessions/restarts | Implemented and tested | `test_metadata_persists_across_sessions`; browser reload |
+| Content delivery (inline/attachment, safe headers, integrity) | Implemented and tested | `test_content_download_integrity_and_headers`; browser download sha256 match |
+| Missing document / missing file handling | Implemented and tested | `test_missing_document_and_missing_content` |
+| Path traversal (filename, id, tampered key) | Implemented and tested | 4 traversal tests |
+| Cleanup on DB failure; `intake_failed` on storage failure | Implemented and tested | `test_database_failure_…`, `test_storage_failure_…` |
+| Deletion: duplicate, original promotion, missing file, rollback restore | Implemented and tested | 4 deletion tests; browser |
+| Intake only in draft / awaiting evidence | Implemented and tested | `test_intake_closed_…`; frontend test; browser |
+| Not served statically; storage dir inside `frontend/` rejected | Implemented and tested | `test_documents_are_not_served_statically`, config test; live curl checks |
+| Reset also removes documents and their files | Implemented and tested | `test_reset_removes_documents_and_their_files` |
+| Frontend documents panel (inventory, upload, validation, duplicate display, details, open/download, confirmed delete, errors) | Implemented and tested | `documents.test.tsx` (13); browser |
+| Upload progress percentage | Not implemented — "Uploading…" busy state only (fetch has no upload progress) | — |
+
 ## Later deliverables
 
 | Feature | Status |
 |---------|--------|
-| PDF upload & storage | Planned (next) |
-| OCR, evidence-linked extraction | Planned |
+| OCR, evidence-linked extraction | Planned (next) |
 | Regulatory rules with provenance, consistency checks | Planned |
 | Anomaly detection, simulated issuer verification | Planned |
 | Review queue, human decisions, audit trail, reports | Planned |
@@ -63,12 +85,29 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | `reset-data` without flag | refused, exit code 2 |
 | Real browser E2E (Playwright driving headless Microsoft Edge, scratch DB) | all 14 acceptance steps passed; screenshots inspected (desktop + 390 px mobile) |
 
+## Verification log — Deliverable 3 (2026-10-23)
+
+| Check | Result |
+|-------|--------|
+| Baseline before changes | 66 backend, 27 frontend, tsc clean, build OK |
+| `python -m pytest` | **104 passed** (66 existing + 38 new) |
+| `npm test` | **40 passed** (27 existing + 13 new) |
+| `npm run typecheck` / `npm run build` | 0 errors / success |
+| Real browser E2E (Playwright + headless Edge, scratch DB and storage) | all 12 acceptance steps passed; screenshots inspected |
+| Direct access to stored files | backend: 404 for every guessed path; Vite: `/@fs/` to repo `data/` → 403, other paths return the SPA HTML, never file bytes |
+
 ## Known limitations
 
 - Application creation form loads at most the first 100 active institutions (alphabetical) into the selector.
 - Academic-year choices in the UI are fixed to 2024-25 … 2027-28 (the API accepts any valid year).
 - The ID-sequence upsert is SQLite-dialect specific.
 - Status changes record no actor or note yet (audit trail is a later deliverable).
-- No authentication: anyone who can reach the API can change data. Dev/local use only.
+- No authentication: anyone who can reach the API can change data **or download any document by id**.
+  Document ids are random UUIDs, but that is not access control. Dev/local use only.
+- PDF checks are structural (signature, `%%EOF`); a crafted file can pass them. Files are never executed or
+  rendered by the backend, but the PDF is opened by the user's browser viewer.
+- No malware scanning, no encryption at rest, no upload progress percentage.
+- Duplicate detection is exact-byte only; re-saved or re-scanned copies are not detected (by design).
+- A crash between delete-commit and file discard can leave an orphan file in `.trash/`.
 - Browser E2E script lives outside the repo (not part of the automated suite).
 - Port 5173 is occupied by an unrelated app on the verification machine; browser checks used port 5180.

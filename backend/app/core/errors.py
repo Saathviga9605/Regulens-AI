@@ -14,7 +14,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("regulens.errors")
 
-_HTTP_CODES = {400: "bad_request", 404: "not_found", 405: "method_not_allowed", 409: "conflict"}
+_HTTP_CODES = {
+    400: "bad_request",
+    404: "not_found",
+    405: "method_not_allowed",
+    409: "conflict",
+    413: "payload_too_large",
+    415: "unsupported_media_type",
+}
 
 
 class AppError(Exception):

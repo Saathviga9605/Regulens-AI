@@ -146,6 +146,77 @@ update leaves the record unchanged. The application ID never changes, even if th
 Body: `{"target_status": "<status>"}`. Values outside the enum (e.g. `approved`, `rejected`) → 422.
 Disallowed transitions → 409 `invalid_status_transition`.
 
+`ApplicationRead` also includes `document_intake_open: bool` (true for `draft` and `awaiting_additional_evidence`).
+
+## Documents
+
+Intake only. No OCR, classification, extraction, validation or authenticity check is performed. A SHA-256 checksum
+identifies content for comparison; it does not prove authenticity.
+
+### Document (response)
+```json
+{
+  "id": "c1844bca-4ce6-4e29-b949-3792329a28b2",
+  "application_code": "REG-EoA-2026-0001",
+  "original_filename": "synthetic-fire-safety.pdf",
+  "category": "fire_safety_certificate",
+  "mime_type": "application/pdf",
+  "size_bytes": 435,
+  "sha256": "a7f38d52…",
+  "status": "uploaded",
+  "duplicate_of": null,
+  "other_application_match_count": 0,
+  "content_available": true,
+  "description": null,
+  "uploaded_at": "…", "created_at": "…", "updated_at": "…"
+}
+```
+- `category`: `fire_safety_certificate | occupancy_certificate | completion_certificate | structural_stability_certificate | building_plan | university_noc | trust_resolution | other`.
+  Categories are organisational; none is mandatory.
+- `status`: `uploaded | duplicate_detected | intake_failed`.
+- `duplicate_of` (when `duplicate_detected`): `{id, original_filename, category, uploaded_at}` of the original in the
+  **same** application.
+- `other_application_match_count`: number of other applications holding identical content — no identifiers.
+- `content_available`: false when intake failed or the stored file is missing.
+- Storage keys and filesystem paths are never returned.
+
+### GET /documents/intake-policy → 200
+`{"max_upload_bytes": 20971520, "accepted_content_types": ["application/pdf"], "accepted_extensions": [".pdf"],
+"categories": [...], "intake_open_statuses": ["draft", "awaiting_additional_evidence"]}`
+
+### POST /applications/{application_code}/documents → 201 Document
+`multipart/form-data`: `file` (required), `category` (required), `description` (optional, ≤500 chars).
+
+| Status | `code` | When |
+|--------|--------|------|
+| 404 | `not_found` | Application does not exist |
+| 409 | `document_intake_closed` | Application not in `draft` / `awaiting_additional_evidence` |
+| 413 | `payload_too_large` | File (or request body) exceeds `REGULENS_MAX_UPLOAD_BYTES` |
+| 415 | `unsupported_file_type` | Extension not `.pdf`, or declared content type not PDF-compatible (`application/pdf`, `application/x-pdf`, `application/octet-stream` or empty are tolerated) |
+| 415 | `invalid_pdf_signature` | Content does not start with `%PDF-` |
+| 415 | `invalid_pdf_structure` | No `%%EOF` in the last 1 KiB (truncated/incomplete) |
+| 422 | `empty_file` / `invalid_filename` / `validation_error` | Empty file; empty name or forbidden characters (`<>:"|?*`, control chars) or >255 chars; missing/invalid category |
+| 500 | `document_storage_failed` | File could not be written; an `intake_failed` row is recorded (`details[0].document_id`) |
+
+The filename is reduced to its base name (`../../x.pdf` → `x.pdf`) and used only for display and
+`Content-Disposition`. Rejected uploads leave no file and no row.
+
+### GET /applications/{application_code}/documents → 200 Page[Document]
+`page`, `page_size` (≤100). Ordered by `uploaded_at`, then `id`. 404 if the application does not exist.
+
+### GET /documents/{document_id} → 200 Document | 404
+
+### GET /documents/{document_id}/content → 200 application/pdf | 404 | 422
+Query `disposition=inline` (default) or `attachment`. Headers: `Content-Type: application/pdf`,
+`Content-Disposition: <disposition>; filename="<ASCII-safe>"; filename*=UTF-8''<percent-encoded>`,
+`X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store`. 404 `content_unavailable` when the stored
+file is missing or the stored key is invalid.
+
+### DELETE /documents/{document_id} → 204 | 404 | 409
+Permanent deletion of the row and the stored file (409 `document_intake_closed` outside intake statuses). If the
+document is an original with duplicates, the earliest duplicate becomes `uploaded` and the remaining duplicates are
+re-linked to it. A missing stored file does not block deletion.
+
 ## CORS
 Allowed origins from `REGULENS_CORS_ORIGINS` (exact match); credentials not allowed; `*` rejected in production.
 `/docs` and `/openapi.json` are served outside production only.

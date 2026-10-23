@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repository root (regulens-ai/), used to resolve relative SQLite paths.
@@ -39,6 +39,30 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     log_level: str = "INFO"
+
+    # Private document storage. Relative paths resolve against the repository root.
+    # Must not be inside frontend/ (which may be served publicly).
+    document_storage_dir: str = "data/documents"
+    # Maximum accepted PDF size in bytes (default 20 MiB). Allowed range: 1 KiB – 200 MiB.
+    max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1024, le=200 * 1024 * 1024)
+
+    @field_validator("document_storage_dir")
+    @classmethod
+    def _check_storage_dir(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("document_storage_dir must not be empty.")
+        path = Path(value)
+        resolved = (path if path.is_absolute() else REPO_ROOT / path).resolve()
+        frontend = (REPO_ROOT / "frontend").resolve()
+        if resolved == frontend or frontend in resolved.parents:
+            raise ValueError("document_storage_dir must not be inside the frontend directory.")
+        if resolved.parent == resolved:
+            raise ValueError("document_storage_dir must not be a filesystem root.")
+        return str(resolved)
+
+    @property
+    def document_storage_path(self) -> Path:
+        return Path(self.document_storage_dir)
 
     @field_validator("database_url")
     @classmethod

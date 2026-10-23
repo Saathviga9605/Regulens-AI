@@ -247,6 +247,7 @@ def to_read(application: Application) -> ApplicationRead:
         programmes=application.programmes,
         status_changed_at=application.status_changed_at,
         is_editable=workflow.is_editable(application.status),
+        document_intake_open=workflow.document_intake_open(application.status),
         allowed_transitions=workflow.allowed_transitions(application.status),
         institution_snapshot=application.institution_snapshot,
     )

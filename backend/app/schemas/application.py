@@ -72,6 +72,7 @@ class ApplicationRead(ApplicationListItem):
     programmes: list[ProgrammeRead]
     status_changed_at: datetime
     is_editable: bool
+    document_intake_open: bool
     allowed_transitions: list[ApplicationStatus]
     institution_snapshot: dict | None = Field(
         description="Institution details as recorded when the application was marked ready; null while draft."

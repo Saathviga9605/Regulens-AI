@@ -3,7 +3,7 @@
   migrate                     Upgrade the database schema to the latest migration.
   seed                        Insert the synthetic demo dataset (idempotent).
   seed-summary                Print record counts.
-  reset-data --confirm-reset  DELETE all institution/application data (development/test only).
+  reset-data --confirm-reset  DELETE all institution/application/document data and stored files (development/test only).
 """
 
 import argparse
@@ -23,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("migrate", help="Apply database migrations")
     sub.add_parser("seed", help="Insert synthetic demo data (idempotent)")
     sub.add_parser("seed-summary", help="Show record counts")
-    reset = sub.add_parser("reset-data", help="Delete ALL institution and application data")
+    reset = sub.add_parser("reset-data", help="Delete ALL institution, application and document data")
     reset.add_argument("--confirm-reset", action="store_true", help="Required: confirms the destructive reset")
     args = parser.parse_args(argv)
 
@@ -45,11 +45,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(seed_service.summary(session), indent=2))
             elif args.command == "reset-data":
                 try:
-                    seed_service.reset_data(session, settings, confirm=args.confirm_reset)
+                    removed = seed_service.reset_data(session, settings, confirm=args.confirm_reset)
                 except seed_service.ResetRefused as exc:
                     print(str(exc), file=sys.stderr)
                     return 2
-                print("All institution and application data deleted.")
+                print(f"All institution, application and document data deleted ({removed} stored files removed).")
     finally:
         engine.dispose()
     return 0

@@ -8,11 +8,11 @@ results are seeded, because those features do not exist yet.
 
 from dataclasses import dataclass, field
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.models import Application, ApplicationProgramme, IdSequence, Institution
+from app.models import Application, ApplicationProgramme, Document, IdSequence, Institution
 from app.models.enums import ApplicationStatus as S
 from app.models.enums import ApplicationType as T
 from app.models.enums import InstitutionType as IT
@@ -21,6 +21,7 @@ from app.schemas.application import ApplicationCreate, ProgrammeIn
 from app.schemas.institution import InstitutionCreate
 from app.services import applications as app_service
 from app.services import institutions as inst_service
+from app.services.storage import DocumentStorage
 
 SYN = "(Synthetic)"
 
@@ -153,16 +154,30 @@ class ResetRefused(Exception):
     pass
 
 
-def reset_data(session: Session, settings: Settings, *, confirm: bool) -> None:
-    """Delete ALL institution and application rows (user-created included). Schema is kept.
+def reset_data(session: Session, settings: Settings, *, confirm: bool) -> int:
+    """Delete ALL institution, application and document rows (user-created included) and the stored files
+    those document rows reference. Schema is kept. Returns the number of stored files removed.
 
     Requires ``confirm=True`` and a development/test environment. Never called at startup or by tests
     against a developer database.
     """
     if not confirm:
-        raise ResetRefused("Refusing to reset: pass --confirm-reset to delete all institution and application data.")
+        raise ResetRefused(
+            "Refusing to reset: pass --confirm-reset to delete all institution, application and document data."
+        )
     if settings.environment not in ("development", "test"):
         raise ResetRefused(f"Refusing to reset in the '{settings.environment}' environment.")
-    for model in (ApplicationProgramme, Application, Institution, IdSequence):
+    keys = [k for k in session.execute(select(Document.storage_key)).scalars() if k]
+    session.execute(update(Document).values(duplicate_of_id=None))
+    for model in (Document, ApplicationProgramme, Application, Institution, IdSequence):
         session.execute(delete(model))
     session.commit()
+    # Remove files only after the commit, and only those referenced by the deleted rows.
+    storage = DocumentStorage(settings.document_storage_path)
+    removed = 0
+    for key in keys:
+        path = storage.open_path(key)
+        if path is not None:
+            DocumentStorage.discard(path)
+            removed += 1
+    return removed

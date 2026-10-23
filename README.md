@@ -4,10 +4,14 @@ Evidence-first regulatory scrutiny assistant for AICTE Extension of Approval (Eo
 Hackathon prototype. ReguLens AI supports human reviewers; it never approves or rejects applications and never
 treats an anomaly as proof of misconduct.
 
-**Current state: Deliverable 2 — institution and EoA application management.** On top of the Deliverable 1
-foundation (live health check, dashboard shell), users can manage fictional institutions and create, search,
-filter, edit and move EoA applications through internal workflow statuses. Uploads, OCR, rules, verification,
-reports and audit are planned; see [docs/implementation-status.md](docs/implementation-status.md).
+**Current state: Deliverable 3 — secure document intake.** Users can manage fictional institutions and EoA
+applications (Deliverable 2) and upload supporting PDFs to an application: files are signature-checked, hashed
+(SHA-256), stored privately, flagged when they are exact duplicates, and can be opened, downloaded or deleted.
+OCR, extraction, rules, verification, reports and audit are planned; see
+[docs/implementation-status.md](docs/implementation-status.md).
+
+> Document intake checks only that a file is a PDF and records its checksum. It does **not** establish that a
+> document is authentic, that its issuer is legitimate, or that an application is compliant.
 
 ## Prerequisites (Windows)
 
@@ -53,7 +57,7 @@ cd ..
 | `python -m app.cli migrate` | Upgrade schema to the latest migration. Non-destructive; existing data is kept. |
 | `python -m app.cli seed` | Insert the synthetic dataset. Rerunning skips existing seed records and never modifies any record. |
 | `python -m app.cli seed-summary` | Print counts of institutions/applications (total, seeded, by status). |
-| `python -m app.cli reset-data --confirm-reset` | **Deletes all institution and application data**, including records you created. Refused without the flag and outside `development`/`test`. |
+| `python -m app.cli reset-data --confirm-reset` | **Deletes all institution, application and document data and the stored PDFs**, including records you created. Refused without the flag and outside `development`/`test`. |
 
 Expected first `seed` output:
 
@@ -90,6 +94,22 @@ disconnected state. **Applications** and **Institutions** in the sidebar open th
 > Application statuses are internal ReguLens workflow states. Nothing is submitted to AICTE, and no status is an
 > approval or rejection.
 
+### Supporting documents
+
+Open an application → **Supporting documents** → **Upload PDF**, choose a category and a PDF. Uploads and deletions
+are allowed while the application is **Draft** or **Awaiting additional evidence**.
+
+- **Storage**: `REGULENS_DOCUMENT_STORAGE_DIR` (default `data/documents/`, git-ignored, never served statically;
+  must not be inside `frontend/`). Files are stored as `<key[:2]>/<key>.pdf` with a server-generated key —
+  uploaded filenames are never used as paths. Content is only reachable through
+  `GET /api/v1/documents/{id}/content`.
+- **Size limit**: `REGULENS_MAX_UPLOAD_BYTES` (default 20 MiB). Only PDF is accepted (checked by `%PDF-` signature
+  and `%%EOF` marker; extension and declared type are secondary signals).
+- **Duplicates**: an upload with the same SHA-256 as an existing document *in the same application* is kept and
+  marked *Duplicate detected* with a link to the original. Matches in other applications are shown only as a count.
+- **Deletion**: explicit, confirmed, permanent (metadata + file). Deleting an original promotes its earliest
+  duplicate to original. There is no audit trail yet.
+
 Quick API check: `Invoke-RestMethod http://127.0.0.1:8000/api/v1/health`
 Interactive API docs (non-production only): http://127.0.0.1:8000/docs
 
@@ -103,7 +123,8 @@ cd backend;  .\.venv\Scripts\Activate.ps1; python -m pytest; cd ..
 cd frontend; npm test; npm run typecheck; npm run build; cd ..
 ```
 
-Backend tests use temporary SQLite databases and never touch `data/regulens.db`; reset is never run against it.
+Backend tests use temporary SQLite databases and temporary document storage; they never touch `data/regulens.db`
+or `data/documents/`, and reset is never run against them.
 
 ## Configuration
 
@@ -119,7 +140,7 @@ regulens-ai/
   docs/                   requirements, architecture, API contracts, data model, status
   backend/                FastAPI app (app/) + pytest suite (tests/)
   frontend/               React + Vite app (src/) + Vitest suite (tests/)
-  data/                   local SQLite database (git-ignored)
+  data/                   local SQLite database and private document storage (git-ignored)
   scripts/                reserved for future dev scripts
 ```
 

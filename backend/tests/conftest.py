@@ -23,6 +23,8 @@ def make_settings(db_path: Path, **overrides) -> Settings:
     values = {
         "environment": "test",
         "database_url": f"sqlite:///{db_path.as_posix()}",
+        # Each test database gets its own private storage directory next to it.
+        "document_storage_dir": str(db_path.parent / f"{db_path.stem}-documents"),
         "cors_origins": TEST_ORIGIN,
         "log_level": "WARNING",
     }

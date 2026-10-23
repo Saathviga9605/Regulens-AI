@@ -13,6 +13,8 @@ data/*
 *.sqlite
 *.sqlite3
 uploads/
+data/documents/
+*.part
 
 # Python
 __pycache__/
