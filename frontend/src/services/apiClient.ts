@@ -328,7 +328,7 @@ export const apiClient = {
   updateRule(ruleId: string, update: RuleUpdate): Promise<ScrutinyRule> {
     return request(`/scrutiny-rules/${enc(ruleId)}`, { method: "PATCH", body: update });
   },
-  startScrutinyRun(applicationCode: string, rulesetProfile: ScrutinyRulesetProfile = "production"): Promise<ScrutinyRun> {
+  startScrutinyRun(applicationCode: string, rulesetProfile: ScrutinyRulesetProfile = "aph_eoa_demo"): Promise<ScrutinyRun> {
     return request(`/applications/${enc(applicationCode)}/scrutiny-runs`, {
       method: "POST", body: { ruleset_profile: rulesetProfile }, timeoutMs: LONG_TIMEOUT_MS,
     });

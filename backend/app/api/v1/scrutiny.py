@@ -223,7 +223,7 @@ def update_rule(rule_id: str, body: RuleUpdate, db: Session = Depends(get_db)) -
 
 class RunRequest(StrictInputModel):
     scrutiny_date: date | None = None
-    ruleset_profile: Literal["production", "aph_eoa_demo"] = "production"
+    ruleset_profile: Literal["production", "aph_eoa_demo"] = "aph_eoa_demo"
 
 
 def _run_summary(run, code: str) -> dict:
@@ -249,7 +249,7 @@ def start_run(application_code: str, body: RunRequest | None = Body(None), db: S
               storage: DocumentStorage = Depends(get_storage), settings: Settings = Depends(get_app_settings),
               ocr=Depends(get_ocr)) -> RunRead:
     scrutiny_date = body.scrutiny_date if body else None
-    ruleset_profile = body.ruleset_profile if body else "production"
+    ruleset_profile = body.ruleset_profile if body else "aph_eoa_demo"
     if scrutiny_date and not date(2000, 1, 1) <= scrutiny_date <= date(2100, 12, 31):
         raise AppError(422, "validation_error", "scrutiny_date is out of range.")
     run = scrutiny.start_run(db, storage, settings, ocr, application_code, scrutiny_date, ruleset_profile)

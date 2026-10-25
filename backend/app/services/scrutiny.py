@@ -1047,7 +1047,7 @@ def _evaluate_rule(rule, ctx: Ctx, demo_profile: bool) -> list[Eval]:
 
 
 def start_run(session: Session, storage: DocumentStorage, settings: Settings, ocr, application_code: str,
-              scrutiny_date: date | None = None, ruleset_profile: str = "production") -> ScrutinyRun:
+              scrutiny_date: date | None = None, ruleset_profile: str = "aph_eoa_demo") -> ScrutinyRun:
     application = get_application(session, application_code)
     if ruleset_profile == aph_demo_ruleset.PROFILE_ID:
         if scrutiny_date is not None:
@@ -1101,7 +1101,7 @@ def start_run(session: Session, storage: DocumentStorage, settings: Settings, oc
 
 
 def _execute(session, storage, settings, ocr, run: ScrutinyRun, application: Application, today: date | None,
-             date_source: str, ruleset_profile: str = "production") -> None:
+             date_source: str, ruleset_profile: str = "aph_eoa_demo") -> None:
     warnings: list[str] = []
     docs = session.execute(select(Document).where(Document.application_id == application.id,
                                                   Document.status != DocumentStatus.INTAKE_FAILED)

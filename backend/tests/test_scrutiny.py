@@ -38,7 +38,8 @@ def demo(app, client, settings) -> dict:
 
 
 def run(client: TestClient, code: str, scrutiny_date: str = SCRUTINY_DATE) -> dict:
-    response = client.post(f"/api/v1/applications/{code}/scrutiny-runs", json={"scrutiny_date": scrutiny_date})
+    response = client.post(f"/api/v1/applications/{code}/scrutiny-runs",
+                           json={"scrutiny_date": scrutiny_date, "ruleset_profile": "production"})
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -379,7 +380,8 @@ def test_registry_managed_rule_only_allows_audited_enabled_toggle(client, app) -
 
 
 def test_unsubmitted_application_does_not_fall_back_to_system_date(client, code) -> None:
-    response = client.post(f"/api/v1/applications/{code}/scrutiny-runs")
+    response = client.post(f"/api/v1/applications/{code}/scrutiny-runs",
+                           json={"ruleset_profile": "production"})
     assert response.status_code == 201, response.text
     result = response.json()
     assert result["scrutiny_date"] is None
@@ -790,7 +792,8 @@ def test_aph_demo_profile_isolated_cited_and_disclaimed(client, demo, caplog) ->
     assert formatted_log["ruleset_version"] == PROFILE_VERSION
     assert formatted_log["rule_set_version"]
 
-    production = run(client, demo["clean"])
+    production = client.post(f"/api/v1/applications/{demo['clean']}/scrutiny-runs",
+                             json={"scrutiny_date": SCRUTINY_DATE, "ruleset_profile": "production"}).json()
     assert production["ruleset_profile"] == "production"
     assert production["ruleset_profile_version"] == "database"
     assert not any(item["rule_id"].startswith("R") for item in production["rule_snapshot"])

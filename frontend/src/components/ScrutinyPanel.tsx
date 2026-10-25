@@ -296,7 +296,7 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted, focus }: PanelP
   const [error, setError] = useState<string | null>(null);
   const [reportState, setReportState] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [rulesetProfile, setRulesetProfile] = useState<ScrutinyRulesetProfile>("production");
+  const [rulesetProfile, setRulesetProfile] = useState<ScrutinyRulesetProfile>("aph_eoa_demo");
   const latestRunId = runs.data?.items[0]?.id ?? null;
 
   useEffect(() => {
