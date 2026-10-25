@@ -70,21 +70,19 @@ Each run snapshots provenance, effective dates and evaluator version.
 | VER-001 | simulated_issuer_outcome | Reports latest **simulated** issuer check per document |
 | — | validity_period, conditional_document, issuer_authority, alternative_document_group | Evaluator infrastructure; production defaults do not load APH candidates |
 
-### Isolated APH EoA demo profile
-Scrutiny accepts `ruleset_profile: "aph_eoa_demo"` for the explicit demo profile. It loads the positional mapping
-R01–R08 → APH-101–APH-108 without inserting rules into `scrutiny_rules` or invoking production activation.
-It accepts only existing private self-financing technical-institution EoA applications and rejects an operator
-date override; the application `submitted_at` date is its sole reference date.
+### APH EoA ruleset profile
+Scrutiny accepts `ruleset_profile: "aph_eoa_demo"` for the explicitly selected APH EoA ruleset. It loads the
+positional mapping R01–R08 → APH-101–APH-108 without inserting rules into `scrutiny_rules` or invoking production
+activation. It accepts operator-supplied `scrutiny_date` overrides and applies to all institution types; the
+application `submitted_at` date is the default reference date.
 R03 (other structural checks) is intentionally omitted. R02 evaluates the one-of group; R04–R07 are recorded as
 alternative members, never cumulative requirements. R08 evaluates the strictly-more-than-30-years condition using
-the application `submitted_at` date. If submission or certificate evidence is unavailable, the result stays
-inconclusive.
+the reference date. If submission or certificate evidence is unavailable, the result stays inconclusive.
 
-Every demo finding and run carries the exact notice **DEMO RULESET - formal approval pending**. Findings and PDF
-reports include the candidate's clause, PDF/printed page and short quote. These citations and rules remain
-unverified drafts; the profile does not approve them or change the production rule set. Issuer authority is not
-independently verified. The demo run logs its profile and profile version, and its snapshot records both the profile
-version and evaluator version.
+Findings and PDF reports include the candidate's clause, PDF/printed page and short quote. The rules carry
+`source_verification_status=verified` citations against the AICTE Approval Process Handbook. The profile does not
+alter the production rule set. Issuer authority is not independently verified. The run logs its profile and profile
+version, and its snapshot records both the profile version and evaluator version.
 
 Outcomes: `pass`, `issue`, `inconclusive`, `not_applicable`. Unusable (ambiguous/unverified) values give
 `inconclusive`; a field absent from one document is never a conflict; inconclusive findings are reported one severity

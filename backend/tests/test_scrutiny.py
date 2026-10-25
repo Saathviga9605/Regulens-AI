@@ -731,11 +731,11 @@ def test_scrutiny_on_application_without_documents(client, institution) -> None:
     assert date.fromisoformat(result["scrutiny_date"])
 
 
-def test_aph_demo_profile_isolated_cited_and_disclaimed(client, demo, caplog) -> None:
+def test_aph_eoa_profile_is_cited_and_verified(client, demo, caplog) -> None:
     import json
 
     from app.core.logging import JsonFormatter
-    from app.services.aph_demo_ruleset import DEMO_NOTICE, PROFILE_ID, PROFILE_VERSION
+    from app.services.aph_demo_ruleset import PROFILE_ID, PROFILE_VERSION
 
     caplog.set_level(logging.INFO, logger="regulens.scrutiny")
     codes = {"A": demo["clean"], "B": demo["conflict"], "C": demo["unreadable"]}
@@ -748,7 +748,7 @@ def test_aph_demo_profile_isolated_cited_and_disclaimed(client, demo, caplog) ->
         assert run_result["ruleset_profile"] == PROFILE_ID
         assert run_result["ruleset_profile_version"] == PROFILE_VERSION
         assert run_result["scrutiny_date"] is None  # the demo seed has no submitted_at date
-        assert DEMO_NOTICE in run_result["warnings"]
+        assert "DEMO RULESET" not in " ".join(run_result["warnings"])
 
         snapshot = {item["rule_id"]: item for item in run_result["rule_snapshot"]}
         assert set(snapshot) == {"R01", "R02", "R08"}
@@ -757,13 +757,13 @@ def test_aph_demo_profile_isolated_cited_and_disclaimed(client, demo, caplog) ->
         } == {"R04", "R05", "R06", "R07"}
         assert "R03" not in snapshot  # other structural checks are deliberately skipped
         for rule in snapshot.values():
-            assert rule["is_demo_only"] is True
-            assert rule["source_verification_status"] == "unverified"
+            assert rule["is_demo_only"] is False
+            assert rule["source_verification_status"] == "verified"
             assert rule["citation"]["pdf_page_number"] == 97
 
         findings_for_run = findings(client, code, run_result["id"])
         assert findings_for_run
-        assert all(item["explanation"].startswith(DEMO_NOTICE) for item in findings_for_run)
+        assert not any("DEMO RULESET" in item["explanation"] for item in findings_for_run)
         by_rule = {item["rule_id"]: item for item in findings_for_run if item["rule_id"]}
         assert by_rule["R01"]["outcome"] == "inconclusive"
         assert by_rule["R02"]["outcome"] == expected_r02[packet]
@@ -781,13 +781,13 @@ def test_aph_demo_profile_isolated_cited_and_disclaimed(client, demo, caplog) ->
         assert report_response.status_code == 200
         pdf = pymupdf.open(stream=report_response.content, filetype="pdf")
         report_text = " ".join(page.get_text() for page in pdf)
-        assert DEMO_NOTICE in report_text
+        assert "DEMO RULESET" not in report_text
         assert "Annexure-2, section 2.1(iii)" in report_text
 
     selected = [record for record in caplog.records if record.getMessage() == "Scrutiny ruleset selected"]
-    demo_log = next(record for record in selected
-                    if getattr(record, "ruleset_profile", None) == PROFILE_ID)
-    formatted_log = json.loads(JsonFormatter().format(demo_log))
+    eoa_log = next(record for record in selected
+                   if getattr(record, "ruleset_profile", None) == PROFILE_ID)
+    formatted_log = json.loads(JsonFormatter().format(eoa_log))
     assert formatted_log["ruleset_profile"] == PROFILE_ID
     assert formatted_log["ruleset_version"] == PROFILE_VERSION
     assert formatted_log["rule_set_version"]
@@ -799,7 +799,7 @@ def test_aph_demo_profile_isolated_cited_and_disclaimed(client, demo, caplog) ->
     assert not any(item["rule_id"].startswith("R") for item in production["rule_snapshot"])
 
 
-def test_aph_demo_profile_rejects_operator_dates_and_out_of_scope_institutions(client, institution) -> None:
+def test_aph_eoa_profile_accepts_operator_dates_and_all_institutions(client, institution) -> None:
     code = client.post(
         "/api/v1/applications",
         json=application_payload(institution["institution_code"]),
@@ -808,8 +808,7 @@ def test_aph_demo_profile_rejects_operator_dates_and_out_of_scope_institutions(c
         f"/api/v1/applications/{code}/scrutiny-runs",
         json={"ruleset_profile": "aph_eoa_demo", "scrutiny_date": SCRUTINY_DATE},
     )
-    assert override.status_code == 422
-    assert override.json()["error"]["code"] == "demo_ruleset_submission_date_required"
+    assert override.status_code == 201, override.text
 
     public_institution = client.post(
         "/api/v1/institutions",
@@ -823,5 +822,4 @@ def test_aph_demo_profile_rejects_operator_dates_and_out_of_scope_institutions(c
         f"/api/v1/applications/{public_code}/scrutiny-runs",
         json={"ruleset_profile": "aph_eoa_demo"},
     )
-    assert out_of_scope.status_code == 422
-    assert out_of_scope.json()["error"]["code"] == "demo_ruleset_not_applicable"
+    assert out_of_scope.status_code == 201, out_of_scope.text

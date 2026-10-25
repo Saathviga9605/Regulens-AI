@@ -28,8 +28,8 @@ def test_seed_counts(seeded_env) -> None:
     with factory() as session:
         result = seed_service.seed(session)
         summary = seed_service.summary(session)
-    assert (result.institutions_created, result.applications_created) == (8, 12)
-    assert summary["institutions_total"] == 8
+    assert (result.institutions_created, result.applications_created) == (9, 12)
+    assert summary["institutions_total"] == 9
     assert summary["applications_total"] == 12
     assert all(count >= 2 for count in summary["applications_by_status"].values())
 
@@ -42,7 +42,7 @@ def test_seed_data_is_varied_and_synthetic(seeded_env) -> None:
         seed_service.seed(session)
         institutions = session.query(Institution).all()
         applications = session.query(Application).all()
-        assert len({i.state for i in institutions}) == 8
+        assert len({i.state for i in institutions}) == 8  # 9 institutions, 8 unique states (seed-inst-09 also in Maharashtra)
         assert all("(Synthetic)" in i.trust_name and i.property_identifier.startswith("SYN-") for i in institutions)
         assert len({a.application_type for a in applications}) == 5
         assert len({a.academic_year for a in applications}) >= 3
@@ -65,9 +65,9 @@ def test_reseed_is_idempotent_and_preserves_user_records(seeded_env) -> None:
         for _ in range(2):
             again = seed_service.seed(session)
             assert (again.institutions_created, again.applications_created) == (0, 0)
-            assert (again.institutions_skipped, again.applications_skipped) == (8, 12)
+            assert (again.institutions_skipped, again.applications_skipped) == (9, 12)
         summary = seed_service.summary(session)
-    assert summary["institutions_total"] == 9 and summary["applications_total"] == 13
+    assert summary["institutions_total"] == 10 and summary["applications_total"] == 13
 
     with authed_client(app) as client:
         assert client.get(f"/api/v1/institutions/{seeded_code}").json()["name"] == "Deccan Ridge Edited By User"

@@ -70,6 +70,11 @@ INSTITUTIONS: list[tuple[str, dict]] = [
     ("seed-inst-08", dict(name="Aravalli Foothills College of Engineering", institution_type=IT.PRIVATE_SELF_FINANCING,
                           state="Rajasthan", district="Jaipur", address="Synthetic Industrial Area, Sitapura Extension, Jaipur 302099",
                           trust_name=f"Aravalli Foothills Shiksha Parishad {SYN}", property_identifier="SYN-RJ-JPR-Khasra.1190")),
+    ("seed-inst-09", dict(name="Phaltan Education Society's College of Engineering",
+                          institution_type=IT.PRIVATE_SELF_FINANCING,
+                          state="Maharashtra", district="Satara",
+                          address="Sr. No. 31, A/P Thakurdi, Taluka Phaltan, District Satara - 415523",
+                          trust_name=f"Phaltan Education Society {SYN}", property_identifier="SYN-MH-SAT-S.No.31/1")),
 ]
 
 

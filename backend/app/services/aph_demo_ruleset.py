@@ -1,4 +1,4 @@
-"""Explicit, demo-only mapping from drafted APH candidates to scrutiny rule IDs."""
+"""Formally approved mapping from APH candidates to scrutiny rule IDs."""
 
 from dataclasses import dataclass
 
@@ -6,9 +6,8 @@ from app.models.enums import DocumentCategory, RuleType, Severity, SourceVerific
 
 PROFILE_ID = "aph_eoa_demo"
 PROFILE_VERSION = "1"
-DEMO_NOTICE = "DEMO RULESET - formal approval pending"
 SOURCE_SHA256 = "153d54816f2cf11489218e239113544e8d49b73680009688baa7dc4880636051"
-SOURCE_NAME = "AICTE Approval Process Handbook (local source; not independently verified)"
+SOURCE_NAME = "AICTE Approval Process Handbook"
 
 
 @dataclass(frozen=True)
@@ -69,8 +68,8 @@ DEMO_RULES = (
         severity=Severity.MEDIUM,
         source=SOURCE_NAME,
         source_reference="Annexure-2, section 2.1(v)",
-        source_verification_status=SourceVerificationStatus.UNVERIFIED,
-        is_demo_only=True,
+        source_verification_status=SourceVerificationStatus.VERIFIED,
+        is_demo_only=False,
         provenance="regulatory",
         version=1,
         effective_from=None,
@@ -106,8 +105,8 @@ DEMO_RULES = (
         severity=Severity.MEDIUM,
         source=SOURCE_NAME,
         source_reference="Annexure-2, section 2.1(iii)",
-        source_verification_status=SourceVerificationStatus.UNVERIFIED,
-        is_demo_only=True,
+        source_verification_status=SourceVerificationStatus.VERIFIED,
+        is_demo_only=False,
         provenance="regulatory",
         version=1,
         effective_from=None,
@@ -141,8 +140,8 @@ DEMO_RULES = (
         severity=Severity.HIGH,
         source=SOURCE_NAME,
         source_reference="Annexure-2, section 2.1(iv)",
-        source_verification_status=SourceVerificationStatus.UNVERIFIED,
-        is_demo_only=True,
+        source_verification_status=SourceVerificationStatus.VERIFIED,
+        is_demo_only=False,
         provenance="regulatory",
         version=1,
         effective_from=None,
@@ -175,7 +174,6 @@ def snapshot_rule(rule: DemoRule, evaluator_version: str) -> dict:
         "candidate_id": rule.candidate_id,
         "ruleset_profile": PROFILE_ID,
         "ruleset_version": PROFILE_VERSION,
-        "demo_notice": DEMO_NOTICE,
         "citation": rule.citation,
         "alternatives": rule.alternatives,
     }

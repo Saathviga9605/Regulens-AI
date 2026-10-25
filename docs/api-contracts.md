@@ -297,10 +297,9 @@ Runs and findings are addressed under their application; a run/finding of anothe
 
 ### POST /applications/{application_code}/scrutiny-runs → 201 Run | 404 | 409 `scrutiny_run_in_progress` | 422
 Optional body `{"scrutiny_date": "YYYY-MM-DD", "ruleset_profile": "production|aph_eoa_demo"}`.
-`ruleset_profile` defaults to `production`; `aph_eoa_demo` explicitly selects the isolated APH demo profile and does
-not alter production activation. The demo profile is limited to existing private self-financing technical
-institutions and rejects an explicit `scrutiny_date` so its date basis cannot be overridden;
-an explicit production-profile `scrutiny_date` is labelled `operator_override`;
+`ruleset_profile` defaults to `production`; `aph_eoa_demo` explicitly selects the APH EoA ruleset and does
+not alter production activation. The EoA ruleset accepts an explicit `scrutiny_date` and applies to all institution
+types; an explicit production-profile `scrutiny_date` is labelled `operator_override`;
 otherwise the internal application `submitted_at` (marked-ready) calendar date is used. If unavailable, the date
 and source are null/`unavailable`; the system date is never substituted.
 Processes documents with missing/stale results first. An unexpected engine error yields a run with

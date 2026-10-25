@@ -185,8 +185,9 @@ def _explain(ctx: _Ctx, question: str, finding_id: str | None) -> Answer:
              f"System explanation: {f.explanation}"]
     rule = evaluation_rule(ctx.run.rule_snapshot, f.rule_id)
     if rule:
-        lines.append(f"Rule source: {rule['source']}" + (" — this is a DEMO-ONLY rule, not a verified AICTE requirement."
-                                                          if rule.get("is_demo_only") else "."))
+        lines.append(f"Rule source: {rule['source']}"
+                + (" — this is an unverified rule, not a confirmed AICTE requirement."
+                   if rule.get("is_demo_only") else "."))
     quoted = [ev for ev in f.evidence if ev.get("quote")]
     for ev in quoted[:4]:
         lines.append(f"Quoted document text (untrusted data) from {ev.get('document_filename')}, page "

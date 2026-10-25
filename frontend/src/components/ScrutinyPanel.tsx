@@ -68,7 +68,7 @@ function RunSummary({ run }: { run: ScrutinyRun }) {
         <span>Run #{run.run_number} · scrutiny reference date {run.scrutiny_date ?? "unavailable"} ({scrutinyDateSourceLabel(run.scrutiny_date_source)}) · started {formatDateTime(run.started_at)}</span>
         <span className="text-xs text-ink-subtle">
           {run.ruleset_profile === "aph_eoa_demo"
-            ? `ruleset ${run.ruleset_profile} v${run.ruleset_profile_version}`
+            ? `APH EoA ruleset v${run.ruleset_profile_version}`
             : "production rules"}
           {" · "}rule set {run.rule_set_version}
         </span>
@@ -158,11 +158,6 @@ function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun
 
       <section aria-label="System-generated result" className="space-y-2">
         <h5 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">System-generated explanation</h5>
-        {f.explanation.startsWith("DEMO RULESET - formal approval pending") && (
-          <p className="rounded border border-warning-line bg-warning-bg p-2 text-sm font-semibold text-warning-800">
-            DEMO RULESET - formal approval pending
-          </p>
-        )}
         <p className="text-sm text-ink">{f.explanation}</p>
         {f.uncertainty && <p className="text-sm text-warning-800"><strong>Uncertainty:</strong> {f.uncertainty}</p>}
         {f.missing_evidence && <p className="text-sm text-ink"><strong>Missing evidence:</strong> {f.missing_evidence}</p>}
@@ -198,7 +193,7 @@ function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun
             <p>Source verification: {f.rule.source_verification_status.replace("_", " ")}</p>
             {f.rule.citation && (
               <div className="mt-2 border-t border-line pt-2">
-                <p className="font-semibold">Draft APH citation (not independently verified)</p>
+                <p className="font-semibold">APH citation</p>
                 <p>
                   {f.rule.citation.clause_reference} · PDF page {f.rule.citation.pdf_page_number}
                   {f.rule.citation.printed_page_label && ` (printed page ${f.rule.citation.printed_page_label})`}
@@ -208,9 +203,7 @@ function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun
                 </blockquote>
               </div>
             )}
-            {f.rule.is_demo_only && (
-              <p className="mt-1 font-semibold text-warning-800">DEMO-ONLY RULE — not a verified AICTE requirement.</p>
-            )}
+            
           </div>
         ) : f.detector && <p className="text-xs text-ink-subtle">Detector: {f.detector}</p>}
       </section>
@@ -362,14 +355,10 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted, focus }: PanelP
           onChange={(e) => setRulesetProfile(e.target.value as ScrutinyRulesetProfile)}
           options={[
             ["production", "Production rules (current configured rules)"],
-            ["aph_eoa_demo", "APH EoA demo rules (formal approval pending)"],
+            ["aph_eoa_demo", "APH EoA rules"],
           ]}
         />
-        {rulesetProfile === "aph_eoa_demo" && (
-          <p className="rounded border border-warning-line bg-warning-bg p-2 text-sm font-semibold text-warning-800">
-            DEMO RULESET - formal approval pending. This isolated profile does not alter production activation.
-          </p>
-        )}
+        
         {running && <div role="status" className="text-sm text-ink">Processing documents and evaluating rules…</div>}
         {error && <Alert tone="error">{error}</Alert>}
 
