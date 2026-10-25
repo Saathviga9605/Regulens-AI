@@ -1,40 +1,116 @@
 # ReguLens AI
 
-Evidence-first regulatory scrutiny assistant for AICTE Extension of Approval (EoA) applications — Smart India
-Hackathon prototype. ReguLens AI supports human reviewers; it never approves or rejects applications and never
-treats an anomaly as proof of misconduct.
+**Evidence-first regulatory scrutiny assistance for AICTE Extension of Approval (EoA) applications.**
 
-**Current state: Deliverable 6 — government-grade UI revamp.** The interface now uses a dedicated design system
-(see [docs/design-system.md](docs/design-system.md)): a navy application shell with grouped navigation, a persistent
-trust notice, accessible dialogs and confirmations, toasts, and responsive layouts from 360 px upwards. Local demo
-accounts are created automatically by `seed`. Deliverable 5 delivered the reviewer workspace: on top of institution/application management, secure PDF
-intake, document processing and preliminary scrutiny (Deliverables 1–4), reviewers now sign in, work from a review
-queue, confirm/dismiss/escalate/resolve findings with recorded reasons, request and track additional evidence,
-receive in-app alerts, download a preliminary scrutiny PDF and ask an evidence-grounded (non-AI) copilot. Important
-actions are written to an application-level append-only audit log; reviewer and administrator roles are enforced by
-the backend. See [docs/review-workflow.md](docs/review-workflow.md), [docs/security.md](docs/security.md),
-[docs/scrutiny-and-extraction.md](docs/scrutiny-and-extraction.md) and
-[docs/implementation-status.md](docs/implementation-status.md).
+ReguLens AI helps scrutiny reviewers examine EoA applications and their supporting documents. It reads uploaded
+certificates (including scanned and photographed copies), extracts critical fields with quoted, page-referenced
+evidence, checks applications against configurable rules, detects possible reuse of the same document across
+different applications, and records every reviewer decision in an audit trail.
 
-> Findings are preliminary indicators for a human reviewer. Nothing in ReguLens approves or rejects an application,
-> establishes that a document is authentic, or concludes misconduct. Default expectation rules are **demo-only** and
-> not verified against official AICTE sources. Issuer checks are **SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY**.
+> [!IMPORTANT]
+> ReguLens AI is **decision support, not decision making**. It never approves or rejects an application, never
+> establishes that a document is authentic, and never treats an anomaly or a similarity as proof of misconduct.
+> Every finding requires human review. ReguLens AI is an independent prototype and is not an AICTE service.
 
-## Prerequisites (Windows)
+---
 
-- Python 3.11+ (verified with 3.13) — `python --version`
-- Node.js 20+ with npm (verified with Node 24 / npm 11) — `node --version`
-- PowerShell. If script activation is blocked, run once:
-  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+## Contents
 
-No Docker, PostgreSQL or external services are required.
+- [Capabilities](#capabilities)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Running the application](#running-the-application)
+- [Accounts and roles](#accounts-and-roles)
+- [Configuration](#configuration)
+- [Command-line reference](#command-line-reference)
+- [Guided walkthrough](#guided-walkthrough)
+- [Testing and quality](#testing-and-quality)
+- [Evaluation](#evaluation)
+- [Security and privacy](#security-and-privacy)
+- [Limitations](#limitations)
+- [Repository layout](#repository-layout)
+- [Documentation](#documentation)
 
-## Setup
+---
 
-From the repository root (`regulens-ai/`):
+## Capabilities
+
+| Area | What ReguLens AI does |
+|---|---|
+| **Case management** | Institutions and EoA applications with declared programmes, internal workflow states and an institution snapshot captured when an application is marked ready. |
+| **Secure document intake** | PDF-only uploads with signature checks, size limits, SHA-256 integrity, duplicate detection and private storage. Files are never served statically. |
+| **Document understanding** | Text-layer extraction; local OCR for scanned and photographed pages with per-line confidence and coordinates; document-type classification; extraction of critical fields (institution, certificate number, issuing authority, dates, survey and property identifiers, address, area), each with a quoted source line, page number and location. |
+| **Preliminary scrutiny** | Configurable, versioned, deterministic rules and anomaly detectors. Each finding carries its explanation, evidence and rule provenance. Production rules are the default; demonstration rule sets must be selected explicitly. |
+| **Source verification** | A replaceable issuer-verification interface. The only adapter included is a **simulated** registry; results are always labelled with their source type (`SIMULATED` or `NOT_CONNECTED`). |
+| **Cross-case reuse detection** | A multi-stage cascade (exact hash, text similarity, perceptual page hashing, geometric verification with difference regions, critical-field comparison, evidence fusion) that surfaces pairs of documents from different applications that may share underlying content, with a traceable explanation. |
+| **Reviewer workspace** | Review queue, finding actions with mandatory reasons, evidence requests, in-app alerts, preliminary scrutiny reports (PDF) and an append-only audit trail. |
+| **Access control** | Reviewer and administrator roles enforced server-side, plus a separate, explicitly granted permission for cross-case evidence. |
+
+### Outcome vocabularies
+
+ReguLens keeps independent concepts separate, so a reviewer is never asked to read one as another:
+
+| Dimension | Values |
+|---|---|
+| Cross-case reuse outcome | `MATCH_CONFIRMED_FOR_REVIEW`, `CANDIDATE`, `NOT_MATCHED`, `INCONCLUSIVE` |
+| Source-verification status | Verified, Mismatch detected, Expired, Verification pending, Source unavailable, Manual review required |
+| Source type | `LIVE` (reserved; no live integration exists), `SIMULATED`, `NOT_CONNECTED` |
+| Evidence state | extracted, not found, ambiguous, unverified |
+| Reviewer disposition | recorded per finding and per document pair, with actor, reason and timestamp |
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────┐      HTTPS / JSON (bearer token)      ┌───────────────────────────────────┐
+│  React + TypeScript SPA  │  ───────────────────────────────────▶ │  FastAPI  /api/v1                  │
+│  Vite · Tailwind design  │                                        │  ├─ auth, roles, audit             │
+│  system · Vitest         │  ◀─────────────────────────────────── │  ├─ intake & private storage       │
+└──────────────────────────┘                                        │  ├─ processing: PyMuPDF, local OCR │
+                                                                    │  ├─ scrutiny rules & findings      │
+                                                                    │  ├─ cross-case reuse (OpenCV)      │
+                                                                    │  └─ reports, alerts, evaluation    │
+                                                                    └──────────────┬────────────────────┘
+                                                                                   │ SQLAlchemy 2 · Alembic
+                                                                         ┌─────────▼─────────┐
+                                                                         │ SQLite  +  private │
+                                                                         │ document storage   │
+                                                                         └────────────────────┘
+```
+
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.11+, FastAPI, Pydantic, SQLAlchemy 2, Alembic, SQLite |
+| Document processing | PyMuPDF; OCR via Tesseract or RapidOCR (PP-OCR models on ONNX Runtime, CPU) |
+| Computer vision | OpenCV (ORB features, RANSAC homography, ECC alignment), NumPy |
+| Frontend | React 18, TypeScript (strict), Vite, Tailwind CSS v4, React Router |
+| Testing | pytest, Vitest + Testing Library, Playwright (Edge) smoke test |
+
+All analysis runs locally. No paid API, API key, cloud inference or network call is used, and no model weights are
+downloaded at run time. See [docs/architecture.md](docs/architecture.md).
+
+---
+
+## Requirements
+
+- Windows 10/11 with PowerShell (other platforms work with equivalent shell commands)
+- Python 3.11 or newer (verified with 3.13)
+- Node.js 20 or newer with npm (verified with Node 24 / npm 11)
+- No GPU, Docker, database server or external service is required
+
+If PowerShell blocks virtual-environment activation, run once:
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+---
+
+## Installation
+
+From the repository root:
 
 ```powershell
-# 1. Configuration (shared by backend and frontend) — only creates .env if you don't already have one
+# 1. Configuration (creates .env only if it does not exist; never overwrites your settings)
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 
 # 2. Backend
@@ -43,12 +119,10 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.lock.txt
 pip install -e ".[dev]"
-cd ..
 
-# 3. Database schema + synthetic demo data (run inside backend/ with the venv active)
-cd backend
-python -m app.cli migrate        # apply Alembic migrations (also runs automatically at API startup)
-python -m app.cli seed           # 8 fictional institutions, 12 applications + local demo accounts; safe to rerun
+# 3. Database schema and synthetic demonstration data
+python -m app.cli migrate
+python -m app.cli seed
 cd ..
 
 # 4. Frontend
@@ -57,247 +131,269 @@ npm ci
 cd ..
 ```
 
-### Database commands (from `backend/`, venv active)
+`seed` is idempotent: it inserts 8 fictional institutions, 12 applications, 12 bannered demonstration PDFs, 4
+synthetic issuer reference records and the local demonstration accounts. Re-running never modifies existing records.
 
-| Command | Effect |
-|---------|--------|
-| `python -m app.cli migrate` | Upgrade schema to the latest migration. Non-destructive; existing data is kept. |
-| `python -m app.cli seed` | Insert the synthetic dataset. Rerunning skips existing seed records and never modifies any record. |
-| `python -m app.cli seed-summary` | Print counts of institutions/applications (total, seeded, by status). |
-| `python -m app.cli reset-data --confirm-reset` | **Deletes all institution, application, document, processing, scrutiny-run and synthetic issuer-reference data and the stored PDFs**, including records you created (scrutiny rules are kept). Refused without the flag and outside `development`/`test`. |
+### Optional: local OCR
 
-Expected first `seed` output:
-
-```
-Institutions: 8 created, 0 already present
-Applications: 12 created, 0 already present
-{ "institutions_total": 8, "institutions_seeded": 8, "applications_total": 12, "applications_seeded": 12,
-  "applications_by_status": { "draft": 4, "ready_for_preliminary_scrutiny": 2, "under_preliminary_scrutiny": 2,
-                              "awaiting_additional_evidence": 2, "preliminary_scrutiny_completed": 2 } }
-```
-
-The seed also adds **12 fictional demo PDFs** to three draft applications (each PDF is bannered "FICTIONAL
-DEMONSTRATION DOCUMENT - NOT A GENUINE CERTIFICATE") and **4 synthetic issuer reference records**, and prints
-`Demo documents: 12 created …`. All names, trusts, addresses, certificate numbers and authorities are invented.
-No findings or processing results are seeded — they are produced by running the pipeline. Reseeding never modifies
-existing records; demo documents are skipped if their application is no longer accepting documents.
-
-### OCR setup on Windows (optional)
-
-Text-based PDFs need nothing extra. For scanned (image-only) pages install Tesseract, e.g.
-`winget install UB-Mannheim.TesseractOCR` (or the installer from the UB Mannheim Tesseract wiki), then restart the
-backend. ReguLens auto-detects `tesseract` on `PATH` or `C:\Program Files\Tesseract-OCR\tesseract.exe`; otherwise set
-`REGULENS_TESSERACT_CMD` in `.env`. Without Tesseract, image-only pages are reported as *Too little text (OCR not
-available)* and the document's processing status is *failed* with code `ocr_unavailable` — never as an empty success.
-The backend logs a warning at startup when OCR is unavailable.
-
-### Demo sign-in
-
-All pages except sign-in need an account. Outside production, `python -m app.cli seed` creates (or reconciles)
-two fictional local demo accounts from these `.env` settings — defaults shown, as in `.env.example`:
-
-| Role | Username | Password |
-|------|----------|----------|
-| Reviewer | `demo.reviewer` | `Reviewer@Demo2026` |
-| Administrator | `demo.admin` | `Admin@Demo2026` |
-
-> **LOCAL DEMO ONLY — CHANGE BEFORE SHARING.** These credentials are public in this repository. Change
-> `REGULENS_DEMO_REVIEWER_PASSWORD` / `REGULENS_DEMO_ADMIN_PASSWORD` in your `.env` (min. 10 characters) and rerun
-> `python -m app.cli seed` (or `python -m app.cli create-demo-users`) before anyone else can reach the app.
-
-- Rerunning is idempotent: only these two usernames are touched; a changed password, role or active state is
-  reconciled and that account's sessions are revoked. Other accounts are never modified.
-- Passwords are stored only as scrypt hashes and are never logged, audited, returned by the API or shown in the UI.
-- Set `REGULENS_DEMO_USERS_ENABLED=false` to stop creating them. With `REGULENS_ENVIRONMENT=production` demo
-  accounts are always off, and explicitly enabling them is rejected at startup.
-- An existing `.env` without the `REGULENS_DEMO_*` keys uses the defaults above; nothing in your `.env` is overwritten.
-
-See [docs/security.md](docs/security.md).
-
-## Run (two terminals)
+Text-based PDFs need no OCR. To read scanned or photographed pages, install **one** local engine:
 
 ```powershell
-# Terminal 1 — backend on http://127.0.0.1:8000
+# Option A — RapidOCR (installed into the backend virtual environment; CPU only)
+cd backend; .\.venv\Scripts\Activate.ps1
+pip install -r requirements-ocr.txt
+pip install --no-deps rapidocr-onnxruntime==1.2.3
+
+# Option B — Tesseract (system-wide; requires an administrator installer)
+winget install UB-Mannheim.TesseractOCR
+```
+
+`REGULENS_OCR_ENGINE=auto` (default) uses Tesseract if found, otherwise RapidOCR, otherwise none. Without an engine,
+image-only pages are reported as unreadable (`ocr_unavailable`) — never as an empty success. The active engine is
+shown in the application and at `GET /api/v1/system/info`.
+
+---
+
+## Running the application
+
+```powershell
+# Terminal 1 — API on http://127.0.0.1:8000
 cd backend
 .\.venv\Scripts\Activate.ps1
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ```powershell
-# Terminal 2 — frontend on http://127.0.0.1:5173
+# Terminal 2 — web application on http://127.0.0.1:5173
 cd frontend
 npm run dev
 ```
 
-Open http://127.0.0.1:5173 and sign in. **Overview** shows live queue counts, priority applications, recent alerts
-and backend status (**Connected**, **Degraded** or **Disconnected**, from the real `/api/v1/health` response). The
-header carries the environment badge, alerts with unread count and the account menu (Help & About, Sign out); the
-amber bar beneath it is the permanent trust notice. Below 1024 px the sidebar becomes a drawer (menu button).
+Open **http://127.0.0.1:5173** and sign in.
 
-> Application statuses are internal ReguLens workflow states. Nothing is submitted to AICTE, and no status is an
-> approval or rejection.
+- Health check: `Invoke-RestMethod http://127.0.0.1:8000/api/v1/health`
+- Interactive API documentation (non-production only): http://127.0.0.1:8000/docs
+- If port 5173 is taken, run `npm run dev -- --port 5180` and add `http://127.0.0.1:5180` to `REGULENS_CORS_ORIGINS`.
 
-### Supporting documents
+> [!NOTE]
+> The API applies pending database migrations at start-up. Before upgrading an existing installation, back up the
+> database: `Copy-Item data\regulens.db data\regulens.backup.db`.
 
-Open an application → **Supporting documents** → **Upload PDF**, choose a category and a PDF. Uploads and deletions
-are allowed while the application is **Draft** or **Awaiting additional evidence**.
+---
 
-- **Storage**: `REGULENS_DOCUMENT_STORAGE_DIR` (default `data/documents/`, git-ignored, never served statically;
-  must not be inside `frontend/`). Files are stored as `<key[:2]>/<key>.pdf` with a server-generated key —
-  uploaded filenames are never used as paths. Content is only reachable through
-  `GET /api/v1/documents/{id}/content`.
-- **Size limit**: `REGULENS_MAX_UPLOAD_BYTES` (default 20 MiB). Only PDF is accepted (checked by `%PDF-` signature
-  and `%%EOF` marker; extension and declared type are secondary signals).
-- **Duplicates**: an upload with the same SHA-256 as an existing document *in the same application* is kept and
-  marked *Duplicate detected* with a link to the original. Matches in other applications are shown only as a count.
-- **Deletion**: explicit, confirmed, permanent (metadata + file). Deleting an original promotes its earliest
-  duplicate to original. Processing results are removed with the document; past scrutiny findings keep their
-  evidence snapshots. Uploads and deletions are recorded in the audit log.
+## Accounts and roles
 
-### Demonstrating the end-to-end workflow
+Outside production, `seed` creates two local demonstration accounts from `.env`:
 
-1. Seed (`python -m app.cli seed`), create demo users (above), start backend and frontend, open
-   http://127.0.0.1:5173 and sign in as `demo.reviewer`.
-2. **Applications** → open `REG-EoA-2026-0005` (Hooghly Riverside, the inconsistent demo; codes are for a fresh
-   database — check the seed output / list otherwise).
-3. *Supporting documents* → **Process all**. Open **Details** on `occupancy-certificate.pdf` to see detected type,
-   extracted fields with quoted evidence and page numbers, and **Show extracted page text**.
-4. In the same details panel click **Run simulated issuer check** → *Simulated mismatch*, labelled
-   SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY.
-5. *Preliminary scrutiny* → **Run preliminary scrutiny**. Expect: conflicting survey number (312 vs 318), conflicting
-   built-up area, stated validity date passed, missing structural stability certificate (demo-only rule), exact
-   duplicate indicator. Click a finding to see its explanation, evidence quotes, rule source and demo-only label; set a
-   human review status.
-6. **Rerun** and use the *Scrutiny run* selector to view earlier runs.
-7. Open `REG-EoA-2026-0001` (clean demo): run scrutiny → *No findings*; the fire certificate's simulated check →
-   *Simulated match*. Open `REG-EoA-2026-0008` for unreadable/miscategorised examples.
-8. **Scrutiny Rules** in the sidebar: read-only for reviewers; administrators can enable/disable rules or change
-   severity (each change creates a new version).
+| Role | Username | Default password |
+|---|---|---|
+| Reviewer | `demo.reviewer` | `Reviewer@Demo2026` |
+| Administrator | `demo.admin` | `Admin@Demo2026` |
 
-### Reviewer workspace demo (Deliverable 5)
+> [!WARNING]
+> **Local demonstration only.** These defaults are public. Change `REGULENS_DEMO_REVIEWER_PASSWORD` and
+> `REGULENS_DEMO_ADMIN_PASSWORD` in `.env` and re-run `python -m app.cli seed` before anyone else can reach the
+> application. Demonstration accounts are always disabled when `REGULENS_ENVIRONMENT=production`.
 
-1. Sign in as `demo.reviewer` → **Review Queue** shows real counts; open `REG-EoA-2026-0005` and run scrutiny.
-2. Open *Conflicting survey number across documents* → **Confirm finding** with a reason. Open *Conflicting built-up
-   area* → **Dismiss** (a reason of ≥ 10 characters is required). The system result stays unchanged; the review
-   history lists your actions.
-3. *Additional evidence requests* → **New request** (e.g. "Structural stability certificate").
-4. *Supporting documents* → **Upload PDF**, choose *Structural Stability Certificate*, and select the request under
-   *Link to evidence request*. Then in the request: **Mark fulfilled** → **Confirm fulfilled**.
-5. *Activity* (bottom of the page) shows the audit entries; **Alerts** in the sidebar shows the generated alerts —
-   mark them read.
-6. *Reviewer copilot* → "Why was the survey number conflict raised?" — the answer cites rule CON-003 and quotes
-   "Survey No.: 312" / "Survey No.: 318"; click a source to open the finding.
-7. *Preliminary scrutiny* → **Download preliminary report** (PDF).
-8. Sign out, sign in as `demo.admin`: toggle a rule on **Scrutiny Rules**, create a user on **Users**, review the
-   global **Audit Trail**. As `demo.reviewer` those pages/operations are refused (403).
+| Capability | Reviewer | Administrator | Cross-case reviewer permission |
+|---|:-:|:-:|:-:|
+| Applications, documents, scrutiny, findings, evidence requests, reports | ✓ | ✓ | — |
+| Start cross-case scans; see restricted reuse alerts | ✓ | ✓ | — |
+| Open cross-case pairs, linked-case details, page images, record pair decisions | — | — | required |
+| Manage rules and users; view the global audit trail | — | ✓ | — |
+| Run and export reuse evaluations | — | ✓ | or this permission |
 
-Quick API check: `Invoke-RestMethod http://127.0.0.1:8000/api/v1/health`
-Interactive API docs (non-production only): http://127.0.0.1:8000/docs
+The cross-case permission is granted per user by an administrator (Users page, or
+`python -m app.cli grant-cross-case --username <name>`). Administrators cannot grant it to themselves.
 
-> If port 5173 is already used by another project, Vite will exit (strict port). Run `npm run dev -- --port 5180`
-> and add `http://127.0.0.1:5180` to `REGULENS_CORS_ORIGINS` in `.env`, then restart the backend.
+---
 
-## Test and build
+## Configuration
+
+All settings are read from `.env` at the repository root (see [.env.example](.env.example)). Backend variables use
+the `REGULENS_` prefix; the frontend reads `VITE_API_BASE_URL`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `REGULENS_ENVIRONMENT` | `development` | `development`, `test`, `staging` or `production` |
+| `REGULENS_DATABASE_URL` | `sqlite:///data/regulens.db` | Database location |
+| `REGULENS_DOCUMENT_STORAGE_DIR` | `data/documents` | Private document storage (never inside `frontend/`) |
+| `REGULENS_MAX_UPLOAD_BYTES` | `20971520` | Maximum upload size (20 MiB) |
+| `REGULENS_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Allowed browser origins |
+| `REGULENS_OCR_ENGINE` | `auto` | `auto`, `tesseract`, `rapidocr` or `none` |
+| `REGULENS_OCR_ENABLED` | `true` | Disable OCR entirely |
+| `REGULENS_TESSERACT_CMD` | *(auto-detect)* | Path to `tesseract.exe` if not on `PATH` |
+| `REGULENS_OCR_DPI` | `200` | Render resolution for OCR |
+| `REGULENS_SESSION_TTL_MINUTES` | `480` | Session lifetime |
+| `REGULENS_LOGIN_MAX_FAILURES` / `REGULENS_LOGIN_LOCKOUT_MINUTES` | `5` / `15` | Sign-in lockout policy |
+| `REGULENS_DEMO_USERS_ENABLED` | `true` | Create local demonstration accounts (ignored in production) |
+| `VITE_API_BASE_URL` | `http://127.0.0.1:8000/api/v1` | API base URL used by the web application |
+
+---
+
+## Command-line reference
+
+Run from `backend/` with the virtual environment active: `python -m app.cli <command>`.
+
+| Command | Description |
+|---|---|
+| `migrate` | Apply database migrations (non-destructive). |
+| `seed` | Insert synthetic demonstration data and accounts (idempotent). |
+| `seed-summary` | Print record counts. |
+| `create-demo-users` | Create or reconcile the demonstration accounts from `.env`. |
+| `create-user --username U --role reviewer\|admin` | Create a user (password from `REGULENS_NEW_USER_PASSWORD` or a prompt). |
+| `grant-cross-case --username U [--revoke]` | Grant or revoke the cross-case reviewer permission (audited). |
+| `reuse-fixtures --load` | Add four fictional cross-case demonstration cases. |
+| `reuse-fixtures --reset --confirm-reset` | Remove only those demonstration cases (development/test only). |
+| `reuse-scan --application CODE` | Run a cross-case reuse scan for one application. |
+| `reuse-eval [--no-ocr] --out DIR` | Run the A0/A1/A4 evaluation; writes `metrics.json`, `metrics.csv` and `summary.md`. |
+| `capture-kit --out DIR` | Export printable sources and a manifest template for real photographed evaluation pairs. |
+| `reset-data --confirm-reset` | **Delete all** institution, application and document data (development/test only). |
+
+---
+
+## Guided walkthrough
+
+1. Sign in as `demo.reviewer`. **Overview** shows live queue counts, priority applications and backend status.
+2. Open **Applications → REG-EoA-2026-0005** (a deliberately inconsistent fictional case; codes assume a fresh
+   database). Under **Supporting documents** choose **Process all**, then **Details** on a document to see extracted
+   fields with quoted evidence, page numbers and OCR confidence.
+3. Run **Simulated issuer check**: the result shows its source-verification status with the `SIMULATED` source type.
+4. Run **Preliminary scrutiny**. Open a finding to read its explanation, evidence and rule provenance; confirm or
+   dismiss it with a reason. Download the **preliminary report** (PDF).
+5. Raise an **evidence request**, upload the requested document linked to it, and mark the request fulfilled. The
+   **Activity** panel and **Alerts** reflect each step.
+6. For cross-case reuse, run `python -m app.cli reuse-fixtures --load` and
+   `python -m app.cli grant-cross-case --username demo.reviewer`, sign in again, open the first fixture case and
+   choose **Run cross-case scan → Open comparison**. The comparison shows both pages side by side, alignment and
+   difference regions, field-level evidence, an evidence-referenced explanation and the reviewer decision panel.
+7. Sign in as `demo.admin` to manage **Scrutiny Rules** and **Users**, review the **Audit Trail**, and run the
+   evaluation under **Cross-case reuse**.
+
+---
+
+## Testing and quality
 
 ```powershell
 cd backend;  .\.venv\Scripts\Activate.ps1; python -m pytest; cd ..
 cd frontend; npm test; npm run typecheck; npm run build; npm audit; cd ..
 ```
 
-### UI smoke test (real browser, optional)
+Backend tests run against temporary databases and storage and never touch `data/`. Tests that require a real OCR
+engine are skipped automatically when it is not installed.
 
-`frontend/e2e/smoke.mjs` drives the running app in Microsoft Edge (via `playwright-core`, no browser download):
-sign-in, overview, queue, scrutiny and a finding action, upload and confirmed delete, copilot, report download,
-reviewer permission denial, admin rule and user confirmations, the audit trail, an overflow sweep at
-360/390/768/1024/1440/1920 px and the mobile drawer. **It writes data**, so run it against a scratch database on
-spare ports, never your working data:
+### Browser smoke test
+
+`frontend/e2e/smoke.mjs` drives the running application in Microsoft Edge: sign-in, scrutiny, finding actions,
+upload and confirmed deletion, report download, permission denial, administration, and a layout sweep from 360 px to
+1920 px. **It writes data**, so point it at a disposable database:
 
 ```powershell
-# Terminal A (backend/, venv active): scratch database on port 8030
+# backend/ (venv active) — disposable instance on port 8030
 $env:REGULENS_DATABASE_URL = "sqlite:///$env:TEMP/regulens-smoke.db"
 $env:REGULENS_DOCUMENT_STORAGE_DIR = "$env:TEMP/regulens-smoke-docs"
 $env:REGULENS_CORS_ORIGINS = "http://127.0.0.1:5195"
-python -m app.cli migrate; python -m app.cli seed
+python -m app.cli seed
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8030
 
-# Terminal B (frontend/)
+# frontend/
 $env:VITE_API_BASE_URL = "http://127.0.0.1:8030/api/v1"; npx vite --port 5195 --strictPort --host 127.0.0.1
 
-# Terminal C (frontend/)
+# frontend/ (third terminal)
 $env:SMOKE_ALLOW_WRITES = "1"; $env:SMOKE_BASE_URL = "http://127.0.0.1:5195"; $env:SMOKE_API_URL = "http://127.0.0.1:8030/api/v1"
 npm run smoke
 ```
 
-Screenshots go to `data/smoke-screenshots/` (git-ignored; override with `SMOKE_OUT_DIR`). Without
-`SMOKE_ALLOW_WRITES=1` the script refuses to run. Use `SMOKE_BROWSER_CHANNEL=chrome` for Chrome.
+The script refuses to run without `SMOKE_ALLOW_WRITES=1`.
 
-Backend tests use temporary SQLite databases and temporary document storage; they never touch `data/regulens.db`
-or `data/documents/`, and reset is never run against them. They need no network access. The real-Tesseract test
-is skipped when Tesseract is not installed; OCR-unavailable behaviour and the OCR code path (with a stub engine) are
-always tested.
+---
 
-### Local OCR (optional, Deliverable 8)
+## Evaluation
 
-Scanned and photographed pages need a local OCR engine. Either install Tesseract (see "OCR setup on Windows" above)
-or the CPU-only RapidOCR engine into the venv (models ship inside the wheel; nothing is downloaded at run time):
+Cross-case reuse detection is measured on a deterministic, fully synthetic benchmark (63 fictional documents) with
+separate development and held-out splits. Three arms are compared on identical labelled pairs: **A0** exact SHA-256,
+**A1** perceptual hash only, and **A4** the full cascade. Only `MATCH_CONFIRMED_FOR_REVIEW` counts as a positive for
+A4; inconclusive outcomes and altered-document pairs are reported separately.
 
-```powershell
-cd backend; .\.venv\Scripts\Activate.ps1
-pip install -r requirements-ocr.txt
-pip install --no-deps rapidocr-onnxruntime==1.2.3   # --no-deps: avoids pulling a second OpenCV build
-```
+Held-out results with local OCR (TP / FP / TN / FN):
 
-`REGULENS_OCR_ENGINE=auto` (default) uses Tesseract if found, else RapidOCR, else none; set `tesseract`,
-`rapidocr` or `none` to choose explicitly. The cross-case panel and `/api/v1/system/info` show what is available.
-Evaluate with and without OCR: `python -m app.cli reuse-eval --out ..\docs\evaluation\reuse-d8` and
-`python -m app.cli reuse-eval --no-ocr --out ..\docs\evaluation\reuse-d8-no-ocr`. See
-[docs/ai-document-understanding.md](docs/ai-document-understanding.md).
+| Split | A0 | A1 | A4 |
+|---|---|---|---|
+| heldout (15 pairs) | 1 / 0 / 8 / 6 | 3 / 2 / 6 / 4 | 7 / 0 / 8 / 0 |
+| heldout2 (12 pairs) | 1 / 0 / 6 / 5 | 3 / 1 / 5 / 3 | 5 / 0 / 6 / 1 |
+| heldout_alt (3 pairs) | 0 / 0 / 1 / 2 | 0 / 1 / 0 / 2 | 1 / 0 / 1 / 1 |
 
-### Cross-case reuse demo (Deliverable 7)
+A4 produced no false positives on any split; its remaining misses are poor-quality scans, reported as
+`INCONCLUSIVE` rather than confirmed. Altered certificates are surfaced as review candidates and never confirmed.
+These figures come from a small synthetic benchmark and are not a claim of production accuracy. Full results,
+split history and per-transformation breakdowns: [docs/evaluation/](docs/evaluation/) and
+[docs/d9-acceptance.md](docs/d9-acceptance.md).
 
-```powershell
-cd backend
-python -m app.cli reuse-fixtures --load                    # four fictional cases A–D (idempotent)
-python -m app.cli reuse-scan --application <code of case A>  # printed by the previous command
-python -m app.cli grant-cross-case --username demo.reviewer  # or use the Users page as admin
-python -m app.cli reuse-eval --out ..\docs\evaluation\reuse-d7   # A0/A1/A4 metrics (JSON, CSV, Markdown)
-python -m app.cli reuse-fixtures --reset --confirm-reset    # removes only the fixture cases (dev/test)
-```
+---
 
-Case B holds a rescaled copy of case A's certificate (transformed positive); case D uses the same template with a
-different institution (hard negative); case C is a raster scan (stays a candidate without OCR). Open case A →
-"Cross-case reuse" → "Open comparison" (requires the cross-case reviewer permission). See
-[docs/reuse-detection.md](docs/reuse-detection.md).
+## Security and privacy
 
-## Configuration
+- Passwords are stored as salted scrypt hashes; sessions use opaque bearer tokens stored only as SHA-256 hashes.
+- Sign-in lockout, server-side role checks on every endpoint, and request schemas that reject unknown fields.
+- Documents are stored privately under server-generated keys and are reachable only through authenticated endpoints.
+- Cross-case details require an explicit permission; ordinary reviewers receive alerts that never reveal the linked
+  case. Every permitted and refused cross-case access is audited.
+- The audit log is append-only at the application level and records actor, time, action and outcome — never
+  document text, passwords or tokens.
+- OCR and extracted text are treated as untrusted data and never executed or followed as instructions.
+- All demonstration data is fictional. Do not load real institutional records into a development instance.
 
-All settings live in `.env` at the repo root; see [.env.example](.env.example) for documented defaults.
-Backend variables are prefixed `REGULENS_`; the frontend reads `VITE_API_BASE_URL`.
+See [docs/security.md](docs/security.md).
+
+---
+
+## Limitations
+
+- Scrutiny rules marked **demo-only** are prototype expectations and have not been verified against official AICTE
+  sources.
+- Issuer verification is **simulated**; no issuing authority is contacted.
+- Field extraction is rule-based and covers explicitly labelled values in English; unusual layouts may be missed.
+- Every reviewer can open every application; there is no per-application assignment.
+- Reuse-detection accuracy has been measured on synthetic data only; real photographed documents have not yet been
+  evaluated (`capture-kit` prepares that evaluation).
+- SQLite and synchronous processing suit a single-site deployment; large volumes would need a server database and
+  background workers.
+
+---
 
 ## Repository layout
 
 ```
 regulens-ai/
-  CLAUDE.md               conventions for Claude Code sessions
-  .env.example            documented configuration
-  docs/                   requirements, architecture, API contracts, data model, status
-  backend/                FastAPI app (app/) + pytest suite (tests/)
-  frontend/               React + Vite app (src/) + Vitest suite (tests/)
-  data/                   local SQLite database and private document storage (git-ignored)
-  scripts/                reserved for future dev scripts
+├── backend/                 FastAPI application
+│   ├── app/                 api · core · db (Alembic migrations) · models · schemas · services
+│   ├── tests/               pytest suite
+│   ├── requirements.lock.txt
+│   └── requirements-ocr.txt optional local OCR engine
+├── frontend/                React + TypeScript application
+│   ├── src/                 app · components · layouts · pages · services · types
+│   ├── tests/               Vitest suite
+│   └── e2e/                 browser smoke test
+├── docs/                    architecture, API, data model, security, evaluation
+├── data/                    local database and private document storage (git-ignored)
+└── .env.example             documented configuration
 ```
+
+---
 
 ## Documentation
 
-- [Requirements](docs/requirements.md)
-- [Architecture](docs/architecture.md)
-- [API contracts](docs/api-contracts.md)
-- [Data model](docs/data-model.md)
-- [Document intelligence and scrutiny (pipeline, rules, limitations)](docs/scrutiny-and-extraction.md)
-- [Reviewer workflow (review states, evidence requests, alerts, report, copilot)](docs/review-workflow.md)
-- [Security, roles and audit](docs/security.md)
-- [Design system (tokens, components, layout, accessibility)](docs/design-system.md)
-- [Cross-case document reuse (cascade, permissions, evaluation)](docs/reuse-detection.md)
-- [Local OCR, evidence fusion and explanations (what is OCR, CV, rules or a model)](docs/ai-document-understanding.md)
-- [Deliverable 9 acceptance: checklist, status mapping, migration and demo steps](docs/d9-acceptance.md)
-- [Implementation status](docs/implementation-status.md)
+| Topic | Document |
+|---|---|
+| Requirements | [docs/requirements.md](docs/requirements.md) |
+| Architecture | [docs/architecture.md](docs/architecture.md) |
+| API reference | [docs/api-contracts.md](docs/api-contracts.md) |
+| Data model and migrations | [docs/data-model.md](docs/data-model.md) |
+| Document processing and scrutiny rules | [docs/scrutiny-and-extraction.md](docs/scrutiny-and-extraction.md) |
+| Reviewer workflow | [docs/review-workflow.md](docs/review-workflow.md) |
+| Cross-case reuse detection | [docs/reuse-detection.md](docs/reuse-detection.md) |
+| OCR, evidence fusion and explanations | [docs/ai-document-understanding.md](docs/ai-document-understanding.md) |
+| Security, roles and audit | [docs/security.md](docs/security.md) |
+| Design system | [docs/design-system.md](docs/design-system.md) |
+| Acceptance checklist and status mapping | [docs/d9-acceptance.md](docs/d9-acceptance.md) |
+| Implementation status | [docs/implementation-status.md](docs/implementation-status.md) |
