@@ -108,9 +108,11 @@ def _input_for(session: Session, storage: DocumentStorage, settings: Settings, o
     text_status = "not_processed"
     if proc is not None and processing.is_current(proc, doc):
         text_status = "failed" if proc.status == ProcessingStatus.FAILED else "available"
-        pages = [engine.PageText(p.page_number, p.text, p.status.value) for p in proc.pages]
+        pages = [engine.PageText(p.page_number, p.text, p.status.value, p.method.value, p.ocr_confidence)
+                 for p in proc.pages]
         fields = [engine.FieldEvidence(f.field_name, f.raw_value, f.normalized_value, f.page_number, f.evidence_quote,
-                                       f.status.value) for f in proc.fields]
+                                       f.status.value, f.evidence_source, f.evidence_box, f.ocr_confidence)
+                  for f in proc.fields]
     inp = engine.DocumentInput(doc.id, doc.application_id, doc.sha256, pdf, pages, fields, text_status=text_status)
     _attach_descriptors(session, doc, inp, config)
     return inp
@@ -251,7 +253,8 @@ def _persist_pair(session: Session, a_doc: Document, b_doc: Document, a_in, b_in
         exact=result.exact, text=result.text, visual=result.visual, geometric=result.geometric, fields=result.fields,
         matched_pages=result.matched_pages, reasons=result.reasons, uncertainties=result.uncertainties,
         stage_status=result.stage_status, snapshot={"a": _snapshot(session, a_doc, a_in), "b": _snapshot(session, b_doc, b_in)},
-        config=config.snapshot(), latency_ms=result.latency_ms, created_at=now)
+        config=config.snapshot(), latency_ms=result.latency_ms, fusion=result.fusion, explanation=result.explanation,
+        created_at=now)
     session.add(pair)
     session.flush()
     return pair

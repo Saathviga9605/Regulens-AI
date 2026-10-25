@@ -131,6 +131,10 @@ class MatchEvidence(Base):
     snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)  # identities at evaluation time
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     latency_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # L4 fusion record (supporting / contradicting / unavailable signals, rationale) and the evidence-grounded
+    # explanation generated from it. NULL for pairs evaluated before migration 0008.
+    fusion: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    explanation: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
     pair: Mapped[CasePair] = relationship(back_populates="evidence")

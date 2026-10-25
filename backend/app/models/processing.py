@@ -73,6 +73,11 @@ class DocumentPage(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False, default="")
     char_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     warnings: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    # Evidence coordinates (normalised [x0, y0, x1, y1], origin top-left of the displayed page) per text line.
+    lines: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    ocr_engine: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)  # engine score, not calibrated
+    rotation_degrees: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (UniqueConstraint("processing_id", "page_number", name="uq_page_per_processing"),)
 
@@ -98,5 +103,8 @@ class ExtractedField(Base):
     status: Mapped[FieldStatus] = mapped_column(str_enum(FieldStatus, "field_status"), nullable=False)
     warnings: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     candidates: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    evidence_source: Mapped[str | None] = mapped_column(String(20), nullable=True)  # text_layer / ocr
+    evidence_box: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)  # separate from extraction confidence
 
     __table_args__ = (Index("ix_extracted_fields_document_field", "document_id", "field_name"),)

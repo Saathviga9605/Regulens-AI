@@ -75,7 +75,11 @@ function FieldsTable({ fields }: { fields: ExtractedField[] }) {
                     <blockquote className="border-l-2 border-info-line pl-2 font-mono text-xs text-ink [overflow-wrap:anywhere]">
                       {f.evidence_quote}
                     </blockquote>
-                    <figcaption className="mt-1 text-xs text-ink-subtle">Page {f.page_number} · {f.method}</figcaption>
+                    <figcaption className="mt-1 text-xs text-ink-subtle">
+                      Page {f.page_number} · {f.method} · {f.evidence_source === "ocr" ? "read by OCR" : "text layer"}
+                      {f.ocr_confidence != null && ` · OCR score ${f.ocr_confidence.toFixed(2)}`}
+                      {f.evidence_box ? " · location recorded" : f.evidence_source ? " · location not recorded" : ""}
+                    </figcaption>
                   </figure>
                 ) : (
                   <span className="text-xs text-ink-subtle">No evidence in readable text</span>
@@ -132,6 +136,8 @@ function PageTexts({ documentId }: { documentId: string }) {
         <details key={p.page_number} className="rounded border border-line bg-surface">
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-ink">
             Page {p.page_number} · {p.method.replace("_", " ")} · {PAGE_STATUS_LABELS[p.status]} · {p.char_count} characters
+            {p.ocr_engine && ` · OCR ${p.ocr_engine}${p.ocr_confidence != null ? ` (score ${p.ocr_confidence.toFixed(2)})` : ""}`}
+            {p.rotation_degrees ? ` · rotated ${p.rotation_degrees}°` : ""}
           </summary>
           <pre className="max-h-80 overflow-auto whitespace-pre-wrap border-t border-line px-3 py-2 font-mono text-xs text-ink">
             {p.text || "(no text)"}

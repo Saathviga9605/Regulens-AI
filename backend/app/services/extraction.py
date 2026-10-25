@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from app.models.enums import Confidence, DocumentCategory as C, FieldStatus, PageExtractionMethod
 from app.services.normalize import collapse_ws, is_grounded, normalize_identifier, normalize_name, parse_area, parse_date
 
-EXTRACTOR_VERSION = "label_regex_v1"
+EXTRACTOR_VERSION = "label_regex_v2"
 MAX_VALUE_LEN = 200
 
 
@@ -63,10 +63,14 @@ FIELDS_BY_CATEGORY: dict[C, list[str]] = {
     C.OTHER: COMMON,
 }
 
+# v2: label words may run together (OCR often drops spaces: "DateofIssue:"), so `\s+` inside labels becomes `\s*`.
 _PATTERNS = {
-    s.name: re.compile(rf"^[ \t]*(?:{s.label})[ \t]*(?:[:\-–—]|\.\s*:)[ \t]*(?P<value>\S[^\n]*?)[ \t]*$", re.I | re.M)
+    s.name: re.compile(rf"^[ \t]*(?:{s.label.replace(chr(92) + 's+', chr(92) + 's*')})[ \t]*(?:[:\-–—]|\.\s*:)[ \t]*"
+                       rf"(?P<value>\S[^\n]*?)[ \t]*$", re.I | re.M)
     for s in SPECS
 }
+LOW_OCR_CONFIDENCE = 0.80
+_DIGIT_ALPHA = re.compile(r"(?<=\d)(?=[A-Za-z])|(?<=[A-Za-z])(?=\d)")
 
 
 @dataclass
@@ -74,6 +78,7 @@ class PageInput:
     page_number: int
     text: str
     method: PageExtractionMethod
+    lines: list[dict] = field(default_factory=list)  # [{text, confidence, box}] from the text layer or OCR
 
 
 @dataclass
@@ -88,12 +93,30 @@ class FieldResult:
     status: FieldStatus
     warnings: list[str] = field(default_factory=list)
     candidates: list[dict] = field(default_factory=list)
+    evidence_source: str | None = None
+    evidence_box: list[float] | None = None
+    ocr_confidence: float | None = None
+
+
+def locate(quote: str, lines: list[dict]) -> tuple[list[float] | None, float | None]:
+    """Box (union of matching lines) and lowest OCR confidence for a quote. Matching ignores whitespace only."""
+    target = re.sub(r"\s+", "", quote).casefold()
+    if not target:
+        return None, None
+    hits = [ln for ln in lines if (t := re.sub(r"\s+", "", ln.get("text", "")).casefold()) and (target in t or t in target)
+            and len(t) >= min(len(target), 4)]
+    if not hits:
+        return None, None
+    box = [min(h["box"][0] for h in hits), min(h["box"][1] for h in hits),
+           max(h["box"][2] for h in hits), max(h["box"][3] for h in hits)]
+    confs = [h["confidence"] for h in hits if h.get("confidence") is not None]
+    return box, (min(confs) if confs else None)
 
 
 def _normalize(kind: str, raw: str) -> tuple[dict | None, list[str], bool]:
     """(normalized, warnings, ambiguous)."""
     if kind == "date":
-        parsed = parse_date(raw)
+        parsed = parse_date(_DIGIT_ALPHA.sub(" ", raw))  # "27August2025" (OCR) → "27 August 2025"
         if parsed.iso:
             return {"date": parsed.iso}, [], False
         return None, [f"Date kept as written ('{raw}'): {parsed.note}"], parsed.ambiguous
@@ -158,12 +181,19 @@ def _build(spec: FieldSpec, occurrences: list) -> FieldResult:
         status = FieldStatus.UNVERIFIED
         warnings = warnings + ["The evidence quote could not be matched to the stored page text."]
 
+    box, ocr_conf = locate(quote, page.lines)
     if page.method == PageExtractionMethod.OCR:
         confidence = Confidence.MEDIUM
         warnings = warnings + ["Value read from OCR text; recognition errors are possible."]
+        if ocr_conf is not None and ocr_conf < LOW_OCR_CONFIDENCE:
+            confidence = Confidence.LOW
+            warnings = warnings + [f"Low OCR confidence for this line ({ocr_conf:.2f}); treat the value as uncertain."]
+        if box is None:
+            warnings = warnings + ["The quoted line could not be located in the OCR output; no coordinates recorded."]
     elif normalized is None or (spec.kind == "area" and normalized.get("value_sq_m") is None):
         confidence = Confidence.LOW
     else:
         confidence = Confidence.HIGH
+    source = "ocr" if page.method == PageExtractionMethod.OCR else "text_layer"
     return FieldResult(spec.name, value, normalized, page.page_number, quote, EXTRACTOR_VERSION, confidence, status,
-                       warnings, candidates if len(distinct) > 1 else [])
+                       warnings, candidates if len(distinct) > 1 else [], source, box, ocr_conf)

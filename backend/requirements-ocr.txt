@@ -1,0 +1,14 @@
+# Optional local OCR (RapidOCR: PP-OCR models bundled in the wheel, run on the CPU with ONNX Runtime; no downloads at
+# run time, no network). Not part of the core lock because rapidocr-onnxruntime declares the full opencv-python
+# package, which would conflict with opencv-python-headless. Install in two steps from backend/ with the venv active:
+#   pip install -r requirements-ocr.txt
+#   pip install --no-deps rapidocr-onnxruntime==1.2.3
+# Verified on Python 3.13 / Windows 11 (CPU only). Without these, REGULENS_OCR_ENGINE=auto reports OCR unavailable.
+onnxruntime==1.31.0
+pyclipper==1.4.0
+shapely==2.2.0
+Pillow==13.0.0
+six==1.17.0
+flatbuffers==25.12.19
+protobuf==7.36.2
+PyYAML==6.0.3

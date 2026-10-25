@@ -60,6 +60,11 @@ restricted alerts that never name the linked case. Grants/revocations revoke ses
 no document content. See [reuse-detection.md](reuse-detection.md#cross-case-access-control). Limitation: no
 per-application assignment exists, so applications themselves remain visible to all reviewers.
 
+### OCR and analysis outputs (Deliverable 8)
+OCR text and extracted values are untrusted input: they are matched against fixed label patterns and compared,
+never executed, interpreted as instructions or used to change rules or permissions. All analysis runs locally; no
+document content leaves the machine. `/system/info` reports engine names and versions only (no paths).
+
 ## Audit log
 `audit_events` is written in the same database transaction as the action it describes (failures/denials are written
 separately). Recorded: sign-in/out (success, failure, lockout), application/institution create/edit/status, document

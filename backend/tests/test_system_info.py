@@ -14,7 +14,12 @@ def test_system_info_returns_safe_metadata(client: TestClient, settings) -> None
         "database_backend",
         "implemented_capabilities",
         "planned_capabilities",
+        "ai_capabilities",
     }
+    caps = body["ai_capabilities"]
+    assert caps["ocr"]["engine"] == "none" and caps["ocr"]["available"] is False  # tests run with OCR disabled
+    assert caps["local_text_model"]["configured"] is False and caps["local_vision_model"]["configured"] is False
+    assert ":\\" not in response.text and "tesseract.exe" not in response.text  # no executable paths
     assert body["environment"] == "test"
     assert body["database_backend"] == "sqlite"
     assert body["planned_capabilities"]

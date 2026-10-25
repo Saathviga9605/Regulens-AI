@@ -111,12 +111,16 @@ def _copy_from(cached: DocumentProcessing, document: Document, started) -> Docum
         pdf_properties=cached.pdf_properties, started_at=started, finished_at=utcnow(),
     )
     processing.pages = [DocumentPage(page_number=p.page_number, method=p.method, status=p.status, text=p.text,
-                                     char_count=p.char_count, warnings=p.warnings) for p in cached.pages]
+                                     char_count=p.char_count, warnings=p.warnings, lines=p.lines,
+                                     ocr_engine=p.ocr_engine, ocr_confidence=p.ocr_confidence,
+                                     rotation_degrees=p.rotation_degrees) for p in cached.pages]
     processing.fields = [ExtractedField(document_id=document.id, position=f.position, field_name=f.field_name,
                                         raw_value=f.raw_value, normalized_value=f.normalized_value,
                                         page_number=f.page_number, evidence_quote=f.evidence_quote, method=f.method,
                                         confidence=f.confidence, status=f.status, warnings=f.warnings,
-                                        candidates=f.candidates) for f in cached.fields]
+                                        candidates=f.candidates, evidence_source=f.evidence_source,
+                                        evidence_box=f.evidence_box, ocr_confidence=f.ocr_confidence)
+                         for f in cached.fields]
     return processing
 
 
@@ -137,7 +141,9 @@ def _run_pipeline(storage: DocumentStorage, settings: Settings, ocr, document: D
         pdf_properties=text.pdf_properties, started_at=started,
     )
     processing.pages = [DocumentPage(page_number=p.page_number, method=p.method, status=p.status, text=p.text,
-                                     char_count=pdf_text.non_ws_len(p.text), warnings=p.warnings) for p in text.pages]
+                                     char_count=pdf_text.non_ws_len(p.text), warnings=p.warnings, lines=p.lines,
+                                     ocr_engine=p.ocr_engine, ocr_confidence=p.ocr_confidence,
+                                     rotation_degrees=p.rotation_degrees) for p in text.pages]
 
     readable = [p for p in text.pages if p.status.value == "ok"]
     cls = classification.classify([p.text for p in readable])
@@ -151,13 +157,15 @@ def _run_pipeline(storage: DocumentStorage, settings: Settings, ocr, document: D
         categories = {document.category}
         if cls.predicted_category:
             categories.add(cls.predicted_category)
-        inputs = [extraction.PageInput(p.page_number, p.text, p.method) for p in readable]
+        inputs = [extraction.PageInput(p.page_number, p.text, p.method, p.lines) for p in readable]
         fields = extraction.extract_fields(inputs, categories)
         processing.fields = [
             ExtractedField(document_id=document.id, position=i, field_name=f.field_name, raw_value=f.raw_value,
                            normalized_value=f.normalized_value, page_number=f.page_number,
                            evidence_quote=f.evidence_quote, method=f.method, confidence=f.confidence,
-                           status=f.status, warnings=f.warnings, candidates=f.candidates)
+                           status=f.status, warnings=f.warnings, candidates=f.candidates,
+                           evidence_source=f.evidence_source, evidence_box=f.evidence_box,
+                           ocr_confidence=f.ocr_confidence)
             for i, f in enumerate(fields)
         ]
         if any(p.method == PageExtractionMethod.OCR for p in readable) and \

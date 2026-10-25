@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_app_settings, get_db
@@ -22,5 +22,5 @@ def health(settings: Settings = Depends(get_app_settings), db: Session = Depends
 
 
 @router.get("/system/info", response_model=SystemInfoResponse)
-def system_info(settings: Settings = Depends(get_app_settings)) -> SystemInfoResponse:
-    return build_system_info(settings)
+def system_info(request: Request, settings: Settings = Depends(get_app_settings)) -> SystemInfoResponse:
+    return build_system_info(settings, getattr(request.app.state, "ocr_engine", None))

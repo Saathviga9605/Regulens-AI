@@ -148,3 +148,12 @@ API in `api/v1/reuse.py` (open router, permission-guarded `restricted_router`, `
 Frontend: `components/CrossCasePanel.tsx` (workspace section), `pages/CasePairPage.tsx` (comparison),
 `pages/CrossCasePage.tsx` (pair list + evaluation), Users page permission toggle. Scans are synchronous with a
 per-application running-scan guard; no queue or broker. See [reuse-detection.md](reuse-detection.md).
+
+## Local OCR, evidence fusion and explanations (Deliverable 8)
+
+`services/ocr.py` (local OCR providers: Tesseract TSV and RapidOCR/ONNX Runtime, explicit selection, capability
+report), `pdf_text.py` (text layer first, OCR fallback with bounded rotation retries, line coordinates for every
+page), `extraction.py` (`label_regex_v2`, evidence boxes and OCR scores), `reuse_engine.py` (`reuse_cascade_v3`: region
+mapping, `fuse`, `explain`), `reuse_visual.py` (`phash_dct_v2` photo rectification). UI: capability strip and stages
+in the cross-case panel; explanation, fusion and field boxes on the comparison page; OCR details in document
+analysis. See [ai-document-understanding.md](ai-document-understanding.md).

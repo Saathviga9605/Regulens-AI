@@ -64,7 +64,8 @@ def _processing_read(session: Session, document, processing, reused: bool | None
             signals=processing.classification_signals, alternatives=processing.classification_alternatives,
             agrees_with_selected=None if predicted is None else predicted == document.category),
         pages=[PageSummary(page_number=p.page_number, method=p.method, status=p.status, char_count=p.char_count,
-                           warnings=p.warnings) for p in processing.pages],
+                           warnings=p.warnings, ocr_engine=p.ocr_engine, ocr_confidence=p.ocr_confidence,
+                           rotation_degrees=p.rotation_degrees) for p in processing.pages],
         fields=[ExtractedFieldRead.model_validate(f) for f in processing.fields],
         started_at=processing.started_at, finished_at=processing.finished_at,
     )

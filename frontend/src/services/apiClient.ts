@@ -58,6 +58,8 @@ const DEFAULT_BASE_URL = "http://127.0.0.1:8000/api/v1";
 const REQUEST_TIMEOUT_MS = 8000;
 // Processing and scrutiny run synchronously on the server (text extraction, optional OCR).
 const LONG_TIMEOUT_MS = 180_000;
+/** The A0/A1/A4 evaluation re-reads every fixture (OCR included) and can take several minutes. */
+const EVALUATION_TIMEOUT_MS = 900_000;
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
 
@@ -462,7 +464,7 @@ export const apiClient = {
     return request(`/case-pairs/${enc(pairId)}/review-actions`);
   },
   runReuseEvaluation(): Promise<EvaluationDetail> {
-    return request("/reuse-evaluations", { method: "POST", timeoutMs: LONG_TIMEOUT_MS });
+    return request("/reuse-evaluations", { method: "POST", timeoutMs: EVALUATION_TIMEOUT_MS });
   },
   listReuseEvaluations(): Promise<EvaluationSummary[]> {
     return request("/reuse-evaluations");

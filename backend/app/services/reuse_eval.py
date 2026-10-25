@@ -29,7 +29,7 @@ from app.services import extraction, pdf_text
 from app.services import reuse_engine as engine
 from app.services.reuse_dataset import Dataset, FixtureDoc, build_dataset, dataset_digest
 
-EVAL_VERSION = "reuse_eval_v1"
+EVAL_VERSION = "reuse_eval_v2"  # v2: per-transform/quality breakdowns, OCR status, inconclusive counts
 # Frozen after dev-split selection (see docs/reuse-detection.md, "Threshold selection").
 A1_PHASH_THRESHOLD = 0
 
@@ -44,11 +44,11 @@ def fixture_input(doc: FixtureDoc, ocr: pdf_text.OcrEngine | None, *, min_chars:
         path = Path(tmp) / "doc.pdf"
         path.write_bytes(doc.pdf)
         text = pdf_text.extract_text(path, ocr, min_chars=min_chars, max_pages=10, dpi=dpi)
-    pages = [engine.PageText(p.page_number, p.text, p.status.value) for p in text.pages]
-    readable = [extraction.PageInput(p.page_number, p.text, p.method) for p in text.pages if p.status.value == "ok"]
+    pages = [engine.PageText(p.page_number, p.text, p.status.value, p.method.value, p.ocr_confidence) for p in text.pages]
+    readable = [extraction.PageInput(p.page_number, p.text, p.method, p.lines) for p in text.pages if p.status.value == "ok"]
     fields = extraction.extract_fields(readable, {DocumentCategory(doc.category)}) if readable else []
     evidence = [engine.FieldEvidence(f.field_name, f.raw_value, f.normalized_value, f.page_number, f.evidence_quote,
-                                     f.status.value) for f in fields]
+                                     f.status.value, f.evidence_source, f.evidence_box, f.ocr_confidence) for f in fields]
     status = "available" if text.status.value != "failed" else "failed"
     return engine.DocumentInput(doc.key, doc.case, _sha(doc.pdf), doc.pdf, pages, evidence, text_status=status)
 
@@ -91,11 +91,12 @@ class EvalResult:
                             m["recall"]["numerator"], m["recall"]["denominator"], m["hard_negative_fp"],
                             m["hard_negative_fp_rate"]["denominator"], m["latency_ms_total"]])
         w.writerow([])
-        w.writerow(["pair", "split", "label", "hard_negative", "scenario", "a0", "a1_distance", "a1", "a4_outcome",
+        w.writerow(["pair", "split", "label", "hard_negative", "scenario", "transform", "quality", "a0", "a1_distance", "a1", "a4_outcome",
                     "text_jaccard", "phash_distance", "geo_status", "geo_inliers", "diff_cells", "field_agree",
                     "field_conflict", "field_inconclusive"])
         for r in self.data["pairs"]:
-            w.writerow([r["pair"], r["split"], r["label"], r["hard_negative"], r["scenario"], r["A0"]["positive"],
+            w.writerow([r["pair"], r["split"], r["label"], r["hard_negative"], r["scenario"], r.get("transform"), r.get("quality"),
+                        r["A0"]["positive"],
                         r["A1"]["distance"], r["A1"]["positive"], r["A4"]["outcome"], r["A4"]["text_jaccard"],
                         r["A4"]["phash_distance"], r["A4"]["geo_status"], r["A4"]["geo_inliers"], r["A4"]["diff_cells"],
                         r["A4"]["fields"]["agree"], r["A4"]["fields"]["conflict"], r["A4"]["fields"]["inconclusive"]])
@@ -127,12 +128,28 @@ class EvalResult:
                   "## Altered pairs (reported separately)", ""]
         lines += [f"- {r['pair']} ({r['scenario']}): A0 {r['A0']['positive']}, A1 {r['A1']['positive']}, A4 {r['A4']['outcome']}"
                   for r in d["pairs"] if r["label"] == "altered"]
+        lines += ["", "## By transformation type (all splits)", "", "| Transform | Pairs | Labels | A0+ | A1+ | A4 confirmed / candidate / not matched / inconclusive |",
+                  "|---|---|---|---|---|---|"]
+        for k, t in sorted(d.get("by_transform", {}).items()):
+            a4 = t["A4"]
+            lines.append(f"| {k} | {t['pairs']} | {', '.join(f'{lb} {n}' for lb, n in t['labels'].items())} | {t['A0_pos']} | {t['A1_pos']} | "
+                         f"{a4['MATCH_CONFIRMED_FOR_REVIEW']} / {a4['CANDIDATE']} / {a4['NOT_MATCHED']} / {a4['INCONCLUSIVE']} |")
+        lines += ["", "## By document quality (all splits)", "", "| Quality | Pairs | A4 confirmed / candidate / not matched / inconclusive |", "|---|---|---|"]
+        for k, t in sorted(d.get("by_quality", {}).items()):
+            a4 = t["A4"]
+            lines.append(f"| {k} | {t['pairs']} | {a4['MATCH_CONFIRMED_FOR_REVIEW']} / {a4['CANDIDATE']} / {a4['NOT_MATCHED']} / {a4['INCONCLUSIVE']} |")
+        env = d["environment"]
+        lines += ["", f"OCR engine: {env.get('ocr_engine') or 'none'} ({env.get('ocr_engine_version') or 'n/a'}); "
+                  f"OCR pages {d['failures'].get('ocr_pages')}, unreadable pages {d['failures'].get('unreadable_pages')}, "
+                  f"inconclusive pairs {d['failures']['inconclusive']}.",
+                  "", "Split notes: " + "; ".join(f"{k}: {v}" for k, v in env.get("split_notes", {}).items())]
         lines += ["", "## Stages that could not run", ""] + [f"- {s}" for s in d["environment"]["unavailable_stages"] or ["none"]]
         return "\n".join(lines) + "\n"
 
 
 def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None,
-             config: engine.ReuseConfig = engine.DEFAULT_CONFIG, splits: tuple[str, ...] = ("dev", "heldout"),
+             config: engine.ReuseConfig = engine.DEFAULT_CONFIG,
+             splits: tuple[str, ...] = ("dev", "dev2", "heldout", "heldout2"),
              a1_threshold: int = A1_PHASH_THRESHOLD) -> EvalResult:
     from app.services.reuse_visual import CV2_VERSION
 
@@ -164,6 +181,7 @@ def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None
         rows.append({
             "pair": p.key, "split": p.split, "label": p.label, "hard_negative": p.hard_negative, "scenario": p.scenario,
             "hero": p.hero, "a": p.a, "b": p.b, "recipe_a": ds.docs[p.a].recipe, "recipe_b": ds.docs[p.b].recipe,
+            "transform": p.transform, "quality": p.quality,
             "A0": {"positive": a0, "latency_ms": round(a0_ms, 3)},
             "A1": {"positive": a1, "distance": a1_dist, "latency_ms": round(a1_ms, 2)},
             "A4": {"positive": res.outcome == engine.MATCH_CONFIRMED, "outcome": res.outcome,
@@ -174,6 +192,9 @@ def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None
                    "diff_cells": (geo.get("differences") or {}).get("cells_different"),
                    "fields": {k: res.fields[k] for k in ("agree", "conflict", "inconclusive")},
                    "reasons": res.reasons, "uncertainties": res.uncertainties,
+                   "rule": (res.fusion or {}).get("rule"),
+                   "regions_on_fields": ((res.fusion or {}).get("regions") or {}).get("regions_on_critical_fields"),
+                   "text_low_quality": bool(res.text.get("low_quality")),
                    "_result": res},
         })
 
@@ -223,10 +244,28 @@ def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None
     if CV2_VERSION is None:
         unavailable.append("L3 geometric verification (OpenCV not installed)")
     if not (ocr and ocr.available):
-        unavailable.append("OCR (Tesseract not configured): image-only pages have no text, so text and field "
+        unavailable.append("OCR (no local OCR engine configured): image-only pages have no text, so text and field "
                            "comparison is unavailable for raster copies")
     for r in rows:
         r["A4"].pop("_result")
+    by_transform: dict = {}
+    by_quality: dict = {}
+    for r in rows:
+        for key, table in ((r["transform"], by_transform), (r["quality"], by_quality)):
+            t = table.setdefault(key, {"pairs": 0, "labels": {}, "A0_pos": 0, "A1_pos": 0, "A4": {o: 0 for o in engine.OUTCOMES}})
+            t["pairs"] += 1
+            t["labels"][r["label"]] = t["labels"].get(r["label"], 0) + 1
+            t["A0_pos"] += int(r["A0"]["positive"])
+            t["A1_pos"] += int(r["A1"]["positive"])
+            t["A4"][r["A4"]["outcome"]] += 1
+    field_by_label: dict = {}
+    for r in rows:
+        f = field_by_label.setdefault(r["label"], {"agree": 0, "conflict": 0, "inconclusive": 0})
+        for k in f:
+            f[k] += r["A4"]["fields"][k]
+    ocr_pages = sum(engine.provenance(i)["ocr_pages"] for i in inputs.values())
+    unreadable = sum(engine.provenance(i)["unreadable_pages"] for i in inputs.values())
+    lat = sorted(r["A4"]["latency_ms"] for r in rows)
     data = {
         "eval_version": EVAL_VERSION, "dataset_version": ds.version, "dataset_digest": dataset_digest(ds),
         "config_version": config.version, "pipeline_version": engine.pipeline_version(config),
@@ -234,9 +273,21 @@ def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None
         "composition": ds.composition(), "metrics": metrics, "a4_outcomes": outcomes,
         "field_exact_match": fem, "evidence_traceability": ratio(t_num, t_den, "surfaced source references"),
         "failures": {"inconclusive": sum(1 for r in rows if r["A4"]["outcome"] == engine.INCONCLUSIVE),
-                     "text_unavailable_pairs": sum(1 for r in rows if r["A4"]["text_status"] != "computed")},
+                     "text_unavailable_pairs": sum(1 for r in rows if r["A4"]["text_status"] != "computed"),
+                     "low_quality_text_pairs": sum(1 for r in rows if r["A4"]["text_low_quality"]),
+                     "ocr_pages": ocr_pages, "unreadable_pages": unreadable, "documents": len(inputs)},
+        "by_transform": by_transform, "by_quality": by_quality, "field_outcomes_by_label": field_by_label,
+        "latency": {"a4_per_pair_ms_median": lat[len(lat) // 2] if lat else None, "a4_per_pair_ms_max": lat[-1] if lat else None,
+                    "document_preparation_ms_total": round(sum(prep_ms.values()), 1),
+                    "note": "A4 per-pair latency includes text extraction/OCR of both documents (not cached in evaluation)."},
         "environment": {"ocr_available": bool(ocr and ocr.available), "opencv_version": CV2_VERSION,
-                        "unavailable_stages": unavailable},
+                        "ocr_engine": getattr(ocr, "name", None) if ocr and ocr.available else None,
+                        "ocr_engine_version": ocr.engine_version() if ocr and ocr.available and hasattr(ocr, "engine_version") else None,
+                        "unavailable_stages": unavailable,
+                        "split_notes": {"dev": "development (thresholds v1–v2 selected here)",
+                                        "dev2": "development additions for OCR/photo checks (v3)",
+                                        "heldout": "held-out v1 — inspected during v2 debugging; not pristine",
+                                        "heldout2": "fresh held-out — evaluated once after v3 was frozen"}},
         "pairs": rows,
     }
     return EvalResult(data)

@@ -62,10 +62,11 @@ def main(argv: list[str] | None = None) -> int:
     gc.add_argument("--revoke", action="store_true")
     re_ = sub.add_parser("reuse-eval", help="Run the A0/A1/A4 evaluation on synthetic fixtures")
     re_.add_argument("--out", default=None, help="Directory for metrics.json, metrics.csv and summary.md")
+    re_.add_argument("--no-ocr", action="store_true", help="Evaluate without OCR (to measure its contribution)")
     args = parser.parse_args(argv)
 
     if args.command == "reuse-eval":
-        return _reuse_eval(args.out)
+        return _reuse_eval(args.out, use_ocr=not args.no_ocr)
 
     settings = get_settings()
     configure_logging("WARNING")
@@ -133,11 +134,11 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "reuse-scan":
                 from app.core.context import SYSTEM_ACTOR
                 from app.services import reuse
-                from app.services.pdf_text import TesseractOcr
+                from app.services.ocr import build_ocr_engine
 
                 storage = DocumentStorage(settings.document_storage_path)
                 try:
-                    run = reuse.run_scan(session, storage, settings, TesseractOcr.from_settings(settings),
+                    run = reuse.run_scan(session, storage, settings, build_ocr_engine(settings),
                                          args.application, SYSTEM_ACTOR)
                 except AppError as exc:
                     print(exc.message, file=sys.stderr)
@@ -163,14 +164,14 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _reuse_eval(out: str | None) -> int:
+def _reuse_eval(out: str | None, use_ocr: bool = True) -> int:
     from pathlib import Path
 
     from app.core.config import get_settings as _settings
-    from app.services.pdf_text import TesseractOcr
+    from app.services.ocr import build_ocr_engine
     from app.services.reuse_eval import evaluate
 
-    result = evaluate(ocr=TesseractOcr.from_settings(_settings()))
+    result = evaluate(ocr=build_ocr_engine(_settings()) if use_ocr else None)
     if out:
         target = Path(out)
         target.mkdir(parents=True, exist_ok=True)

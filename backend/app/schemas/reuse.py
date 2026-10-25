@@ -96,6 +96,8 @@ class EvidenceRead(BaseModel):
     stage_status: dict
     config: dict
     latency_ms: float
+    fusion: dict | None = None  # NULL for pairs evaluated before fusion_v1
+    explanation: dict | None = None
     created_at: datetime
 
 

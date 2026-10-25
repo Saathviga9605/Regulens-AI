@@ -13,8 +13,11 @@ The ``dev`` split is used to choose thresholds; the ``heldout`` split uses diffe
 institutions and documents and is evaluated only with frozen thresholds. Sources and transformations are
 generated from fixed seeds, so the dataset is byte-reproducible for a given PyMuPDF/OpenCV version.
 
-Not included (equipment/time): printed-and-phone-photographed pairs and campus-photo pairs. They are listed as
-not implemented in docs/reuse-detection.md rather than simulated.
+v2 adds a ``dev2`` split (simulated printed-and-photographed copies, poor scans, OCR cases) and a fresh
+``heldout2`` split with new fictional issuers and documents, evaluated only after all v3 changes were frozen. The
+v1 pairs and their bytes are unchanged. "Photographed" copies are *simulated* (perspective warp onto a background,
+lighting gradient, sensor noise, blur, JPEG); no real phone photographs were taken. Campus-photo pairs are not
+included.
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ import pymupdf
 from app.services.demo_documents import BANNER
 from app.services.reuse_visual import cv2
 
-DATASET_VERSION = "reuse_ds_v1"
+DATASET_VERSION = "reuse_ds_v2"  # v2 = v1 pairs unchanged + dev2 and heldout2 splits
 
 
 @dataclass
@@ -53,6 +56,8 @@ class FixturePair:
     hard_negative: bool
     scenario: str
     hero: bool = False
+    transform: str = "none"  # transformation type of the copy (for per-type reporting)
+    quality: str = "clean"  # clean / degraded / poor
 
 
 @dataclass
@@ -63,7 +68,7 @@ class Dataset:
 
     def composition(self) -> dict:
         out: dict = {"documents": len(self.docs), "cases": len({d.case for d in self.docs.values()}), "pairs": {}}
-        for split in ("dev", "heldout"):
+        for split in sorted({p.split for p in self.pairs}):
             ps = [p for p in self.pairs if p.split == split]
             out["pairs"][split] = {"total": len(ps), "reuse": sum(p.label == "reuse" for p in ps),
                                    "altered": sum(p.label == "altered" for p in ps),
@@ -213,6 +218,34 @@ def t_raster(pdf: bytes, *, seed: int, rotate_deg: float = 0.0, quarter_turns: i
     if quarter_turns:
         img = np.ascontiguousarray(np.rot90(img, k=-quarter_turns))
     return _image_pdf(img, jpeg)
+
+
+def t_photo(pdf: bytes, *, seed: int, tilt: float = 0.06, shade: float = 0.25, noise: float = 6.0, blur: int = 3,
+            jpeg: int = 70, dpi: int = 150) -> bytes:
+    """Simulated printed-and-photographed copy: perspective warp onto a darker background, a lighting gradient,
+    sensor noise, slight blur and JPEG compression. Image-only (no text layer)."""
+    rng = np.random.default_rng(seed)
+    page = rasterize(pdf, dpi).astype(np.float32)
+    h, w = page.shape
+    pad = int(0.08 * w)
+    canvas_w, canvas_h = w + 2 * pad, h + 2 * pad
+    jitter = lambda: rng.uniform(-tilt, tilt) * w  # noqa: E731
+    src = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+    dst = np.float32([[pad + jitter(), pad + jitter()], [pad + w + jitter(), pad + jitter()],
+                      [pad + w + jitter(), pad + h + jitter()], [pad + jitter(), pad + h + jitter()]])
+    m = cv2.getPerspectiveTransform(src, dst)
+    warped = cv2.warpPerspective(page, m, (canvas_w, canvas_h), borderValue=95)
+    gx = np.linspace(1 - shade, 1, canvas_w, dtype=np.float32)[None, :]
+    gy = np.linspace(1, 1 - shade / 2, canvas_h, dtype=np.float32)[:, None]
+    img = warped * gx * gy + rng.normal(0, noise, warped.shape)
+    if blur:
+        img = cv2.GaussianBlur(img, (blur, blur), 0)
+    return _image_pdf(np.clip(img, 0, 255).astype(np.uint8), jpeg)
+
+
+def t_poor_scan(pdf: bytes, *, seed: int) -> bytes:
+    """Very low resolution, heavy blur and noise: text is not reliably readable (should not be confirmed)."""
+    return t_raster(pdf, seed=seed, dpi=45, blur=7, noise=22, contrast=0.6, brightness=40, jpeg=25)
 
 
 def t_change_number(layout: Layout, kwargs: dict, new_number: str) -> bytes:
@@ -379,7 +412,132 @@ def build_dataset() -> Dataset:
         P("ho_p15", "ho_ssc_scan", "ho_ssc_tmpl", "distinct", "heldout", True, "raster copy vs same-template negative"),
         P("ho_p16", "ho_noc_scan", "ho_noc_old", "distinct", "heldout", True, "raster copy vs same-issuer negative"),
     ]
+    _tag_v1(pairs)
+    _add_v2(docs, pairs, add)
     return Dataset(DATASET_VERSION, docs, pairs)
+
+
+_V1_TAGS = {
+    "exact duplicate across cases": ("exact_copy", "clean"),
+    "metadata-only change": ("metadata_resave", "clean"),
+    "vector rescale + rotation": ("vector_rescale_rotate", "clean"),
+    "vector rescale": ("vector_rescale", "clean"),
+    "vector crop": ("vector_crop", "clean"),
+    "scan-like raster copy": ("raster_scan", "degraded"),
+    "cropped, brightness/contrast raster": ("raster_crop_brightness", "degraded"),
+    "raster rotated 90°": ("raster_rotate90", "degraded"),
+}
+
+
+def _tag_v1(pairs: list) -> None:
+    for pr in pairs:
+        transform, quality = _V1_TAGS.get(pr.scenario, ("n/a", "clean"))
+        if pr.label == "altered":
+            transform = "field_alteration"
+        elif pr.label == "distinct":
+            transform = "different_document"
+        if "unreadable" in pr.scenario or "near-blank" in pr.scenario:
+            quality = "poor"
+        elif "raster copy" in pr.scenario:
+            quality = "degraded"
+        pr.transform, pr.quality = transform, quality
+
+
+FIRE_D2 = Layout("Synthetic Aravali Fire & Rescue Services (Fictional)", "FIRE SAFETY CERTIFICATE", "AF", (0.55, 0.15, 0.20),
+                 body=("Fire alarm panels, extinguishers and emergency lighting were tested on site (fictional).",))
+OCC_H2 = Layout("Synthetic Godavari Building Authority (Fictional)", "OCCUPANCY CERTIFICATE", "GB", (0.12, 0.35, 0.45),
+                body=("The structure is permitted to be occupied for academic purposes (fictional).",
+                      "Occupancy is subject to periodic renewal of the fire safety certificate."))
+NOC_H2 = Layout("Synthetic Malabar State University (Fictional)", "NO OBJECTION CERTIFICATE", "MU", (0.40, 0.25, 0.10),
+                body=("The University records no objection to the programmes listed in the application (fictional).",))
+LETTER_H2 = Layout("Synthetic Godavari Building Authority (Fictional)", "", "GB", (0.12, 0.35, 0.45))
+
+
+def _add_v2(docs: dict, pairs: list, add) -> None:
+    P = FixturePair
+    # ---------------- dev2: simulated photographs, poor scans (used for OCR/photo checks; thresholds unchanged) ----
+    d2 = dict(number="SYN-AFR/2026/0315", institution="Bhimtal Lakes Institute of Technology",
+              address="9 Synthetic Lake Road, Bhimtal 263199", issue="8 May 2026", valid="7 May 2029")
+    add("d2_fire_src", "DEV2-C01", "fire_safety_certificate", certificate(FIRE_D2, **d2), "source",
+        fields=_fields(d2["institution"], d2["number"], "2026-05-08"))
+    src = docs["d2_fire_src"].pdf
+    ef = docs["d2_fire_src"].expected_fields
+    add("d2_fire_photo", "DEV2-C02", "fire_safety_certificate", t_photo(src, seed=51),
+        "simulated photograph: perspective ±6%, lighting gradient 25%, noise σ6, blur 3, JPEG q70", "d2_fire_src", ef, text=False)
+    add("d2_fire_photo_strong", "DEV2-C03", "fire_safety_certificate", t_photo(src, seed=52, tilt=0.10, shade=0.4, noise=10, blur=5, jpeg=50),
+        "simulated photograph (strong): perspective ±10%, lighting 40%, noise σ10, blur 5, JPEG q50", "d2_fire_src", ef, text=False)
+    add("d2_fire_poor", "DEV2-C04", "fire_safety_certificate", t_poor_scan(src, seed=53),
+        "poor scan: 45 dpi, blur 7, noise σ22, contrast 0.6, JPEG q25", "d2_fire_src", ef, text=False)
+    add("d2_fire_scan", "DEV2-C05", "fire_safety_certificate", t_raster(src, seed=54, rotate_deg=0.8, noise=5, jpeg=65),
+        "raster scan: rotate 0.8°, noise σ5, JPEG q65", "d2_fire_src", ef, text=False)
+    d2t = dict(d2, institution="Ranikhet Ridge College of Engineering", number="SYN-AFR/2026/0377",
+               address="14 Synthetic Pine Avenue, Ranikhet 263699", issue="19 May 2026", valid="18 May 2029")
+    add("d2_fire_tmpl_photo", "DEV2-C06", "fire_safety_certificate", t_photo(certificate(FIRE_D2, **d2t), seed=55),
+        "simulated photograph of a same-template certificate for a different institution",
+        fields=_fields(d2t["institution"], d2t["number"], "2026-05-19"), text=False)
+    pairs += [
+        P("d2_p01", "d2_fire_src", "d2_fire_photo", "reuse", "dev2", False, "simulated photograph", transform="photo_sim", quality="degraded"),
+        P("d2_p02", "d2_fire_src", "d2_fire_photo_strong", "reuse", "dev2", False, "simulated photograph (strong)", transform="photo_sim_strong", quality="poor"),
+        P("d2_p03", "d2_fire_src", "d2_fire_poor", "reuse", "dev2", False, "poor scan", transform="poor_scan", quality="poor"),
+        P("d2_p04", "d2_fire_src", "d2_fire_scan", "reuse", "dev2", False, "raster scan", transform="raster_scan", quality="degraded"),
+        P("d2_p05", "d2_fire_src", "d2_fire_tmpl_photo", "distinct", "dev2", True, "photo of same-template negative",
+          transform="different_document", quality="degraded"),
+        P("d2_p06", "d2_fire_photo", "d2_fire_tmpl_photo", "distinct", "dev2", True, "two photos, same template",
+          transform="different_document", quality="degraded"),
+    ]
+
+    # ---------------- heldout2: fresh issuers/institutions/documents (evaluated once, after v3 was frozen) ----------
+    h_occ = dict(number="SYN-GBA/OC/2025/0544", institution="Nashik Vineyard Institute of Engineering",
+                 address="31 Synthetic Vine Road, Nashik 422099", issue="11 November 2025", valid=None)
+    add("h2_occ_src", "HO2-C01", "occupancy_certificate", certificate(OCC_H2, **h_occ, extra=("Built-up Area: 7,350 sq. m",)),
+        "source", fields=_fields(h_occ["institution"], h_occ["number"], "2025-11-11"))
+    s2 = docs["h2_occ_src"].pdf
+    e2 = docs["h2_occ_src"].expected_fields
+    add("h2_occ_exact", "HO2-C02", "occupancy_certificate", s2, "byte copy of h2_occ_src", "h2_occ_src", e2)
+    add("h2_occ_meta", "HO2-C03", "occupancy_certificate", t_metadata(s2), "metadata changed + re-saved", "h2_occ_src", e2)
+    add("h2_occ_photo", "HO2-C04", "occupancy_certificate", t_photo(s2, seed=61, tilt=0.07),
+        "simulated photograph: perspective ±7%, lighting 25%, noise σ6, blur 3, JPEG q70", "h2_occ_src", e2, text=False)
+    add("h2_occ_scan", "HO2-C05", "occupancy_certificate", t_raster(s2, seed=62, rotate_deg=1.5, scale=0.85, noise=7, jpeg=55),
+        "raster scan: rotate 1.5°, scale 0.85, noise σ7, JPEG q55", "h2_occ_src", e2, text=False)
+    add("h2_occ_rot", "HO2-C06", "occupancy_certificate", t_raster(s2, seed=63, quarter_turns=3, jpeg=60),
+        "raster rotated 270°, JPEG q60", "h2_occ_src", e2, text=False)
+    add("h2_occ_poor", "HO2-C07", "occupancy_certificate", t_poor_scan(s2, seed=64), "poor scan", "h2_occ_src", e2, text=False)
+    h_tmpl = dict(h_occ, institution="Aurangabad Caves College of Technology", number="SYN-GBA/OC/2025/0610",
+                  address="2 Synthetic Ellora Lane, Aurangabad 431099", issue="2 December 2025")
+    add("h2_occ_tmpl", "HO2-C08", "occupancy_certificate", certificate(OCC_H2, **h_tmpl, extra=("Built-up Area: 6,900 sq. m",)),
+        "same template, different institution/number/date",
+        fields=_fields(h_tmpl["institution"], h_tmpl["number"], "2025-12-02"))
+    h_old = dict(h_occ, number="SYN-GBA/OC/2022/0101", issue="4 February 2022")
+    add("h2_occ_old", "HO2-C09", "occupancy_certificate", certificate(OCC_H2, **h_old, extra=("Built-up Area: 7,350 sq. m",)),
+        "same issuer layout and institution, earlier certificate", fields=_fields(h_old["institution"], h_old["number"], "2022-02-04"))
+    add("h2_occ_alter", "HO2-C10", "occupancy_certificate",
+        certificate(OCC_H2, **{**h_occ, "number": "SYN-GBA/OC/2025/0545"}, extra=("Built-up Area: 7,350 sq. m",)),
+        "h2_occ_src with certificate number changed", "h2_occ_src", _fields(h_occ["institution"], "SYN-GBA/OC/2025/0545", "2025-11-11"))
+    add("h2_letter", "HO2-C11", "other", letter(LETTER_H2, heading="BUILDING SAFETY AWARENESS WEEK", paragraphs=(
+        "All academic buildings in the Nashik circle will host safety demonstrations (fictional).",
+        "Principals should nominate a safety coordinator and share evacuation plans with staff.",
+        "This circular is generated for software evaluation and refers to no real institution.")),
+        "same frame and seal as the occupancy layout, unrelated body")
+    h_noc = dict(number="SYN-MSU/NOC/2026/0088", institution="Nashik Vineyard Institute of Engineering",
+                 address="31 Synthetic Vine Road, Nashik 422099", issue="20 March 2026", valid=None)
+    add("h2_noc", "HO2-C12", "university_noc", certificate(NOC_H2, **h_noc), "different document, same institution",
+        fields=_fields(h_noc["institution"], h_noc["number"], "2026-03-20"))
+    add("h2_blank", "HO2-C13", "other", blank_scan(71), "near-blank image-only page", text=False)
+    pairs += [
+        P("h2_p01", "h2_occ_src", "h2_occ_exact", "reuse", "heldout2", False, "exact duplicate", transform="exact_copy"),
+        P("h2_p02", "h2_occ_src", "h2_occ_meta", "reuse", "heldout2", False, "metadata-only change", transform="metadata_resave"),
+        P("h2_p03", "h2_occ_src", "h2_occ_photo", "reuse", "heldout2", False, "simulated photograph", transform="photo_sim", quality="degraded"),
+        P("h2_p04", "h2_occ_src", "h2_occ_scan", "reuse", "heldout2", False, "raster scan", transform="raster_scan", quality="degraded"),
+        P("h2_p05", "h2_occ_src", "h2_occ_rot", "reuse", "heldout2", False, "raster rotated 270°", transform="raster_rotate270", quality="degraded"),
+        P("h2_p06", "h2_occ_src", "h2_occ_poor", "reuse", "heldout2", False, "poor scan", transform="poor_scan", quality="poor"),
+        P("h2_p07", "h2_occ_src", "h2_occ_tmpl", "distinct", "heldout2", True, "same template, different institution", transform="different_document"),
+        P("h2_p08", "h2_occ_src", "h2_occ_old", "distinct", "heldout2", True, "same issuer layout, different number/date", transform="different_document"),
+        P("h2_p09", "h2_occ_src", "h2_letter", "distinct", "heldout2", True, "similar seal/border, unrelated body", transform="different_document"),
+        P("h2_p10", "h2_occ_src", "h2_noc", "distinct", "heldout2", True, "two documents of the same institution", transform="different_document"),
+        P("h2_p11", "h2_occ_src", "h2_occ_alter", "altered", "heldout2", False, "certificate number changed", transform="field_alteration"),
+        P("h2_p12", "h2_occ_photo", "h2_occ_tmpl", "distinct", "heldout2", True, "photo vs same-template negative", transform="different_document", quality="degraded"),
+        P("h2_p13", "h2_occ_scan", "h2_blank", "distinct", "heldout2", False, "raster copy vs unreadable page", transform="different_document", quality="poor"),
+    ]
 
 
 def dataset_digest(ds: Dataset) -> str:

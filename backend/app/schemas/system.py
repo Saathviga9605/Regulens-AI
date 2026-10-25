@@ -25,3 +25,5 @@ class SystemInfoResponse(BaseModel):
     database_backend: str
     implemented_capabilities: list[str]
     planned_capabilities: list[str]
+    # Which analysis components are actually available on this server (local only). No paths or secrets.
+    ai_capabilities: dict = {}

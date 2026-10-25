@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PAIR_REVIEW_LABELS, REUSE_OUTCOME_LABELS, REUSE_OUTCOME_TONES, formatDateTime } from "../app/labels";
 import { useApiQuery } from "../app/useApiQuery";
 import { ApiError, apiClient } from "../services/apiClient";
-import type { CaseAlert } from "../types/api";
+import type { AiCapabilities, CaseAlert } from "../types/api";
 import { useToast } from "./Toast";
 import { Alert, Badge, Card, EmptyState, ErrorState, LoadingState, buttonStyles } from "./ui";
 
@@ -12,6 +12,8 @@ import { Alert, Badge, Card, EmptyState, ErrorState, LoadingState, buttonStyles 
  * linked-case details to them, so nothing is hidden client-side. */
 export function CrossCasePanel({ applicationCode, onScanned }: { applicationCode: string; onScanned?: () => void }) {
   const alerts = useApiQuery(() => apiClient.crossCaseAlerts(applicationCode), applicationCode);
+  const info = useApiQuery(() => apiClient.getSystemInfo(), "system-info");
+  const caps = info.data?.ai_capabilities;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -42,6 +44,7 @@ export function CrossCasePanel({ applicationCode, onScanned }: { applicationCode
       <div className="space-y-3">
         <Alert tone="info">A possible match is a prompt for human review. Document reuse is not automatically misconduct,
           and a similarity score is not proof of forgery or fraud.</Alert>
+        {caps && <Capabilities caps={caps} />}
         {error && <Alert tone="error">{error}</Alert>}
         {alerts.loading && !data ? <LoadingState label="Loading cross-case alerts…" /> : alerts.error ? (
           <ErrorState message={alerts.error} onRetry={alerts.reload} />
@@ -73,6 +76,42 @@ export function CrossCasePanel({ applicationCode, onScanned }: { applicationCode
         )}
       </div>
     </Card>
+  );
+}
+
+const STAGES: [string, string, (c: AiCapabilities) => boolean | null][] = [
+  ["Text layer & OCR", "Reads page text; scanned pages need OCR", (c) => c.ocr.available],
+  ["L0 exact hash", "SHA-256 identity", () => true],
+  ["L1 text similarity", "Whitespace-insensitive shingles", () => true],
+  ["L2 page images", "Perceptual hash with rotation and photo rectification", (c) => c.computer_vision.available],
+  ["L3 geometry", "ORB + RANSAC alignment, difference regions", (c) => c.computer_vision.available],
+  ["Fields", "Grounded critical-field comparison", () => true],
+  ["L4 fusion", "Rule-based evidence fusion and explanation", () => true],
+];
+
+function Capabilities({ caps }: { caps: AiCapabilities }) {
+  return (
+    <div className="rounded-control border border-line bg-surface-muted p-3 text-sm" data-testid="analysis-capabilities">
+      <p className="font-medium text-ink">Analysis components on this server</p>
+      <ul className="mt-1 space-y-0.5 text-ink-muted">
+        <li>OCR: {caps.ocr.available
+          ? <>{caps.ocr.engine} ({caps.ocr.version}) — local</>
+          : <span className="font-medium text-warning-800">not available — scanned or photographed pages have no text, so text and field evidence will be missing for them</span>}</li>
+        <li>Computer vision: {caps.computer_vision.available ? `OpenCV ${caps.computer_vision.version}` : "not available"}</li>
+        <li>Local language or vision model: {caps.local_text_model.configured || caps.local_vision_model.configured
+          ? "configured" : "none configured (explanations are generated deterministically from the evidence)"}</li>
+      </ul>
+      <ol className="mt-2 flex flex-wrap gap-1" aria-label="Scan stages">
+        {STAGES.map(([name, desc, ok]) => {
+          const state = ok(caps);
+          return (
+            <li key={name} title={desc}>
+              <Badge tone={state ? "success" : "warning"}>{name}{state ? "" : " — unavailable"}</Badge>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 

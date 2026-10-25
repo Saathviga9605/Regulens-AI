@@ -222,3 +222,13 @@ review/evidence/alert rows but keeps users, rules and the audit log (and audits 
 
 Downgrade to 0006 drops these tables and the column. Verified on a fresh database, on a copy of a populated
 0004 database (0004→0007, data preserved) and by an automated 0006→0007→0006→0007 round-trip test.
+
+## OCR evidence and fusion (migration 0008, additive)
+
+| Table | Added columns |
+|---|---|
+| document_pages | `lines` JSON (text lines with normalised boxes; OCR score or null), `ocr_engine`, `ocr_confidence`, `rotation_degrees` |
+| extracted_fields | `evidence_source` (text_layer / ocr), `evidence_box` (normalised [x0, y0, x1, y1], origin top-left), `ocr_confidence` |
+| match_evidence | `fusion` JSON (`fusion_v1` record), `explanation` JSON (`explain_v1` statements with evidence refs); NULL for older pairs |
+
+The extractor version moved to `label_regex_v2`, so processing results from older pipelines are recomputed on demand.

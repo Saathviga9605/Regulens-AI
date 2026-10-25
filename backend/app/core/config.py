@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     # Tesseract executable. Empty = auto-detect on PATH or the default Windows install location.
     tesseract_cmd: str = ""
     ocr_enabled: bool = True
+    # Local OCR provider: auto (Tesseract if found, else RapidOCR if installed), tesseract, rapidocr or none.
+    ocr_engine: Literal["auto", "tesseract", "rapidocr", "none"] = "auto"
     ocr_language: str = Field(default="eng", pattern=r"^[A-Za-z_+]{3,40}$")
     ocr_dpi: int = Field(default=200, ge=72, le=400)
     ocr_timeout_seconds: int = Field(default=30, ge=5, le=300)

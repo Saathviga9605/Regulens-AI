@@ -143,6 +143,20 @@ Baseline before changes (main @ 1cb58a1): backend 230 passed + 1 skipped, fronte
 Also fixed: `Dialog` re-ran its focus effect on every render with an inline `onClose`, stealing focus from text
 fields (regression test added).
 
+## Deliverable 8 — Local OCR, evidence fusion and explanations
+
+Baseline before changes: backend 262 passed + 1 skipped, frontend 91 — re-verified at start of D8 work.
+
+| Component | Status | Evidence |
+|---|---|---|
+| Local OCR providers (Tesseract TSV, RapidOCR), explicit selection, capability report | Implemented and tested (RapidOCR executed; Tesseract path tested with a TSV fixture only — not installed) | test_ai_ocr.py; browser |
+| OCR page metadata, line coordinates, field evidence boxes and OCR scores | Implemented and tested | test_ai_ocr.py; migration 0008 |
+| Whitespace-tolerant extraction (`label_regex_v2`) | Implemented and tested | test_ai_ocr.py, existing processing tests |
+| L1 provenance + OCR quality guard, L2 photo rectification, region-aware fields, L4 fusion, explanations | Implemented and tested | test_ai_ocr.py; eval `reuse-d8` |
+| Explanations traceable to stored evidence | Implemented and tested | automated check + browser (all statements traced) |
+| Local vision / language model | NOT PRESENT (none installed; none claimed) | `/system/info` reports `configured: false` |
+| Real phone photographs, campus photos | NOT PRESENT (simulated photographs only) | dataset notes |
+
 ## Later deliverables
 
 | Feature | Status |
@@ -218,6 +232,16 @@ fields (regression test added).
 | Migration 0007 | fresh DB; copy of populated 0004 DB (0004→0007, 2 users/12 apps/12 docs kept); 0006↔0007 round trip |
 | Evaluation (`reuse-eval`) | held-out A4 TP4 FP0 TN8 FN3, hard-neg FP 0/7; A1 FP 2/7; A0 recall 1/7 |
 | Browser acceptance (Edge, scratch DB, ports 8040/5196) | steps 1–17 passed; D6 smoke script passed on the same servers |
+
+## Verification log — Deliverable 8 (2026-10-25)
+
+| Check | Result |
+|---|---|
+| `python -m pytest` | **278 passed, 1 skipped** (skip = real Tesseract) |
+| `npm test` / typecheck / build / audit | **95 passed** / clean / success / 0 vulnerabilities |
+| Evaluation with RapidOCR (`reuse-d8`) | heldout2 (fresh) A4 TP5 FP0 TN6 FN1; heldout (inspected) 7/7, 0 FP; traceability 196/196 |
+| Evaluation without OCR (`reuse-d8-no-ocr`) | heldout2 A4 recall 2/6; heldout 4/7 (= v2) |
+| Browser acceptance (Edge; OCR server 8050/5197, no-OCR server 8051/5198) | all 14 steps passed; smoke workflow passed |
 
 ## Known limitations
 

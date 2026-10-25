@@ -24,7 +24,17 @@ import {
   buttonStyles,
 } from "../components/ui";
 import { ApiError, apiClient } from "../services/apiClient";
-import type { DifferenceRegion, FieldComparison, PairActionType, PairDetail, PairSide } from "../types/api";
+import type {
+  DifferenceRegion,
+  FieldComparison,
+  FusionRecord,
+  FusionSignal,
+  MatchEvidence,
+  PairActionType,
+  PairDetail,
+  PairSide,
+  TextProvenance,
+} from "../types/api";
 
 const MIN_REASON = 10;
 const FIELD_TONES = { agree: "success", conflict: "danger", inconclusive: "neutral" } as const;
@@ -74,10 +84,14 @@ export function CasePairPage() {
       <Alert tone="warning" title="Not a misconduct finding">{pair.notice} Outcomes are produced by a deterministic
         matching pipeline ({pair.pipeline_version}, thresholds {pair.config_version}).</Alert>
 
+      <ExplanationCard evidence={ev} />
+
       <div className="grid gap-5 lg:grid-cols-2">
         <SideCard label="Case A" side={pair.a} pairId={pair.id} which="a" initialPage={matched?.page_a ?? 1}
-          regions={geo?.status === "verified" ? geo.differences?.regions ?? [] : []} />
-        <SideCard label="Case B" side={pair.b} pairId={pair.id} which="b" initialPage={matched?.page_b ?? 1} regions={[]} />
+          regions={geo?.status === "verified" ? geo.differences?.regions ?? [] : []}
+          fieldBoxes={fieldBoxes(ev.fields.comparisons, "a", matched?.page_a ?? 1)} provenance={ev.text.provenance?.a} />
+        <SideCard label="Case B" side={pair.b} pairId={pair.id} which="b" initialPage={matched?.page_b ?? 1} regions={[]}
+          fieldBoxes={fieldBoxes(ev.fields.comparisons, "b", matched?.page_b ?? 1)} provenance={ev.text.provenance?.b} />
       </div>
 
       <Card title="Matching evidence" description="Raw metrics from each stage, with method and version.">
@@ -86,7 +100,7 @@ export function CasePairPage() {
             detail={ev.exact.note} />
           <Metric term={`L1 · Text (${ev.text.normalization})`}
             value={ev.text.status === "computed" ? `Jaccard ${ev.text.jaccard} · containment ${ev.text.containment}` : "Unavailable"}
-            detail={ev.text.status === "computed" ? ev.text.method : ev.text.reason} />
+            detail={ev.text.status === "computed" ? (ev.text.low_quality ? ev.text.quality_note : ev.text.method) : ev.text.reason} />
           <Metric term={`L2 · Visual (${ev.visual.method})`}
             value={ev.visual.status === "computed" ? `pHash distance ${ev.visual.distance}/64` : "Unavailable"}
             detail={ev.visual.status === "computed"
@@ -141,9 +155,94 @@ export function CasePairPage() {
         </Card>
       </div>
 
+      {ev.fusion && <FusionCard fusion={ev.fusion} />}
+
       <ReviewCard pair={pair} onChange={setPair} />
     </div>
   );
+}
+
+const KIND_TONES = { supports: "success", contradicts: "danger", unavailable: "warning", neutral: "neutral" } as const;
+const KIND_LABELS = { supports: "Supports", contradicts: "Contradicts", unavailable: "Not available", neutral: "Context" };
+
+function fieldBoxes(comparisons: FieldComparison[], side: "a" | "b", page: number) {
+  return comparisons.flatMap((c) => {
+    const v = c[side];
+    return v?.evidence_box && v.page_number === page
+      ? [{ field: c.field, box: v.evidence_box, outcome: c.outcome }] : [];
+  });
+}
+
+function ExplanationCard({ evidence }: { evidence: MatchEvidence }) {
+  const ex = evidence.explanation;
+  if (!ex) {
+    return (
+      <Alert tone="info" title="No explanation for this evaluation">
+        This pair was evaluated before evidence fusion and explanations were introduced. The metrics below remain the
+        record; re-run the cross-case scan to produce an evaluation with an explanation.
+      </Alert>
+    );
+  }
+  return (
+    <Card title="Explanation" description={`Generated ${ex.generator === "deterministic" ? "deterministically" : `by ${ex.generator}`} from this pair's stored evidence (${ex.version}). The evidence record remains authoritative.`}>
+      <ul className="space-y-2" aria-label="Explanation statements">
+        {ex.statements.map((st, i) => (
+          <li key={i} className="text-sm text-ink">
+            <Badge tone={KIND_TONES[st.kind]}>{KIND_LABELS[st.kind]}</Badge>{" "}
+            <span className="[overflow-wrap:anywhere]">{st.text}</span>
+            <details className="mt-0.5 text-xs text-ink-subtle">
+              <summary className="cursor-pointer">Evidence reference</summary>
+              <ul className="font-mono">{Object.entries(st.refs).map(([k, v]) => <li key={k}>{k} = {String(v)}</li>)}</ul>
+            </details>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-sm"><span className="font-medium text-ink">Outcome rule:</span> {ex.rule}</p>
+      <p className="mt-1 text-xs text-ink-subtle">{ex.disclaimer}</p>
+    </Card>
+  );
+}
+
+function SignalList({ title, items, tone }: { title: string; items: FusionSignal[]; tone: "success" | "danger" | "warning" | "neutral" }) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">{title} ({items.length})</h3>
+      {items.length === 0 ? <p className="text-sm text-ink-subtle">None</p> : (
+        <ul className="mt-1 space-y-1 text-sm" aria-label={title}>
+          {items.map((it, i) => (
+            <li key={i} className="[overflow-wrap:anywhere]"><Badge tone={tone}>{it.signal.replace("field:", "field: ").replace(/_/g, " ")}</Badge>{" "}
+              <span className="text-ink-muted">{it.detail}</span></li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function FusionCard({ fusion }: { fusion: FusionRecord }) {
+  return (
+    <Card title="Evidence fusion" description={`${fusion.version}: how each signal bears on the outcome. Rule-based; nothing is trained on the small labelled set.`}>
+      <div className="grid gap-4 md:grid-cols-3">
+        <SignalList title="Supporting" items={fusion.supporting} tone="success" />
+        <SignalList title="Contradicting" items={fusion.contradicting} tone="danger" />
+        <SignalList title="Unavailable" items={fusion.unavailable} tone="warning" />
+      </div>
+      <p className="mt-3 text-xs text-ink-subtle">
+        Difference regions: {fusion.regions.regions_total} total, {fusion.regions.regions_on_critical_fields} on critical-field
+        evidence, {fusion.regions.regions_elsewhere} elsewhere. Text sources — A: {describeProvenance(fusion.quality.a)}; B:{" "}
+        {describeProvenance(fusion.quality.b)}.
+      </p>
+    </Card>
+  );
+}
+
+function describeProvenance(p?: TextProvenance) {
+  if (!p) return "unknown";
+  const parts = [];
+  if (p.text_layer_pages) parts.push(`${p.text_layer_pages} text-layer page(s)`);
+  if (p.ocr_pages) parts.push(`${p.ocr_pages} OCR page(s)${p.ocr_mean_confidence != null ? ` (score ${p.ocr_mean_confidence.toFixed(2)})` : ""}`);
+  if (p.unreadable_pages) parts.push(`${p.unreadable_pages} unreadable page(s)`);
+  return parts.join(", ") || "no readable text";
 }
 
 function Metric({ term, value, detail }: { term: string; value: string; detail?: string }) {
@@ -162,7 +261,9 @@ function FieldRow({ c }: { c: FieldComparison }) {
   ) : (
     <div className="space-y-1">
       <div className="font-medium text-ink [overflow-wrap:anywhere]">{v.raw_value}</div>
-      {v.evidence_quote && <EvidenceQuote quote={v.evidence_quote} source={`Page ${v.page_number ?? "?"} · ${v.status}`} />}
+      {v.evidence_quote && <EvidenceQuote quote={v.evidence_quote} source={`Page ${v.page_number ?? "?"} · ${v.status} · ${
+        v.evidence_source === "ocr" ? `OCR${v.ocr_confidence != null ? ` score ${v.ocr_confidence.toFixed(2)}` : ""}` : "text layer"}${
+        v.evidence_box ? "" : " · no coordinates"}`} />}
     </div>
   );
   return (
@@ -172,14 +273,16 @@ function FieldRow({ c }: { c: FieldComparison }) {
       <td className={TABLE.td}>{cell(c.b)}</td>
       <td className={TABLE.td}>
         <Badge tone={FIELD_TONES[c.outcome]}>{c.outcome}</Badge>
+        {c.visual_difference && <span className="ml-1"><Badge tone="danger">pixels differ here</Badge></span>}
         <p className="mt-1 text-xs text-ink-muted">{c.explanation}</p>
       </td>
     </tr>
   );
 }
 
-function SideCard({ label, side, pairId, which, initialPage, regions }: {
+function SideCard({ label, side, pairId, which, initialPage, regions, fieldBoxes: boxes, provenance }: {
   label: string; side: PairSide; pairId: string; which: "a" | "b"; initialPage: number; regions: DifferenceRegion[];
+  fieldBoxes: { field: string; box: [number, number, number, number]; outcome: string }[]; provenance?: TextProvenance;
 }) {
   const [page, setPage] = useState(initialPage);
   const [url, setUrl] = useState<string | null>(null);
@@ -213,6 +316,7 @@ function SideCard({ label, side, pairId, which, initialPage, regions }: {
         <div className="flex flex-wrap gap-1"><dt className="text-ink-subtle">Institution:</dt><dd className="[overflow-wrap:anywhere]">{side.institution_name ?? "—"}</dd></div>
         <div className="flex flex-wrap gap-1"><dt className="text-ink-subtle">File:</dt><dd className="[overflow-wrap:anywhere]">{side.filename ?? "—"} ({side.category?.replace(/_/g, " ")})</dd></div>
         <div className="flex flex-wrap gap-1"><dt className="text-ink-subtle">SHA-256:</dt><dd className="font-mono text-xs [overflow-wrap:anywhere]">{side.sha256}</dd></div>
+        <div className="flex flex-wrap gap-1"><dt className="text-ink-subtle">Text source:</dt><dd>{describeProvenance(provenance)}</dd></div>
       </dl>
       {!side.document_available ? (
         <p className="rounded-control border border-dashed border-line-strong p-4 text-sm text-ink-muted">
@@ -224,7 +328,13 @@ function SideCard({ label, side, pairId, which, initialPage, regions }: {
             {imgError ? <p className="p-4 text-sm text-danger-700">{imgError}</p> : url ? (
               <>
                 <img src={url} alt={`${label}, page ${page}`} className="block h-auto w-full" />
-                {regions.map((r, i) => (
+                {page === initialPage && boxes.map((b) => (
+                  <span key={b.field} aria-hidden="true" title={b.field.replace(/_/g, " ")}
+                    className={`absolute border-2 ${b.outcome === "conflict" ? "border-saffron-500" : "border-teal-700"}`}
+                    style={{ left: `${b.box[0] * 100}%`, top: `${b.box[1] * 100}%`, width: `${(b.box[2] - b.box[0]) * 100}%`,
+                      height: `${(b.box[3] - b.box[1]) * 100}%` }} />
+                ))}
+                {page === initialPage && regions.map((r, i) => (
                   <span key={i} aria-hidden="true" className="absolute border-2 border-danger-700 bg-danger-bg/30"
                     style={{ left: `${r.box[0] * 100}%`, top: `${r.box[1] * 100}%`, width: `${(r.box[2] - r.box[0]) * 100}%`,
                       height: `${(r.box[3] - r.box[1]) * 100}%` }} />
@@ -233,7 +343,8 @@ function SideCard({ label, side, pairId, which, initialPage, regions }: {
             ) : <LoadingState label="Rendering page…" />}
           </div>
           <figcaption className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-muted">
-            <span>Page {page} of {pages}{regions.length > 0 && ` · ${regions.length} localized difference region(s) outlined`}</span>
+            <span>Page {page} of {pages}{regions.length > 0 && ` · ${regions.length} localized difference region(s) outlined in red`}
+              {boxes.length > 0 && ` · ${boxes.length} field evidence box(es) (teal agree/other, saffron conflict)`}</span>
             <span className="flex gap-1">
               <button type="button" className={buttonStyles.ghost} aria-label={`${label}: previous page`} disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}><ChevronLeft aria-hidden="true" className="h-4 w-4" /></button>

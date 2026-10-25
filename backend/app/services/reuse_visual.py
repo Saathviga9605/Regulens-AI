@@ -1,7 +1,9 @@
 """Visual stages of the cross-case reuse cascade: page rendering, perceptual hashing (L2) and geometric
 verification with a residual difference map (L3).
 
-L2 — ``phash_dct_v1``: the page is rendered in greyscale, resized to 32×32 with area averaging, transformed
+L2 — ``phash_dct_v2``: the page is rendered in greyscale; if it looks like a photographed sheet (a bright
+quadrilateral covering 30–97 % of the frame on a darker background) it is rectified to a rectangle; it is then
+cropped to its content box, resized to 32×32 with area averaging, transformed
 with a 2-D DCT, and the 8×8 low-frequency block (DC excluded from the median) is thresholded at its median → 64
 bits. Hashes are computed for the page rotated by 0/90/180/270°, so a rotated scan can still be retrieved.
 Hamming distance between hashes is the raw metric. It is a *candidate-retrieval* signal only.
@@ -33,7 +35,7 @@ except Exception:  # noqa: BLE001
     cv2 = None
     CV2_VERSION = None
 
-PHASH_VERSION = "phash_dct_v1"
+PHASH_VERSION = "phash_dct_v2"  # v2: photographed pages are rectified (page quad → rectangle) before hashing
 GEOMETRIC_VERSION = "orb_ransac_v1"
 RENDER_VERSION = "render_gray_v1"
 
@@ -126,6 +128,34 @@ def page_hashes(img: np.ndarray) -> list[str]:
     return [f"{phash(np.rot90(img, k=-k)):016x}" for k in range(4)]
 
 
+def rectify_page(img: np.ndarray) -> tuple[np.ndarray, bool]:
+    """Undo perspective for a photographed sheet: largest bright 4-point contour → rectangle. No-op otherwise."""
+    if cv2 is None:
+        return img, False
+    blur = cv2.GaussianBlur(img, (5, 5), 0)
+    _, mask = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return img, False
+    c = max(contours, key=cv2.contourArea)
+    h, w = img.shape
+    area = cv2.contourArea(c)
+    if area < 0.3 * h * w or area > 0.97 * h * w:
+        return img, False
+    approx = cv2.approxPolyDP(c, 0.02 * cv2.arcLength(c, True), True)
+    if len(approx) != 4:
+        return img, False
+    pts = approx.reshape(4, 2).astype(np.float32)
+    s_, d_ = pts.sum(1), np.diff(pts, axis=1).ravel()
+    tl, br, tr, bl = pts[np.argmin(s_)], pts[np.argmax(s_)], pts[np.argmin(d_)], pts[np.argmax(d_)]
+    out_w = int(max(np.linalg.norm(tr - tl), np.linalg.norm(br - bl)))
+    out_h = int(max(np.linalg.norm(bl - tl), np.linalg.norm(br - tr)))
+    if out_w < 16 or out_h < 16:
+        return img, False
+    m = cv2.getPerspectiveTransform(np.float32([tl, tr, br, bl]), np.float32([[0, 0], [out_w, 0], [out_w, out_h], [0, out_h]]))
+    return cv2.warpPerspective(img, m, (out_w, out_h)), True
+
+
 def content_box(img: np.ndarray, threshold: int = 200, pad: float = 0.01) -> np.ndarray:
     """Crop to the bounding box of visible content so margins added by rescaling or cropping matter less."""
     ys, xs = np.nonzero(img < threshold)
@@ -151,6 +181,7 @@ class PageDescriptor:
     height: float
     hashes: list[str]  # [0°, 90°, 180°, 270°]
     ink: float
+    rectified: bool = False
 
 
 def describe_pages(pdf_bytes: bytes, params: VisualParams, max_pages: int) -> tuple[list[PageDescriptor], str | None]:
@@ -163,8 +194,9 @@ def describe_pages(pdf_bytes: bytes, params: VisualParams, max_pages: int) -> tu
             for index in range(min(doc.page_count, max_pages)):
                 page = doc[index]
                 img = render_gray(page, params.hash_dpi)
+                flat, rectified = rectify_page(img)
                 out.append(PageDescriptor(index + 1, round(page.rect.width, 1), round(page.rect.height, 1),
-                                          page_hashes(content_box(img)), ink_fraction(img)))
+                                          page_hashes(content_box(flat)), ink_fraction(img), rectified))
             return out, None
     except Exception as exc:  # noqa: BLE001 - malformed input is reported, never raised into the scan
         return [], f"render_failed:{type(exc).__name__}"

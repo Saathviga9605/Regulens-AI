@@ -17,7 +17,7 @@ from app.core.logging import configure_logging
 from app.db.init_db import init_db
 from app.db.session import build_engine, build_session_factory
 from app.services import rule_catalog
-from app.services.pdf_text import TesseractOcr
+from app.services.ocr import build_ocr_engine, describe as describe_ocr
 from app.services.storage import DocumentStorage
 
 logger = logging.getLogger("regulens.app")
@@ -39,8 +39,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 rule_catalog.ensure_default_rules(session)
         except Exception as exc:
             logger.error("Default scrutiny rules could not be ensured", extra={"error_type": type(exc).__name__})
-        if not app.state.ocr_engine.available:
-            logger.warning("OCR unavailable: Tesseract not found or disabled; image-only pages will not be read")
+        ocr_info = describe_ocr(app.state.ocr_engine)
+        if not ocr_info["available"]:
+            logger.warning("OCR unavailable: no local OCR engine found or OCR disabled; image-only pages will not be read")
+        else:
+            logger.info(f"OCR engine: {ocr_info['engine']} ({ocr_info['version']})")
         try:
             app.state.document_storage.ensure_dirs()
         except OSError as exc:
@@ -62,7 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = build_engine(settings)
     app.state.session_factory = build_session_factory(app.state.engine)
     app.state.document_storage = DocumentStorage(settings.document_storage_path)
-    app.state.ocr_engine = TesseractOcr.from_settings(settings)
+    app.state.ocr_engine = build_ocr_engine(settings)
 
     # Middleware order: the last added is outermost. CORS wraps everything (so 413s carry CORS headers),
     # then request IDs, then the upload size limit.

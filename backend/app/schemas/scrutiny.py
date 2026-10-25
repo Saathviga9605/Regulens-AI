@@ -49,6 +49,9 @@ class ExtractedFieldRead(BaseModel):
     status: FieldStatus
     warnings: list[str]
     candidates: list[dict]
+    evidence_source: str | None = None  # text_layer / ocr
+    evidence_box: list[float] | None = None  # normalised [x0, y0, x1, y1], origin top-left
+    ocr_confidence: float | None = None  # OCR engine score for the cited line; not a calibrated probability
 
 
 class ClassificationRead(BaseModel):
@@ -67,6 +70,9 @@ class PageSummary(BaseModel):
     status: PageStatus
     char_count: int
     warnings: list[str]
+    ocr_engine: str | None = None
+    ocr_confidence: float | None = None
+    rotation_degrees: int = 0
 
 
 class ProcessingRead(BaseModel):

@@ -21,6 +21,16 @@ export interface SystemInfoResponse {
   database_backend: string;
   implemented_capabilities: string[];
   planned_capabilities: string[];
+  ai_capabilities?: AiCapabilities;
+}
+
+export interface AiCapabilities {
+  ocr: { engine: string; available: boolean; version?: string; local_only: boolean };
+  computer_vision: { engine: string; available: boolean; version: string | null; used_for: string };
+  extraction: { method: string; model: string | null };
+  local_vision_model: { configured: boolean; note: string };
+  local_text_model: { configured: boolean; note: string };
+  remote_services: string;
 }
 
 export interface ApiErrorDetail {
@@ -269,6 +279,9 @@ export interface ExtractedField {
   status: FieldStatus;
   warnings: string[];
   candidates: { value: string; page_number: number; evidence_quote: string }[];
+  evidence_source?: "text_layer" | "ocr" | null;
+  evidence_box?: [number, number, number, number] | null;
+  ocr_confidence?: number | null;
 }
 
 export interface ClassificationSignal {
@@ -293,6 +306,9 @@ export interface PageSummary {
   status: PageStatus;
   char_count: number;
   warnings: string[];
+  ocr_engine?: string | null;
+  ocr_confidence?: number | null;
+  rotation_degrees?: number;
 }
 
 export interface DocumentPageText extends PageSummary {
@@ -786,6 +802,9 @@ export interface FieldSideView {
   page_number: number | null;
   evidence_quote: string | null;
   status: string;
+  evidence_source?: "text_layer" | "ocr" | null;
+  evidence_box?: [number, number, number, number] | null;
+  ocr_confidence?: number | null;
 }
 
 export interface FieldComparison {
@@ -796,6 +815,49 @@ export interface FieldComparison {
   normalized?: { a: string | null; b: string | null };
   outcome: "agree" | "conflict" | "inconclusive";
   explanation: string;
+  visual_difference?: boolean | null;
+}
+
+export interface TextProvenance {
+  text_layer_pages: number;
+  ocr_pages: number;
+  ocr_mean_confidence: number | null;
+  unreadable_pages: number;
+}
+
+export interface FusionSignal {
+  signal: string;
+  detail: string;
+  ref: string;
+}
+
+export interface FusionRecord {
+  version: string;
+  outcome: string;
+  rule: string;
+  supporting: FusionSignal[];
+  contradicting: FusionSignal[];
+  unavailable: FusionSignal[];
+  neutral: FusionSignal[];
+  fields: { agree: number; conflict: number; inconclusive: number };
+  regions: { regions_total: number; regions_on_critical_fields: number; regions_elsewhere: number;
+    alignment_verified: boolean; fields_with_visual_difference: string[] };
+  quality: { a: TextProvenance; b: TextProvenance };
+  note: string;
+}
+
+export interface ExplanationStatement {
+  kind: "supports" | "contradicts" | "unavailable" | "neutral";
+  text: string;
+  refs: Record<string, string | number | boolean | null>;
+}
+
+export interface Explanation {
+  version: string;
+  generator: string;
+  statements: ExplanationStatement[];
+  rule: string;
+  disclaimer: string;
 }
 
 export interface DifferenceRegion {
@@ -826,7 +888,8 @@ export interface GeometricEvidence {
 export interface MatchEvidence {
   exact: { method: string; equal: boolean; note: string };
   text: { method: string; status: "computed" | "unavailable"; jaccard?: number; containment?: number; reason?: string;
-    normalization: string; chars_a?: number; chars_b?: number };
+    normalization: string; chars_a?: number; chars_b?: number; low_quality?: boolean; quality_note?: string;
+    provenance?: { a: TextProvenance; b: TextProvenance } };
   visual: { method: string; status: "computed" | "unavailable"; distance?: number; similarity?: number; page_a?: number;
     page_b?: number; rotation_b_degrees?: number; reason?: string };
   geometric: GeometricEvidence | null;
@@ -837,6 +900,8 @@ export interface MatchEvidence {
   stage_status: Record<string, string>;
   config: Record<string, unknown>;
   latency_ms: number;
+  fusion?: FusionRecord | null;
+  explanation?: Explanation | null;
   created_at: string;
 }
 

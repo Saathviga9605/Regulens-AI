@@ -1,5 +1,7 @@
 # Cross-case document reuse detection (Deliverable 7)
 
+> **Updated in Deliverable 8:** cascade v3 (OCR provenance, photo rectification, region-aware fields, evidence fusion, explanations). Current behaviour and results: [ai-document-understanding.md](ai-document-understanding.md). The v1/v2 results below remain the historical record.
+
 ReguLens detects **potential reuse of the same underlying document across different application cases** and
 explains the evidence to an authorised reviewer. A similarity score, a matching outcome or a reviewer's
 confirmation is **not** proof of reuse, forgery, fraud or misconduct, and nothing here establishes authenticity.

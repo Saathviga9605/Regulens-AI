@@ -236,6 +236,23 @@ or `data/documents/`, and reset is never run against them. They need no network 
 is skipped when Tesseract is not installed; OCR-unavailable behaviour and the OCR code path (with a stub engine) are
 always tested.
 
+### Local OCR (optional, Deliverable 8)
+
+Scanned and photographed pages need a local OCR engine. Either install Tesseract (see "OCR setup on Windows" above)
+or the CPU-only RapidOCR engine into the venv (models ship inside the wheel; nothing is downloaded at run time):
+
+```powershell
+cd backend; .\.venv\Scripts\Activate.ps1
+pip install -r requirements-ocr.txt
+pip install --no-deps rapidocr-onnxruntime==1.2.3   # --no-deps: avoids pulling a second OpenCV build
+```
+
+`REGULENS_OCR_ENGINE=auto` (default) uses Tesseract if found, else RapidOCR, else none; set `tesseract`,
+`rapidocr` or `none` to choose explicitly. The cross-case panel and `/api/v1/system/info` show what is available.
+Evaluate with and without OCR: `python -m app.cli reuse-eval --out ..\docs\evaluation\reuse-d8` and
+`python -m app.cli reuse-eval --no-ocr --out ..\docs\evaluation\reuse-d8-no-ocr`. See
+[docs/ai-document-understanding.md](docs/ai-document-understanding.md).
+
 ### Cross-case reuse demo (Deliverable 7)
 
 ```powershell
@@ -281,4 +298,5 @@ regulens-ai/
 - [Security, roles and audit](docs/security.md)
 - [Design system (tokens, components, layout, accessibility)](docs/design-system.md)
 - [Cross-case document reuse (cascade, permissions, evaluation)](docs/reuse-detection.md)
+- [Local OCR, evidence fusion and explanations (what is OCR, CV, rules or a model)](docs/ai-document-understanding.md)
 - [Implementation status](docs/implementation-status.md)

@@ -386,3 +386,13 @@ Details: [reuse-detection.md](reuse-detection.md). All routes require a session.
 Refusals return 403 `cross_case_permission_required` and are audited as `cross_case.access_denied`.
 `PATCH /users/{id}` accepts `cross_case_reviewer` (admin; changing one's own permission → 409
 `self_permission_change`). `UserRead` gains `cross_case_reviewer`.
+
+## Deliverable 8 additions
+
+* `GET /system/info` gains `ai_capabilities` (OCR engine/version/availability, OpenCV, extraction method, local
+  vision/text model `configured: false`, `remote_services: none`). No paths or secrets.
+* Processing responses: pages gain `ocr_engine`, `ocr_confidence`, `rotation_degrees`; fields gain
+  `evidence_source`, `evidence_box`, `ocr_confidence`.
+* Case-pair evidence gains `fusion` and `explanation`; text evidence gains `provenance`, `low_quality`, `quality_note`;
+  field comparisons gain `visual_difference` and per-side `evidence_source` / `evidence_box` / `ocr_confidence`.
+* Access rules are unchanged (cross-case details still require the cross-case reviewer permission).

@@ -132,7 +132,7 @@ function EvaluationPanel() {
 
   return (
     <Card title="A0 / A1 / A4 evaluation (synthetic fixtures)"
-      description="Exact hash (A0), perceptual hash only (A1) and the full cascade (A4) on the same labelled synthetic pairs. Takes about a minute."
+      description="Exact hash (A0), perceptual hash only (A1) and the full cascade (A4) on the same labelled synthetic pairs. With OCR enabled this takes several minutes."
       actions={<button type="button" className={buttonStyles.secondary} onClick={run} disabled={busy}>
         {busy ? "Evaluating…" : "Run evaluation"}</button>}>
       {error && <Alert tone="error">{error}</Alert>}

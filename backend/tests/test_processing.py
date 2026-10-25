@@ -230,7 +230,7 @@ def test_every_extracted_field_is_grounded_in_its_page(client, code, no_ocr) -> 
     for f in extracted:
         assert is_grounded(f["evidence_quote"], pages[f["page_number"]])
         assert f["raw_value"] in f["evidence_quote"]
-        assert f["method"] == "label_regex_v1" and f["confidence"] == "high"
+        assert f["method"] == "label_regex_v2" and f["confidence"] == "high"
     by = {f["field_name"]: f for f in extracted}
     assert by["valid_until"]["normalized_value"] == {"date": "2029-03-13"}
     assert by["valid_until"]["raw_value"] == "13 March 2029"
