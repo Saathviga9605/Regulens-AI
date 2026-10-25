@@ -256,4 +256,8 @@ class VerificationAttemptRead(BaseModel):
     explanation: str
     fields_compared: list[dict]
     reference_code: str | None
+    # Source-verification dimension (Project Bible v3.0 labels), always paired with the source type.
+    source_status: str
+    source_status_label: str
+    source_type: str
     created_at: datetime

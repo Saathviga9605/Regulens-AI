@@ -169,6 +169,40 @@ function EvaluationPanel() {
               </table>
             </div>
           ))}
+          <p className="text-xs text-ink-subtle">Inconclusive and hard-negative CANDIDATE outcomes (review, not confirmed) per split:{" "}
+            {Object.entries(current.results.metrics).map(([split, arms]) =>
+              `${split} ${arms.A4.inconclusive ?? 0} inconclusive / ${arms.A4.hard_negative_candidates ?? 0} hard-negative candidates`).join(" · ")}.</p>
+          {current.results.alteration_suite && (
+            <div className={TABLE.wrap}>
+              <table className={`${TABLE.table} min-w-[36rem]`}>
+                <caption className="px-3 py-2 text-left text-sm font-semibold text-ink">Altered critical fields (A4 outcome; review candidates, never confirmations)</caption>
+                <thead><tr>{["Split", "Altered pairs", "Candidate", "Not matched", "Inconclusive", "Confirmed"].map((h) =>
+                  <th key={h} scope="col" className={TABLE.th}>{h}</th>)}</tr></thead>
+                <tbody className="divide-y divide-line">
+                  {Object.entries(current.results.alteration_suite).map(([split, a]) => (
+                    <tr key={split}><th scope="row" className={TABLE.td}>{split}</th><td className={TABLE.td}>{a.pairs}</td>
+                      <td className={TABLE.td}>{a.candidate}</td><td className={TABLE.td}>{a.not_matched}</td>
+                      <td className={TABLE.td}>{a.inconclusive}</td><td className={TABLE.td}>{a.confirmed}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {current.results.campus_experiment && (
+            <section aria-label="Campus-photo experiment" className="rounded-control border border-line p-3">
+              <h3 className="text-sm font-semibold text-ink">Campus-photo experiment (separate from document reuse)</h3>
+              <p className="text-xs text-ink-subtle">{current.results.campus_experiment.note}</p>
+              <ul className="mt-1 text-sm text-ink">
+                {Object.entries(current.results.campus_experiment.metrics).map(([split, m]) => (
+                  <li key={split}>{split}: TP {m.tp}, FP {m.fp}, TN {m.tn}, FN {m.fn}, inconclusive {m.inconclusive} (of {m.pairs})</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {current.results.physical_capture && (
+            <p className="text-sm text-ink">Real printed-and-photographed captures: <strong>{current.results.physical_capture.status}</strong>
+              {current.results.physical_capture.reason ? ` — ${current.results.physical_capture.reason}` : ""}</p>
+          )}
           <p className="text-sm text-ink">Evidence traceability: {fmt(current.results.evidence_traceability)}.{" "}
             Field exact match: {Object.entries(current.results.field_exact_match).map(([k, r]) => `${k.replace(/_/g, " ")} ${r.numerator}/${r.denominator}`).join(" · ")}.</p>
           {current.results.environment.unavailable_stages.length > 0 && (

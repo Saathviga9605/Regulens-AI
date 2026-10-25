@@ -31,7 +31,7 @@ import pymupdf
 from app.services.demo_documents import BANNER
 from app.services.reuse_visual import cv2
 
-DATASET_VERSION = "reuse_ds_v2"  # v2 = v1 pairs unchanged + dev2 and heldout2 splits
+DATASET_VERSION = "reuse_ds_v3"  # v3 = v2 unchanged + dev_alt / heldout_alt alteration suite
 
 
 @dataclass
@@ -414,7 +414,67 @@ def build_dataset() -> Dataset:
     ]
     _tag_v1(pairs)
     _add_v2(docs, pairs, add)
+    _add_alteration_suite(docs, pairs, add, "dev_alt", ALT_DEV, seed=81)
+    _add_alteration_suite(docs, pairs, add, "heldout_alt", ALT_HELD, seed=91)
     return Dataset(DATASET_VERSION, docs, pairs)
+
+
+# ---------------- v3 alteration suite: five controlled case types per split ----------------------------------------
+ALT_DEV = (Layout("Synthetic Shivalik Electrical Inspectorate (Fictional)", "ELECTRICAL SAFETY CERTIFICATE", "SE",
+                  (0.20, 0.30, 0.55), body=("Wiring, earthing and distribution boards were inspected and tested (fictional).",
+                                            "The installation is safe for continued use subject to annual inspection.")),
+           dict(number="SYN-SEI/2026/0731", institution="Mandi Valley Institute of Engineering",
+                address="6 Synthetic River Bank, Mandi 175099", issue="14 July 2026", valid="13 July 2028"),
+           dict(institution="Kullu Heights College of Technology", address="22 Synthetic Pine Road, Kullu 175199"),
+           dict(number="SYN-SEI/2026/0902", issue="1 September 2026", valid="31 August 2028"),
+           dict(number="SYN-SEI/2026/0815", institution="Solan Ridge Polytechnic", address="9 Synthetic Mall Road, Solan 173299",
+                issue="20 August 2026", valid="19 August 2028"))
+ALT_HELD = (Layout("Synthetic Deccan Lift and Escalator Authority (Fictional)", "LIFT SAFETY CERTIFICATE", "DL",
+                   (0.45, 0.20, 0.35), body=("The passenger lifts in the premises were load-tested and inspected (fictional).",)),
+            dict(number="SYN-DLA/2026/0418", institution="Pune Riverside Institute of Technology",
+                 address="40 Synthetic Bund Garden Road, Pune 411099", issue="5 June 2026", valid="4 June 2027"),
+            dict(institution="Satara Plateau College of Engineering", address="3 Synthetic Fort Road, Satara 415099"),
+            dict(number="SYN-DLA/2026/0577", issue="18 August 2026", valid="17 August 2027"),
+            dict(number="SYN-DLA/2026/0499", institution="Kolhapur Lakeside Institute of Engineering",
+                 address="12 Synthetic Rankala Road, Kolhapur 416099", issue="11 July 2026", valid="10 July 2027"))
+
+
+def _add_alteration_suite(docs: dict, pairs: list, add, split: str, spec: tuple, seed: int) -> None:
+    layout, base, identity, dates_number, other = spec
+    k = lambda name: f"{split}_{name}"  # noqa: E731
+    exp = lambda kw: _fields(kw["institution"], kw["number"], None)  # noqa: E731
+    src = certificate(layout, **base)
+    add(k("src"), f"{split.upper()}-C01", "other", src, "source", fields=exp(base))
+    add(k("vec"), f"{split.upper()}-C02", "other", t_vector_rotate_scale(src, 0, 0.8), "benign copy: vector rescale 0.8",
+        k("src"), exp(base))
+    one = {**base, "number": base["number"][:-1] + ("9" if base["number"][-1] != "9" else "8")}
+    add(k("alt1"), f"{split.upper()}-C03", "other", certificate(layout, **one), "one field altered: certificate number",
+        k("src"), exp(one))
+    two = {**base, **identity}
+    alt2 = certificate(layout, **two)
+    add(k("alt2"), f"{split.upper()}-C04", "other", alt2, "two fields altered: institution name and address", k("src"), exp(two))
+    three = {**base, **dates_number}
+    add(k("alt3"), f"{split.upper()}-C05", "other", certificate(layout, **three),
+        "three fields altered: certificate number, issue date, valid until", k("src"), exp(three))
+    add(k("alt2_scan"), f"{split.upper()}-C06", "other", t_raster(alt2, seed=seed, rotate_deg=0.7, noise=5, jpeg=65),
+        "raster scan of the two-field alteration (no text layer)", k("src"), exp(two), text=False)
+    tmpl = {**base, **other}
+    add(k("tmpl"), f"{split.upper()}-C07", "other", certificate(layout, **tmpl),
+        "same template, different underlying document (all critical fields differ)", fields=exp(tmpl))
+    add(k("poor"), f"{split.upper()}-C08", "other", t_poor_scan(src, seed=seed + 1), "poor scan of the source", k("src"),
+        exp(base), text=False)
+    P = FixturePair
+    pairs += [
+        P(k("p1"), k("src"), k("vec"), "reuse", split, False, "benign transformed copy", transform="vector_rescale"),
+        P(k("p2"), k("src"), k("alt1"), "altered", split, False, "one altered critical field", transform="field_alteration_1"),
+        P(k("p3"), k("src"), k("alt2"), "altered", split, False, "two altered fields (identity)", transform="field_alteration_2"),
+        P(k("p4"), k("src"), k("alt3"), "altered", split, False, "three altered fields (number and dates)", transform="field_alteration_3"),
+        P(k("p5"), k("src"), k("alt2_scan"), "altered", split, False, "scanned two-field alteration",
+          transform="field_alteration_2_scan", quality="degraded"),
+        P(k("p6"), k("src"), k("tmpl"), "distinct", split, True, "same template, different underlying document",
+          transform="different_document"),
+        P(k("p7"), k("src"), k("poor"), "reuse", split, False, "poor-quality scan", transform="poor_scan", quality="poor"),
+    ]
 
 
 _V1_TAGS = {

@@ -65,6 +65,10 @@ OCR text and extracted values are untrusted input: they are matched against fixe
 never executed, interpreted as instructions or used to change rules or permissions. All analysis runs locally; no
 document content leaves the machine. `/system/info` reports engine names and versions only (no paths).
 
+### Source-verification status (Deliverable 9)
+Every issuer check records a source type. Only the synthetic demo registry exists, so results are SIMULATED or
+NOT_CONNECTED; LIVE is defined but never produced, and the UI and report always show the source type next to the status.
+
 ## Audit log
 `audit_events` is written in the same database transaction as the action it describes (failures/denials are written
 separately). Recorded: sign-in/out (success, failure, lockout), application/institution create/edit/status, document

@@ -189,7 +189,8 @@ describe("Document processing and evidence", () => {
       method: "simulated_reference_lookup", simulated: true, simulation_label: SIM, outcome: "simulated_match",
       explanation: "The extracted fields match a configured synthetic reference record. This does not establish authenticity.",
       fields_compared: [{ field: "certificate_number", document_value: "SYN-1", result: "match" }],
-      reference_code: "SYN-REF-0001", created_at: "2026-10-23T12:00:00Z",
+      reference_code: "SYN-REF-0001", source_status: "verified", source_status_label: "Verified", source_type: "SIMULATED",
+      created_at: "2026-10-23T12:00:00Z",
     };
     const api = mockApi({
       [`GET ${APP}`]: () => jsonResponse(DRAFT),
@@ -202,11 +203,36 @@ describe("Document processing and evidence", () => {
     await openDetails();
     const section = await screen.findByRole("region", { name: "Simulated issuer verification" });
     expect(section).toHaveTextContent(SIM);
+    expect(await within(section).findByTestId("source-status-pending")).toHaveTextContent("Verification pending");
     await userEvent.click(within(section).getByRole("button", { name: "Run simulated issuer check" }));
-    expect(await within(section).findByText("Simulated match")).toBeInTheDocument();
-    expect(within(section).getAllByText(SIM).length).toBeGreaterThanOrEqual(2);
+    expect(await within(section).findByTestId("source-status")).toHaveTextContent("Verified");
+    expect(section).toHaveTextContent("SIMULATED"); // never presented as a live source
+    expect(within(section).getByText(/Adapter result: Simulated match/)).toBeInTheDocument();
+    expect((section.textContent ?? "").split(SIM).length - 1).toBeGreaterThanOrEqual(2); // banner + the attempt itself
     expect(section).toHaveTextContent("Synthetic reference: SYN-REF-0001");
     expect(api.callsTo("POST", `/documents/${DOC.id}/issuer-verifications`)).toHaveLength(1);
+  });
+
+  it("shows a not-connected source honestly as manual review required", async () => {
+    const attempt: VerificationAttempt = {
+      id: "v2", document_id: DOC.id, document_filename: DOC.original_filename, adapter: "mock_synthetic_registry",
+      method: "simulated_reference_lookup", simulated: true, simulation_label: SIM, outcome: "unsupported",
+      explanation: "The simulated registry does not cover this document type.", fields_compared: [], reference_code: null,
+      source_status: "manual_review_required", source_status_label: "Manual review required", source_type: "NOT_CONNECTED",
+      created_at: "2026-10-23T12:00:00Z",
+    };
+    mockApi({
+      [`GET ${APP}`]: () => jsonResponse(DRAFT),
+      [`GET ${DOCS}`]: () => jsonResponse(page([DOC])),
+      [`GET /documents/${DOC.id}/processing`]: () => jsonResponse(PROCESSED),
+      [`GET /documents/${DOC.id}/issuer-verifications`]: () => jsonResponse([attempt]),
+    });
+    renderApp(APP);
+    await openDetails();
+    const section = await screen.findByRole("region", { name: "Simulated issuer verification" });
+    expect(await within(section).findByTestId("source-status")).toHaveTextContent("Manual review required");
+    expect(section).toHaveTextContent("NOT CONNECTED");
+    expect(section).not.toHaveTextContent(/Verified/);
   });
 
   it("process all only processes documents without current results", async () => {

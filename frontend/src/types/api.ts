@@ -522,6 +522,11 @@ export interface VerificationAttempt {
   explanation: string;
   fields_compared: { field: string; document_value: string | null; result: string }[];
   reference_code: string | null;
+  // Source-verification dimension (Project Bible v3.0 labels) — separate from rule outcome, evidence state,
+  // reviewer disposition and cross-case reuse outcome.
+  source_status: "verified" | "mismatch_detected" | "expired" | "verification_pending" | "source_unavailable" | "manual_review_required";
+  source_status_label: string;
+  source_type: "LIVE" | "SIMULATED" | "NOT_CONNECTED";
   created_at: string;
 }
 
@@ -951,6 +956,8 @@ export interface ArmMetrics {
   recall: Ratio;
   hard_negative_fp: number;
   hard_negative_fp_rate: Ratio;
+  hard_negative_candidates?: number;
+  inconclusive?: number;
   latency_ms_total: number;
 }
 
@@ -961,7 +968,13 @@ export interface EvaluationDetail extends EvaluationSummary {
     field_exact_match: Record<string, Ratio>;
     evidence_traceability: Ratio;
     composition: { documents: number; cases: number; pairs: Record<string, Record<string, number>> };
-    environment: { ocr_available: boolean; opencv_version: string | null; unavailable_stages: string[] };
+    environment: { ocr_available: boolean; opencv_version: string | null; unavailable_stages: string[];
+      ocr_engine?: string | null };
     a1_threshold: number;
+    evaluated_at?: string;
+    alteration_suite?: Record<string, { pairs: number; candidate: number; not_matched: number; inconclusive: number; confirmed: number }>;
+    campus_experiment?: { synthetic: boolean; note: string;
+      metrics: Record<string, { tp: number; fp: number; tn: number; fn: number; pairs: number; inconclusive: number }> } | null;
+    physical_capture?: { status: string; reason?: string; entries: number };
   };
 }

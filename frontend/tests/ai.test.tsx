@@ -117,3 +117,43 @@ describe("Analysis capabilities in the workspace", () => {
     expect(within(box).getByRole("list", { name: "Scan stages" })).not.toHaveTextContent("unavailable");
   });
 });
+
+describe("Deliverable 9 status separation and evaluation sections", () => {
+  it("explains the status dimensions on the comparison page", async () => {
+    mockApi({ [`GET /case-pairs/${PAIR_ID}`]: () => jsonResponse(ALTERED), [`GET /case-pairs/${PAIR_ID}/pages/(a|b)/1`]: () => png() });
+    renderApp(`/case-pairs/${PAIR_ID}`, { user: SENIOR });
+    const legend = await screen.findByText("What the statuses on this page mean");
+    const box = legend.closest("[role=alert], [role=status], div")!.parentElement!;
+    expect(box).toHaveTextContent("Reuse outcome");
+    expect(box).toHaveTextContent("Reviewer disposition");
+    expect(box).toHaveTextContent("Verification pending");
+    expect(box).toHaveTextContent("not a finding of fraud");
+  });
+
+  it("shows alteration-suite, campus and physical-capture results with counts", async () => {
+    const arm = { tp: 1, fp: 0, tn: 1, fn: 1, pairs: 3, precision: { value: 1, numerator: 1, denominator: 1 },
+      recall: { value: 0.5, numerator: 1, denominator: 2 }, hard_negative_fp: 0,
+      hard_negative_fp_rate: { value: 0, numerator: 0, denominator: 1 }, hard_negative_candidates: 0, inconclusive: 1, latency_ms_total: 1 };
+    mockApi({
+      "GET /reuse-evaluations": () => jsonResponse([]),
+      "POST /reuse-evaluations": () => jsonResponse({ id: "e9", created_at: "2026-10-25T14:00:00Z", created_by: "demo.admin",
+        eval_version: "reuse_eval_v3", dataset_version: "reuse_ds_v3", dataset_digest: "x", config_version: "reuse_thr_v4",
+        pipeline_version: "p", duration_ms: 1, results: {
+          metrics: { heldout_alt: { A0: arm, A1: arm, A4: arm } }, a4_outcomes: {}, field_exact_match: {},
+          evidence_traceability: { value: 1, numerator: 10, denominator: 10 }, composition: { documents: 1, cases: 1, pairs: {} },
+          environment: { ocr_available: true, opencv_version: "5.0.0", unavailable_stages: [] }, a1_threshold: 0,
+          alteration_suite: { heldout_alt: { pairs: 4, candidate: 4, not_matched: 0, inconclusive: 0, confirmed: 0 } },
+          campus_experiment: { synthetic: true, note: "Synthetic procedurally drawn facades.",
+            metrics: { campus_heldout: { tp: 2, fp: 0, tn: 3, fn: 1, pairs: 6, inconclusive: 0 } } },
+          physical_capture: { status: "BLOCKED", reason: "No camera or printer was available.", entries: 0 } } }, 201),
+    });
+    renderApp("/cross-case", { user: { ...SENIOR, role: "admin" } });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    await userEvent.click(await screen.findByRole("button", { name: "Run evaluation" }));
+    const result = await screen.findByTestId("evaluation-result");
+    expect(within(result).getByRole("table", { name: /Altered critical fields/ })).toHaveTextContent("heldout_alt4400");
+    expect(within(result).getByRole("region", { name: "Campus-photo experiment" })).toHaveTextContent("TP 2, FP 0, TN 3, FN 1");
+    expect(result).toHaveTextContent("Real printed-and-photographed captures: BLOCKED");
+    expect(result).toHaveTextContent("heldout_alt 1 inconclusive / 0 hard-negative candidates");
+  });
+});

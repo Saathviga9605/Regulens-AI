@@ -101,10 +101,14 @@ def test_transformed_positive_with_text_layer_is_confirmed(inputs):
 
 
 def test_same_template_hard_negatives_are_not_confirmed(inputs):
-    for other in ("dev_fire_tmpl", "dev_fire_renew"):
-        r = engine.compare(inputs("dev_fire_src"), inputs(other))
-        assert r.outcome == engine.NOT_MATCHED, other
-        assert r.fields["conflict"] >= 2
+    # Different institution, number and dates on the same template: no shared content.
+    r = engine.compare(inputs("dev_fire_src"), inputs("dev_fire_tmpl"))
+    assert r.outcome == engine.NOT_MATCHED and r.fields["conflict"] >= 2 and r.fields["agree"] == 0
+    # Same institution, earlier certificate (number and dates differ only on their lines): since v4 this is a review
+    # candidate — by evidence it cannot be told apart from a number-and-date alteration — and never a confirmation.
+    r = engine.compare(inputs("dev_fire_src"), inputs("dev_fire_renew"))
+    assert r.outcome == engine.CANDIDATE and r.fields["conflict"] >= 2
+    assert "different certificate issued on the same template" in r.fusion["rule"]
 
 
 def test_similar_logo_with_unrelated_content_is_not_matched(inputs):
@@ -442,7 +446,7 @@ def test_migration_0007_upgrades_existing_database_and_round_trips(tmp_path):
         session.commit()
     run_migrations(engine_, "head")
     with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == ("0008",)
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == ("0009",)
         assert conn.execute("SELECT username, cross_case_reviewer FROM users").fetchall() == [("old.reviewer", 0)]
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"case_pairs", "match_evidence", "case_pair_review_actions", "reuse_scan_runs",

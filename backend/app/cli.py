@@ -63,8 +63,17 @@ def main(argv: list[str] | None = None) -> int:
     re_ = sub.add_parser("reuse-eval", help="Run the A0/A1/A4 evaluation on synthetic fixtures")
     re_.add_argument("--out", default=None, help="Directory for metrics.json, metrics.csv and summary.md")
     re_.add_argument("--no-ocr", action="store_true", help="Evaluate without OCR (to measure its contribution)")
+    ck = sub.add_parser("capture-kit", help="Export printable sources + manifest template for real photo captures")
+    ck.add_argument("--out", required=True)
     args = parser.parse_args(argv)
 
+    if args.command == "capture-kit":
+        from pathlib import Path
+
+        from app.services.physical_capture import write_capture_kit
+
+        print(f"Wrote {write_capture_kit(Path(args.out))} and the printable source PDFs.")
+        return 0
     if args.command == "reuse-eval":
         return _reuse_eval(args.out, use_ocr=not args.no_ocr)
 

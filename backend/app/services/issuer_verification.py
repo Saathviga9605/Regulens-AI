@@ -18,7 +18,7 @@ from app.core.errors import AppError
 from app.models import Document, ExtractedField, IssuerReferenceRecord, VerificationAttempt
 from app.models.enums import DocumentCategory, FieldStatus, ReferenceAvailability, VerificationOutcome as V
 from app.services import processing as processing_service
-from app.services import audit
+from app.services import audit, source_status
 from app.services.normalize import is_grounded, normalize_identifier, text_similarity
 
 SIMULATION_LABEL = "SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY"
@@ -140,7 +140,8 @@ def verify_document(session: Session, document: Document, today: date,
         issuing_authority=(f := get("issuing_authority")) and f.raw_value,
     )
     result = adapter.verify(session, request, today)
-    attempt = VerificationAttempt(
+    status, source_type = source_status.map_outcome(result.outcome, adapter.simulated)
+    attempt = VerificationAttempt(source_status=status, source_type=source_type,
         application_id=document.application_id, document_id=document.id,
         document_filename=document.original_filename, adapter=adapter.name, method=adapter.method,
         simulated=adapter.simulated, outcome=result.outcome, explanation=result.explanation,
@@ -150,7 +151,8 @@ def verify_document(session: Session, document: Document, today: date,
     session.flush()
     audit.record(session, "issuer_verification.simulated", "verification_attempt", attempt.id,
                  application_id=document.application_id,
-                 details={"document_id": document.id, "outcome": result.outcome.value, "adapter": adapter.name})
+                 details={"document_id": document.id, "outcome": result.outcome.value, "adapter": adapter.name,
+                          "source_status": status.value, "source_type": source_type.value})
     session.commit()
     return attempt
 

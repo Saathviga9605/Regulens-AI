@@ -1,0 +1,5086 @@
+{
+  "evaluated_at": "2026-10-25T14:32:46+00:00",
+  "eval_version": "reuse_eval_v3",
+  "dataset_version": "reuse_ds_v3",
+  "dataset_digest": "86442db97cdd0875",
+  "config_version": "reuse_thr_v4",
+  "pipeline_version": "reuse_cascade_v4+txtnorm_v2+phash_dct_v2+orb_ransac_v1+fieldcmp_v3+fusion_v1",
+  "config": {
+    "version": "reuse_thr_v4",
+    "min_text_chars": 60,
+    "shingle_size": 5,
+    "text_candidate": 0.45,
+    "text_strong": 0.85,
+    "text_unrelated": 0.35,
+    "phash_candidate": 12,
+    "min_page_ink": 0.004,
+    "min_inliers": 40,
+    "min_inlier_ratio": 0.25,
+    "min_coverage": 0.52,
+    "max_diff_cells_for_identical": 0,
+    "max_diff_regions_shared": 4,
+    "min_agreeing_fields": 2,
+    "max_conflicts_alteration": 1,
+    "low_ocr_text_confidence": 0.6,
+    "low_ocr_field_confidence": 0.8,
+    "localized_alteration_rule": true,
+    "min_agreeing_for_localized_alteration": 1,
+    "max_pages": 10,
+    "visual": {
+      "hash_dpi": 36,
+      "verify_dpi": 150,
+      "verify_max_side": 2000,
+      "orb_features": 3000,
+      "ratio_test": 0.75,
+      "ransac_reproj_px": 5.0,
+      "min_keypoints": 40,
+      "coverage_grid": 6,
+      "content_cell_ink": 0.03,
+      "diff_grid": 12,
+      "diff_sigma": 2.0,
+      "diff_threshold": 70.0,
+      "diff_min_region_px": 60,
+      "diff_min_cell_ink": 40
+    },
+    "engine_version": "reuse_cascade_v4",
+    "text_norm_version": "txtnorm_v2",
+    "phash_version": "phash_dct_v2",
+    "geometric_version": "orb_ransac_v1",
+    "field_compare_version": "fieldcmp_v3",
+    "fusion_version": "fusion_v1",
+    "explanation_version": "explain_v1"
+  },
+  "a1_threshold": 0,
+  "splits": [
+    "dev",
+    "dev2",
+    "dev_alt",
+    "heldout",
+    "heldout2",
+    "heldout_alt"
+  ],
+  "composition": {
+    "documents": 63,
+    "cases": 63,
+    "pairs": {
+      "dev": {
+        "total": 12,
+        "reuse": 5,
+        "altered": 1,
+        "distinct": 6,
+        "hard_negative": 5
+      },
+      "dev2": {
+        "total": 6,
+        "reuse": 4,
+        "altered": 0,
+        "distinct": 2,
+        "hard_negative": 2
+      },
+      "dev_alt": {
+        "total": 7,
+        "reuse": 2,
+        "altered": 4,
+        "distinct": 1,
+        "hard_negative": 1
+      },
+      "heldout": {
+        "total": 16,
+        "reuse": 7,
+        "altered": 1,
+        "distinct": 8,
+        "hard_negative": 7
+      },
+      "heldout2": {
+        "total": 13,
+        "reuse": 6,
+        "altered": 1,
+        "distinct": 6,
+        "hard_negative": 5
+      },
+      "heldout_alt": {
+        "total": 7,
+        "reuse": 2,
+        "altered": 4,
+        "distinct": 1,
+        "hard_negative": 1
+      }
+    }
+  },
+  "metrics": {
+    "dev": {
+      "A0": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 6,
+        "fn": 4,
+        "pairs": 11,
+        "precision": {
+          "value": 1.0,
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recall": {
+          "value": 0.2,
+          "numerator": 1,
+          "denominator": 5
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 5
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 0.0,
+        "latency_ms_mean": 0.0
+      },
+      "A1": {
+        "tp": 3,
+        "fp": 0,
+        "tn": 6,
+        "fn": 2,
+        "pairs": 11,
+        "precision": {
+          "value": 1.0,
+          "numerator": 3,
+          "denominator": 3
+        },
+        "recall": {
+          "value": 0.6,
+          "numerator": 3,
+          "denominator": 5
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 5
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 226.7,
+        "latency_ms_mean": 18.89
+      },
+      "A4": {
+        "tp": 5,
+        "fp": 0,
+        "tn": 6,
+        "fn": 0,
+        "pairs": 11,
+        "precision": {
+          "value": 1.0,
+          "numerator": 5,
+          "denominator": 5
+        },
+        "recall": {
+          "value": 1.0,
+          "numerator": 5,
+          "denominator": 5
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 5
+        },
+        "hard_negative_candidates": 1,
+        "inconclusive": 1,
+        "latency_ms_total": 68025.7,
+        "latency_ms_mean": 5668.81
+      }
+    },
+    "dev2": {
+      "A0": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 2,
+        "fn": 4,
+        "pairs": 6,
+        "precision": {
+          "value": null,
+          "numerator": 0,
+          "denominator": 0,
+          "note": "undefined: no predicted positives"
+        },
+        "recall": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 4
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 2
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 0.0,
+        "latency_ms_mean": 0.0
+      },
+      "A1": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 2,
+        "fn": 4,
+        "pairs": 6,
+        "precision": {
+          "value": null,
+          "numerator": 0,
+          "denominator": 0,
+          "note": "undefined: no predicted positives"
+        },
+        "recall": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 4
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 2
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 84.4,
+        "latency_ms_mean": 14.06
+      },
+      "A4": {
+        "tp": 3,
+        "fp": 0,
+        "tn": 2,
+        "fn": 1,
+        "pairs": 6,
+        "precision": {
+          "value": 1.0,
+          "numerator": 3,
+          "denominator": 3
+        },
+        "recall": {
+          "value": 0.75,
+          "numerator": 3,
+          "denominator": 4
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 2
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 1,
+        "latency_ms_total": 75373.3,
+        "latency_ms_mean": 12562.22
+      }
+    },
+    "dev_alt": {
+      "A0": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 1,
+        "fn": 2,
+        "pairs": 3,
+        "precision": {
+          "value": null,
+          "numerator": 0,
+          "denominator": 0,
+          "note": "undefined: no predicted positives"
+        },
+        "recall": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 2
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 0.0,
+        "latency_ms_mean": 0.0
+      },
+      "A1": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 1,
+        "fn": 1,
+        "pairs": 3,
+        "precision": {
+          "value": 1.0,
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recall": {
+          "value": 0.5,
+          "numerator": 1,
+          "denominator": 2
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 95.3,
+        "latency_ms_mean": 13.62
+      },
+      "A4": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 1,
+        "fn": 1,
+        "pairs": 3,
+        "precision": {
+          "value": 1.0,
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recall": {
+          "value": 0.5,
+          "numerator": 1,
+          "denominator": 2
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 1,
+        "latency_ms_total": 26789.3,
+        "latency_ms_mean": 3827.04
+      }
+    },
+    "heldout": {
+      "A0": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 8,
+        "fn": 6,
+        "pairs": 15,
+        "precision": {
+          "value": 1.0,
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recall": {
+          "value": 0.1429,
+          "numerator": 1,
+          "denominator": 7
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 7
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 0.0,
+        "latency_ms_mean": 0.0
+      },
+      "A1": {
+        "tp": 3,
+        "fp": 2,
+        "tn": 6,
+        "fn": 4,
+        "pairs": 15,
+        "precision": {
+          "value": 0.6,
+          "numerator": 3,
+          "denominator": 5
+        },
+        "recall": {
+          "value": 0.4286,
+          "numerator": 3,
+          "denominator": 7
+        },
+        "hard_negative_fp": 2,
+        "hard_negative_fp_rate": {
+          "value": 0.2857,
+          "numerator": 2,
+          "denominator": 7
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 214.9,
+        "latency_ms_mean": 13.43
+      },
+      "A4": {
+        "tp": 7,
+        "fp": 0,
+        "tn": 8,
+        "fn": 0,
+        "pairs": 15,
+        "precision": {
+          "value": 1.0,
+          "numerator": 7,
+          "denominator": 7
+        },
+        "recall": {
+          "value": 1.0,
+          "numerator": 7,
+          "denominator": 7
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 7
+        },
+        "hard_negative_candidates": 2,
+        "inconclusive": 1,
+        "latency_ms_total": 70318.4,
+        "latency_ms_mean": 4394.9
+      }
+    },
+    "heldout2": {
+      "A0": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 6,
+        "fn": 5,
+        "pairs": 12,
+        "precision": {
+          "value": 1.0,
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recall": {
+          "value": 0.1667,
+          "numerator": 1,
+          "denominator": 6
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 5
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 0.0,
+        "latency_ms_mean": 0.0
+      },
+      "A1": {
+        "tp": 3,
+        "fp": 1,
+        "tn": 5,
+        "fn": 3,
+        "pairs": 12,
+        "precision": {
+          "value": 0.75,
+          "numerator": 3,
+          "denominator": 4
+        },
+        "recall": {
+          "value": 0.5,
+          "numerator": 3,
+          "denominator": 6
+        },
+        "hard_negative_fp": 1,
+        "hard_negative_fp_rate": {
+          "value": 0.2,
+          "numerator": 1,
+          "denominator": 5
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 179.2,
+        "latency_ms_mean": 13.79
+      },
+      "A4": {
+        "tp": 5,
+        "fp": 0,
+        "tn": 6,
+        "fn": 1,
+        "pairs": 12,
+        "precision": {
+          "value": 1.0,
+          "numerator": 5,
+          "denominator": 5
+        },
+        "recall": {
+          "value": 0.8333,
+          "numerator": 5,
+          "denominator": 6
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 5
+        },
+        "hard_negative_candidates": 1,
+        "inconclusive": 2,
+        "latency_ms_total": 81426.0,
+        "latency_ms_mean": 6263.54
+      }
+    },
+    "heldout_alt": {
+      "A0": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 1,
+        "fn": 2,
+        "pairs": 3,
+        "precision": {
+          "value": null,
+          "numerator": 0,
+          "denominator": 0,
+          "note": "undefined: no predicted positives"
+        },
+        "recall": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 2
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 0.0,
+        "latency_ms_mean": 0.0
+      },
+      "A1": {
+        "tp": 0,
+        "fp": 1,
+        "tn": 0,
+        "fn": 2,
+        "pairs": 3,
+        "precision": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "recall": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 2
+        },
+        "hard_negative_fp": 1,
+        "hard_negative_fp_rate": {
+          "value": 1.0,
+          "numerator": 1,
+          "denominator": 1
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 0,
+        "latency_ms_total": 102.7,
+        "latency_ms_mean": 14.67
+      },
+      "A4": {
+        "tp": 1,
+        "fp": 0,
+        "tn": 1,
+        "fn": 1,
+        "pairs": 3,
+        "precision": {
+          "value": 1.0,
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recall": {
+          "value": 0.5,
+          "numerator": 1,
+          "denominator": 2
+        },
+        "hard_negative_fp": 0,
+        "hard_negative_fp_rate": {
+          "value": 0.0,
+          "numerator": 0,
+          "denominator": 1
+        },
+        "hard_negative_candidates": 0,
+        "inconclusive": 1,
+        "latency_ms_total": 27347.9,
+        "latency_ms_mean": 3906.84
+      }
+    }
+  },
+  "a4_outcomes": {
+    "dev": {
+      "MATCH_CONFIRMED_FOR_REVIEW": 5,
+      "CANDIDATE": 2,
+      "NOT_MATCHED": 4,
+      "INCONCLUSIVE": 1
+    },
+    "dev2": {
+      "MATCH_CONFIRMED_FOR_REVIEW": 3,
+      "CANDIDATE": 0,
+      "NOT_MATCHED": 2,
+      "INCONCLUSIVE": 1
+    },
+    "dev_alt": {
+      "MATCH_CONFIRMED_FOR_REVIEW": 1,
+      "CANDIDATE": 4,
+      "NOT_MATCHED": 1,
+      "INCONCLUSIVE": 1
+    },
+    "heldout": {
+      "MATCH_CONFIRMED_FOR_REVIEW": 7,
+      "CANDIDATE": 2,
+      "NOT_MATCHED": 6,
+      "INCONCLUSIVE": 1
+    },
+    "heldout2": {
+      "MATCH_CONFIRMED_FOR_REVIEW": 5,
+      "CANDIDATE": 2,
+      "NOT_MATCHED": 4,
+      "INCONCLUSIVE": 2
+    },
+    "heldout_alt": {
+      "MATCH_CONFIRMED_FOR_REVIEW": 1,
+      "CANDIDATE": 4,
+      "NOT_MATCHED": 1,
+      "INCONCLUSIVE": 1
+    }
+  },
+  "field_exact_match": {
+    "institution_name": {
+      "value": 0.8036,
+      "numerator": 45,
+      "denominator": 56
+    },
+    "certificate_number": {
+      "value": 0.9286,
+      "numerator": 52,
+      "denominator": 56
+    },
+    "issue_date": {
+      "value": 0.875,
+      "numerator": 35,
+      "denominator": 40
+    }
+  },
+  "evidence_traceability": {
+    "value": 1.0,
+    "numerator": 396,
+    "denominator": 396
+  },
+  "failures": {
+    "inconclusive": 7,
+    "text_unavailable_pairs": 7,
+    "low_quality_text_pairs": 0,
+    "ocr_pages": 14,
+    "unreadable_pages": 8,
+    "documents": 63
+  },
+  "by_transform": {
+    "exact_copy": {
+      "pairs": 3,
+      "labels": {
+        "reuse": 3
+      },
+      "A0_pos": 3,
+      "A1_pos": 3,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 3,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "metadata_resave": {
+      "pairs": 3,
+      "labels": {
+        "reuse": 3
+      },
+      "A0_pos": 0,
+      "A1_pos": 3,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 3,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "vector_rescale_rotate": {
+      "pairs": 1,
+      "labels": {
+        "reuse": 1
+      },
+      "A0_pos": 0,
+      "A1_pos": 1,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 1,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "raster_scan": {
+      "pairs": 4,
+      "labels": {
+        "reuse": 4
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 4,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "raster_crop_brightness": {
+      "pairs": 2,
+      "labels": {
+        "reuse": 2
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 2,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "different_document": {
+      "pairs": 24,
+      "labels": {
+        "distinct": 24
+      },
+      "A0_pos": 0,
+      "A1_pos": 4,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 0,
+        "CANDIDATE": 4,
+        "NOT_MATCHED": 17,
+        "INCONCLUSIVE": 3
+      }
+    },
+    "field_alteration": {
+      "pairs": 3,
+      "labels": {
+        "altered": 3
+      },
+      "A0_pos": 0,
+      "A1_pos": 3,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 0,
+        "CANDIDATE": 2,
+        "NOT_MATCHED": 1,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "vector_rescale": {
+      "pairs": 3,
+      "labels": {
+        "reuse": 3
+      },
+      "A0_pos": 0,
+      "A1_pos": 1,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 3,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "vector_crop": {
+      "pairs": 1,
+      "labels": {
+        "reuse": 1
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 1,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "raster_rotate90": {
+      "pairs": 1,
+      "labels": {
+        "reuse": 1
+      },
+      "A0_pos": 0,
+      "A1_pos": 1,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 1,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "photo_sim": {
+      "pairs": 2,
+      "labels": {
+        "reuse": 2
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 2,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "photo_sim_strong": {
+      "pairs": 1,
+      "labels": {
+        "reuse": 1
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 1,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "poor_scan": {
+      "pairs": 4,
+      "labels": {
+        "reuse": 4
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 0,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 4
+      }
+    },
+    "raster_rotate270": {
+      "pairs": 1,
+      "labels": {
+        "reuse": 1
+      },
+      "A0_pos": 0,
+      "A1_pos": 1,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 1,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "field_alteration_1": {
+      "pairs": 2,
+      "labels": {
+        "altered": 2
+      },
+      "A0_pos": 0,
+      "A1_pos": 2,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 0,
+        "CANDIDATE": 2,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "field_alteration_2": {
+      "pairs": 2,
+      "labels": {
+        "altered": 2
+      },
+      "A0_pos": 0,
+      "A1_pos": 1,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 0,
+        "CANDIDATE": 2,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "field_alteration_3": {
+      "pairs": 2,
+      "labels": {
+        "altered": 2
+      },
+      "A0_pos": 0,
+      "A1_pos": 1,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 0,
+        "CANDIDATE": 2,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "field_alteration_2_scan": {
+      "pairs": 2,
+      "labels": {
+        "altered": 2
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 0,
+        "CANDIDATE": 2,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 0
+      }
+    }
+  },
+  "by_quality": {
+    "clean": {
+      "pairs": 35,
+      "labels": {
+        "reuse": 11,
+        "distinct": 15,
+        "altered": 9
+      },
+      "A0_pos": 3,
+      "A1_pos": 19,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 11,
+        "CANDIDATE": 11,
+        "NOT_MATCHED": 13,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "degraded": {
+      "pairs": 18,
+      "labels": {
+        "reuse": 10,
+        "distinct": 6,
+        "altered": 2
+      },
+      "A0_pos": 0,
+      "A1_pos": 2,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 10,
+        "CANDIDATE": 3,
+        "NOT_MATCHED": 5,
+        "INCONCLUSIVE": 0
+      }
+    },
+    "poor": {
+      "pairs": 8,
+      "labels": {
+        "distinct": 3,
+        "reuse": 5
+      },
+      "A0_pos": 0,
+      "A1_pos": 0,
+      "A4": {
+        "MATCH_CONFIRMED_FOR_REVIEW": 1,
+        "CANDIDATE": 0,
+        "NOT_MATCHED": 0,
+        "INCONCLUSIVE": 7
+      }
+    }
+  },
+  "field_outcomes_by_label": {
+    "reuse": {
+      "agree": 99,
+      "conflict": 0,
+      "inconclusive": 23
+    },
+    "distinct": {
+      "agree": 15,
+      "conflict": 64,
+      "inconclusive": 26
+    },
+    "altered": {
+      "agree": 32,
+      "conflict": 20,
+      "inconclusive": 2
+    }
+  },
+  "alteration_suite": {
+    "dev": {
+      "pairs": 1,
+      "candidate": 1,
+      "not_matched": 0,
+      "inconclusive": 0,
+      "confirmed": 0,
+      "by_pair": {
+        "dev_p10": "CANDIDATE"
+      }
+    },
+    "dev_alt": {
+      "pairs": 4,
+      "candidate": 4,
+      "not_matched": 0,
+      "inconclusive": 0,
+      "confirmed": 0,
+      "by_pair": {
+        "dev_alt_p2": "CANDIDATE",
+        "dev_alt_p3": "CANDIDATE",
+        "dev_alt_p4": "CANDIDATE",
+        "dev_alt_p5": "CANDIDATE"
+      }
+    },
+    "heldout": {
+      "pairs": 1,
+      "candidate": 0,
+      "not_matched": 1,
+      "inconclusive": 0,
+      "confirmed": 0,
+      "by_pair": {
+        "ho_p13": "NOT_MATCHED"
+      }
+    },
+    "heldout2": {
+      "pairs": 1,
+      "candidate": 1,
+      "not_matched": 0,
+      "inconclusive": 0,
+      "confirmed": 0,
+      "by_pair": {
+        "h2_p11": "CANDIDATE"
+      }
+    },
+    "heldout_alt": {
+      "pairs": 4,
+      "candidate": 4,
+      "not_matched": 0,
+      "inconclusive": 0,
+      "confirmed": 0,
+      "by_pair": {
+        "heldout_alt_p2": "CANDIDATE",
+        "heldout_alt_p3": "CANDIDATE",
+        "heldout_alt_p4": "CANDIDATE",
+        "heldout_alt_p5": "CANDIDATE"
+      }
+    }
+  },
+  "campus_experiment": {
+    "dataset_version": "campus_ds_v1",
+    "method": "image_reuse_v1",
+    "thresholds": {
+      "version": "campus_thr_v1",
+      "min_inliers": 90,
+      "min_inlier_ratio": 0.5,
+      "min_coverage": 0.32
+    },
+    "synthetic": true,
+    "metrics": {
+      "campus_dev": {
+        "tp": 3,
+        "fp": 0,
+        "tn": 3,
+        "fn": 0,
+        "pairs": 6,
+        "inconclusive": 0
+      },
+      "campus_heldout": {
+        "tp": 2,
+        "fp": 0,
+        "tn": 3,
+        "fn": 1,
+        "pairs": 6,
+        "inconclusive": 0
+      }
+    },
+    "pairs": [
+      {
+        "pair": "campus_dev_pos1",
+        "split": "campus_dev",
+        "label": "same_image",
+        "recipe": "same image: crop \u22648%/side, hue +8, saturation \u00d70.8, brightness +20, JPEG q60",
+        "method": "image_reuse_v1",
+        "phash_distance": 22,
+        "keypoints_a": 988,
+        "keypoints_b": 876,
+        "tentative_matches": 241,
+        "inliers": 171,
+        "inlier_ratio": 0.7095,
+        "coverage": 0.4444,
+        "transform_scale": 0.9911,
+        "indicator": "POTENTIAL_IMAGE_REUSE",
+        "reason": "Geometrically consistent correspondences across much of the image."
+      },
+      {
+        "pair": "campus_dev_neg1",
+        "split": "campus_dev",
+        "label": "different_building",
+        "recipe": "different synthetic building, same generator style",
+        "method": "image_reuse_v1",
+        "phash_distance": 28,
+        "keypoints_a": 988,
+        "keypoints_b": 1016,
+        "tentative_matches": 29,
+        "inliers": 10,
+        "inlier_ratio": 0.3448,
+        "indicator": "NOT_INDICATED",
+        "coverage": 0.0,
+        "reason": "No plausible geometric transformation between the images."
+      },
+      {
+        "pair": "campus_dev_pos2",
+        "split": "campus_dev",
+        "label": "same_image",
+        "recipe": "same image: crop \u226415%/side, hue -12, saturation \u00d70.8, brightness +20, JPEG q60",
+        "method": "image_reuse_v1",
+        "phash_distance": 24,
+        "keypoints_a": 1260,
+        "keypoints_b": 1194,
+        "tentative_matches": 283,
+        "inliers": 223,
+        "inlier_ratio": 0.788,
+        "coverage": 0.4722,
+        "transform_scale": 0.9888,
+        "indicator": "POTENTIAL_IMAGE_REUSE",
+        "reason": "Geometrically consistent correspondences across much of the image."
+      },
+      {
+        "pair": "campus_dev_neg2",
+        "split": "campus_dev",
+        "label": "different_building",
+        "recipe": "different synthetic building, same generator style",
+        "method": "image_reuse_v1",
+        "phash_distance": 24,
+        "keypoints_a": 1260,
+        "keypoints_b": 1055,
+        "tentative_matches": 26,
+        "inliers": 7,
+        "inlier_ratio": 0.2692,
+        "indicator": "NOT_INDICATED",
+        "coverage": 0.0,
+        "reason": "No plausible geometric transformation between the images."
+      },
+      {
+        "pair": "campus_dev_pos3",
+        "split": "campus_dev",
+        "label": "same_image",
+        "recipe": "same image: crop \u22648%/side, hue +8, saturation \u00d70.8, brightness +20, JPEG q60",
+        "method": "image_reuse_v1",
+        "phash_distance": 10,
+        "keypoints_a": 879,
+        "keypoints_b": 846,
+        "tentative_matches": 231,
+        "inliers": 167,
+        "inlier_ratio": 0.7229,
+        "coverage": 0.4444,
+        "transform_scale": 1.0,
+        "indicator": "POTENTIAL_IMAGE_REUSE",
+        "reason": "Geometrically consistent correspondences across much of the image."
+      },
+      {
+        "pair": "campus_dev_neg3",
+        "split": "campus_dev",
+        "label": "different_building",
+        "recipe": "different synthetic building, same generator style",
+        "method": "image_reuse_v1",
+        "phash_distance": 32,
+        "keypoints_a": 879,
+        "keypoints_b": 1060,
+        "tentative_matches": 77,
+        "inliers": 13,
+        "inlier_ratio": 0.1688,
+        "coverage": 0.1944,
+        "transform_scale": 2.3065,
+        "indicator": "NOT_INDICATED",
+        "reason": "Correspondences do not meet the inlier, ratio and coverage thresholds."
+      },
+      {
+        "pair": "campus_heldout_pos1",
+        "split": "campus_heldout",
+        "label": "same_image",
+        "recipe": "same image: crop \u22648%/side, hue +8, saturation \u00d70.8, brightness +20, JPEG q60",
+        "method": "image_reuse_v1",
+        "phash_distance": 20,
+        "keypoints_a": 1570,
+        "keypoints_b": 1457,
+        "tentative_matches": 340,
+        "inliers": 200,
+        "inlier_ratio": 0.5882,
+        "coverage": 0.4444,
+        "transform_scale": 1.0022,
+        "indicator": "POTENTIAL_IMAGE_REUSE",
+        "reason": "Geometrically consistent correspondences across much of the image."
+      },
+      {
+        "pair": "campus_heldout_neg1",
+        "split": "campus_heldout",
+        "label": "different_building",
+        "recipe": "different synthetic building, same generator style",
+        "method": "image_reuse_v1",
+        "phash_distance": 34,
+        "keypoints_a": 1570,
+        "keypoints_b": 955,
+        "tentative_matches": 39,
+        "inliers": 10,
+        "inlier_ratio": 0.2564,
+        "coverage": 0.1389,
+        "transform_scale": 0.9107,
+        "indicator": "NOT_INDICATED",
+        "reason": "Correspondences do not meet the inlier, ratio and coverage thresholds."
+      },
+      {
+        "pair": "campus_heldout_pos2",
+        "split": "campus_heldout",
+        "label": "same_image",
+        "recipe": "same image: crop \u226415%/side, hue -12, saturation \u00d70.8, brightness +20, JPEG q60",
+        "method": "image_reuse_v1",
+        "phash_distance": 20,
+        "keypoints_a": 658,
+        "keypoints_b": 464,
+        "tentative_matches": 94,
+        "inliers": 64,
+        "inlier_ratio": 0.6809,
+        "coverage": 0.2778,
+        "transform_scale": 1.0132,
+        "indicator": "NOT_INDICATED",
+        "reason": "Correspondences do not meet the inlier, ratio and coverage thresholds."
+      },
+      {
+        "pair": "campus_heldout_neg2",
+        "split": "campus_heldout",
+        "label": "different_building",
+        "recipe": "different synthetic building, same generator style",
+        "method": "image_reuse_v1",
+        "phash_distance": 26,
+        "keypoints_a": 658,
+        "keypoints_b": 1512,
+        "tentative_matches": 20,
+        "inliers": 7,
+        "inlier_ratio": 0.35,
+        "coverage": 0.1111,
+        "transform_scale": 0.3222,
+        "indicator": "NOT_INDICATED",
+        "reason": "Correspondences do not meet the inlier, ratio and coverage thresholds."
+      },
+      {
+        "pair": "campus_heldout_pos3",
+        "split": "campus_heldout",
+        "label": "same_image",
+        "recipe": "same image: crop \u22648%/side, hue +8, saturation \u00d70.8, brightness +20, JPEG q60",
+        "method": "image_reuse_v1",
+        "phash_distance": 20,
+        "keypoints_a": 638,
+        "keypoints_b": 567,
+        "tentative_matches": 181,
+        "inliers": 167,
+        "inlier_ratio": 0.9227,
+        "coverage": 0.5556,
+        "transform_scale": 0.9974,
+        "indicator": "POTENTIAL_IMAGE_REUSE",
+        "reason": "Geometrically consistent correspondences across much of the image."
+      },
+      {
+        "pair": "campus_heldout_neg3",
+        "split": "campus_heldout",
+        "label": "different_building",
+        "recipe": "different synthetic building, same generator style",
+        "method": "image_reuse_v1",
+        "phash_distance": 28,
+        "keypoints_a": 638,
+        "keypoints_b": 902,
+        "tentative_matches": 28,
+        "inliers": 16,
+        "inlier_ratio": 0.5714,
+        "coverage": 0.1389,
+        "transform_scale": 0.9042,
+        "indicator": "NOT_INDICATED",
+        "reason": "Correspondences do not meet the inlier, ratio and coverage thresholds."
+      }
+    ],
+    "note": "Synthetic procedurally drawn facades, not real campus photographs. Advisory indicator only."
+  },
+  "physical_capture": {
+    "status": "BLOCKED",
+    "entries": 0,
+    "reason": "No real printed-and-photographed captures exist: no camera or printer was available. Use `python -m app.cli capture-kit --out DIR` to prepare them."
+  },
+  "fixture_manifest": [
+    {
+      "key": "d2_fire_photo",
+      "case": "DEV2-C02",
+      "category": "fire_safety_certificate",
+      "recipe": "simulated photograph: perspective \u00b16%, lighting gradient 25%, noise \u03c36, blur 3, JPEG q70",
+      "source": "d2_fire_src",
+      "text_layer": false,
+      "sha256": "d13c4afa40c6dac483adf9fd0eeafbdf1285228930eb2a4ac508bb209c3fc43d"
+    },
+    {
+      "key": "d2_fire_photo_strong",
+      "case": "DEV2-C03",
+      "category": "fire_safety_certificate",
+      "recipe": "simulated photograph (strong): perspective \u00b110%, lighting 40%, noise \u03c310, blur 5, JPEG q50",
+      "source": "d2_fire_src",
+      "text_layer": false,
+      "sha256": "104cd25685d7cd49911624319819b6ce5d28b0677fd6a7203195f955a562bbfe"
+    },
+    {
+      "key": "d2_fire_poor",
+      "case": "DEV2-C04",
+      "category": "fire_safety_certificate",
+      "recipe": "poor scan: 45 dpi, blur 7, noise \u03c322, contrast 0.6, JPEG q25",
+      "source": "d2_fire_src",
+      "text_layer": false,
+      "sha256": "aac9ae72462d7f0861cdea1ec82c947c98140057ca589ca09ec4b4e45c1ad7ae"
+    },
+    {
+      "key": "d2_fire_scan",
+      "case": "DEV2-C05",
+      "category": "fire_safety_certificate",
+      "recipe": "raster scan: rotate 0.8\u00b0, noise \u03c35, JPEG q65",
+      "source": "d2_fire_src",
+      "text_layer": false,
+      "sha256": "2789135a1b08fd63bcf79b9317d4375e5afb4f44fad94919efb3e39a948a15f2"
+    },
+    {
+      "key": "d2_fire_src",
+      "case": "DEV2-C01",
+      "category": "fire_safety_certificate",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "bf6a67aaeb976073aedd243cdd911164b8b53614a82de34945421ecf3e816eb3"
+    },
+    {
+      "key": "d2_fire_tmpl_photo",
+      "case": "DEV2-C06",
+      "category": "fire_safety_certificate",
+      "recipe": "simulated photograph of a same-template certificate for a different institution",
+      "source": null,
+      "text_layer": false,
+      "sha256": "90e73499aa0876a568310581775cbcedcb73dd256638e572f3d2773281b89182"
+    },
+    {
+      "key": "dev_alt_alt1",
+      "case": "DEV_ALT-C03",
+      "category": "other",
+      "recipe": "one field altered: certificate number",
+      "source": "dev_alt_src",
+      "text_layer": true,
+      "sha256": "ee629246b8ed77dc84d031af09d572b30a851cdbdb539f662e8160575616dbb9"
+    },
+    {
+      "key": "dev_alt_alt2",
+      "case": "DEV_ALT-C04",
+      "category": "other",
+      "recipe": "two fields altered: institution name and address",
+      "source": "dev_alt_src",
+      "text_layer": true,
+      "sha256": "a2cf20ed84777e9f62da8c35a5133513d944f7b7c0a57c75ac777045aaaa3554"
+    },
+    {
+      "key": "dev_alt_alt2_scan",
+      "case": "DEV_ALT-C06",
+      "category": "other",
+      "recipe": "raster scan of the two-field alteration (no text layer)",
+      "source": "dev_alt_src",
+      "text_layer": false,
+      "sha256": "b38e4d41ca29cc3ccdafc13926c3dd747affe2f3f1799128178a69987278ba67"
+    },
+    {
+      "key": "dev_alt_alt3",
+      "case": "DEV_ALT-C05",
+      "category": "other",
+      "recipe": "three fields altered: certificate number, issue date, valid until",
+      "source": "dev_alt_src",
+      "text_layer": true,
+      "sha256": "649ebc26f8d72fe761c37fb13d993f56b766ba2f5576b0024d8c407f6723af3c"
+    },
+    {
+      "key": "dev_alt_poor",
+      "case": "DEV_ALT-C08",
+      "category": "other",
+      "recipe": "poor scan of the source",
+      "source": "dev_alt_src",
+      "text_layer": false,
+      "sha256": "93ed0496dd14697a91d0df35823a26348f48c6ad1335b496dc516a028c3f552e"
+    },
+    {
+      "key": "dev_alt_src",
+      "case": "DEV_ALT-C01",
+      "category": "other",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "2309c7c86b39631bdbd40c924e9ef5161056f072eebbf1678a49b33e4854017e"
+    },
+    {
+      "key": "dev_alt_tmpl",
+      "case": "DEV_ALT-C07",
+      "category": "other",
+      "recipe": "same template, different underlying document (all critical fields differ)",
+      "source": null,
+      "text_layer": true,
+      "sha256": "122c0716fd609d3eced27b63b164a47ec17de7c7a22e99075c96da52c1612693"
+    },
+    {
+      "key": "dev_alt_vec",
+      "case": "DEV_ALT-C02",
+      "category": "other",
+      "recipe": "benign copy: vector rescale 0.8",
+      "source": "dev_alt_src",
+      "text_layer": true,
+      "sha256": "73d7195cc3b6e76e8f9b006c91c67be18cf380f1676f57f30e4d3f5a2fc7fcb9"
+    },
+    {
+      "key": "dev_blank_a",
+      "case": "DEV-C12",
+      "category": "other",
+      "recipe": "near-blank image-only page",
+      "source": null,
+      "text_layer": false,
+      "sha256": "60a3f118997134e84e4cfb0af81f256a58f1f9af0e304a40e4c213b1fdda0178"
+    },
+    {
+      "key": "dev_blank_b",
+      "case": "DEV-C13",
+      "category": "other",
+      "recipe": "near-blank image-only page",
+      "source": null,
+      "text_layer": false,
+      "sha256": "239d567ded81cf333db8be985628df9d4f6258ec0aee959eaa83bf585d14613a"
+    },
+    {
+      "key": "dev_fire_alter",
+      "case": "DEV-C09",
+      "category": "fire_safety_certificate",
+      "recipe": "dev_fire_src with certificate number changed (controlled alteration)",
+      "source": "dev_fire_src",
+      "text_layer": true,
+      "sha256": "a19582eeb1617c3ec04c7672642a8ffda348a4989daf0cc91347ecd9f80fd622"
+    },
+    {
+      "key": "dev_fire_crop",
+      "case": "DEV-C06",
+      "category": "fire_safety_certificate",
+      "recipe": "raster: crop 5%, brightness +18, contrast 0.85, JPEG q70 (no text layer)",
+      "source": "dev_fire_src",
+      "text_layer": false,
+      "sha256": "6f48633ffecc076fe531e5f341709d3006fdd762657a9b6fe642dae6827f8c50"
+    },
+    {
+      "key": "dev_fire_exact",
+      "case": "DEV-C02",
+      "category": "fire_safety_certificate",
+      "recipe": "byte copy of dev_fire_src",
+      "source": "dev_fire_src",
+      "text_layer": true,
+      "sha256": "96651943bb2ee90fc8082838710d75a2acefe211a6390ea898d103a0ef1e9084"
+    },
+    {
+      "key": "dev_fire_meta",
+      "case": "DEV-C03",
+      "category": "fire_safety_certificate",
+      "recipe": "metadata changed + re-saved",
+      "source": "dev_fire_src",
+      "text_layer": true,
+      "sha256": "1ca5001a4ab83bcaac2b1b58e6bc385ed5eff16a7afd9f78f1c4d70e6a42bb26"
+    },
+    {
+      "key": "dev_fire_renew",
+      "case": "DEV-C08",
+      "category": "fire_safety_certificate",
+      "recipe": "same issuer layout and institution, earlier certificate (different number/dates)",
+      "source": null,
+      "text_layer": true,
+      "sha256": "83c364d490ab00f871ecb34378b1ed2273526a5cec44a6548f2c36d195c9cecc"
+    },
+    {
+      "key": "dev_fire_scan",
+      "case": "DEV-C05",
+      "category": "fire_safety_certificate",
+      "recipe": "raster scan: rotate 1.2\u00b0, scale 0.8, noise \u03c36, JPEG q55 (no text layer)",
+      "source": "dev_fire_src",
+      "text_layer": false,
+      "sha256": "e85e56a10850a2fb3e32e3698dc19cf393d9107d888b1c7784624e6ab7af9b57"
+    },
+    {
+      "key": "dev_fire_src",
+      "case": "DEV-C01",
+      "category": "fire_safety_certificate",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "96651943bb2ee90fc8082838710d75a2acefe211a6390ea898d103a0ef1e9084"
+    },
+    {
+      "key": "dev_fire_tmpl",
+      "case": "DEV-C07",
+      "category": "fire_safety_certificate",
+      "recipe": "same template, different institution/number/dates",
+      "source": null,
+      "text_layer": true,
+      "sha256": "79bd4550a705cd05d363485142f94e1e93238077fef9d80f13d37ab955a3fe38"
+    },
+    {
+      "key": "dev_fire_vec",
+      "case": "DEV-C04",
+      "category": "fire_safety_certificate",
+      "recipe": "vector copy: scaled 0.82, rotated 90\u00b0",
+      "source": "dev_fire_src",
+      "text_layer": true,
+      "sha256": "7c143c4ed10a0a90378f27d41b3c6d34ed0c8cec7faddc2e7ebb364e24dba972"
+    },
+    {
+      "key": "dev_letter",
+      "case": "DEV-C10",
+      "category": "other",
+      "recipe": "same frame and seal as the fire layout, unrelated body",
+      "source": null,
+      "text_layer": true,
+      "sha256": "9bfb57e36daba44009cc61f658789632ef755f60c0f3e267a8f2e8dd15ce725b"
+    },
+    {
+      "key": "dev_occ",
+      "case": "DEV-C11",
+      "category": "occupancy_certificate",
+      "recipe": "different document type, same institution",
+      "source": null,
+      "text_layer": true,
+      "sha256": "7146c61e228a48391807a5929a5bcfe2a4828329fc1c66735551778b47348bfc"
+    },
+    {
+      "key": "h2_blank",
+      "case": "HO2-C13",
+      "category": "other",
+      "recipe": "near-blank image-only page",
+      "source": null,
+      "text_layer": false,
+      "sha256": "bd6419836401580985813ccaa849f594ad706605c836f485c31fb991521ca2bb"
+    },
+    {
+      "key": "h2_letter",
+      "case": "HO2-C11",
+      "category": "other",
+      "recipe": "same frame and seal as the occupancy layout, unrelated body",
+      "source": null,
+      "text_layer": true,
+      "sha256": "8924b53b5478ff45b3f33aefb690dcff6fb40e437fe4252aaf6bfee3929c76f6"
+    },
+    {
+      "key": "h2_noc",
+      "case": "HO2-C12",
+      "category": "university_noc",
+      "recipe": "different document, same institution",
+      "source": null,
+      "text_layer": true,
+      "sha256": "024e1e44a9f6c17111dd68f99da16c49b1c2adc13f21254334c1ab74242aaf53"
+    },
+    {
+      "key": "h2_occ_alter",
+      "case": "HO2-C10",
+      "category": "occupancy_certificate",
+      "recipe": "h2_occ_src with certificate number changed",
+      "source": "h2_occ_src",
+      "text_layer": true,
+      "sha256": "adb2a6c294434fd66cd52a2cae75ae03cd1bcc4b4103a9603a18d83e8e13db46"
+    },
+    {
+      "key": "h2_occ_exact",
+      "case": "HO2-C02",
+      "category": "occupancy_certificate",
+      "recipe": "byte copy of h2_occ_src",
+      "source": "h2_occ_src",
+      "text_layer": true,
+      "sha256": "57cc6228484ffc1cd6a2304995b72f33610b2a2447b9aa64fe11342d91991171"
+    },
+    {
+      "key": "h2_occ_meta",
+      "case": "HO2-C03",
+      "category": "occupancy_certificate",
+      "recipe": "metadata changed + re-saved",
+      "source": "h2_occ_src",
+      "text_layer": true,
+      "sha256": "dca8a1544d331b953396f702576a3e0cb9abd2b8400b33a5134dc5afa50a314b"
+    },
+    {
+      "key": "h2_occ_old",
+      "case": "HO2-C09",
+      "category": "occupancy_certificate",
+      "recipe": "same issuer layout and institution, earlier certificate",
+      "source": null,
+      "text_layer": true,
+      "sha256": "1d7f44d79e7a5ed56545bdc3cac6a39b581a2ff67399000eec898a939b207606"
+    },
+    {
+      "key": "h2_occ_photo",
+      "case": "HO2-C04",
+      "category": "occupancy_certificate",
+      "recipe": "simulated photograph: perspective \u00b17%, lighting 25%, noise \u03c36, blur 3, JPEG q70",
+      "source": "h2_occ_src",
+      "text_layer": false,
+      "sha256": "ee4d126b0c754f9ea80ddcff6d4b434eef01c31554618533568e3ee795403bb8"
+    },
+    {
+      "key": "h2_occ_poor",
+      "case": "HO2-C07",
+      "category": "occupancy_certificate",
+      "recipe": "poor scan",
+      "source": "h2_occ_src",
+      "text_layer": false,
+      "sha256": "b9906ec02bb7c2cf7f42b889efb173633cd60983d405f9550f5d34e85e8bbcbc"
+    },
+    {
+      "key": "h2_occ_rot",
+      "case": "HO2-C06",
+      "category": "occupancy_certificate",
+      "recipe": "raster rotated 270\u00b0, JPEG q60",
+      "source": "h2_occ_src",
+      "text_layer": false,
+      "sha256": "f69b232be622e2dc976398700e5aa9dc0860e7d1675d780529c4d690901b9b15"
+    },
+    {
+      "key": "h2_occ_scan",
+      "case": "HO2-C05",
+      "category": "occupancy_certificate",
+      "recipe": "raster scan: rotate 1.5\u00b0, scale 0.85, noise \u03c37, JPEG q55",
+      "source": "h2_occ_src",
+      "text_layer": false,
+      "sha256": "11eeee7a6a37778fee098a5c4e439cad4f7769d6360786181264c84a7fe08ee4"
+    },
+    {
+      "key": "h2_occ_src",
+      "case": "HO2-C01",
+      "category": "occupancy_certificate",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "57cc6228484ffc1cd6a2304995b72f33610b2a2447b9aa64fe11342d91991171"
+    },
+    {
+      "key": "h2_occ_tmpl",
+      "case": "HO2-C08",
+      "category": "occupancy_certificate",
+      "recipe": "same template, different institution/number/date",
+      "source": null,
+      "text_layer": true,
+      "sha256": "46aae0dd2aeae74341c010ab9558a99e36c331beae145097a9ad7cf43a2d08f0"
+    },
+    {
+      "key": "heldout_alt_alt1",
+      "case": "HELDOUT_ALT-C03",
+      "category": "other",
+      "recipe": "one field altered: certificate number",
+      "source": "heldout_alt_src",
+      "text_layer": true,
+      "sha256": "b5ebf50382ab5a4a5979a2ffc291064c236e0ffe7f2957e3b22d98d90d0d632f"
+    },
+    {
+      "key": "heldout_alt_alt2",
+      "case": "HELDOUT_ALT-C04",
+      "category": "other",
+      "recipe": "two fields altered: institution name and address",
+      "source": "heldout_alt_src",
+      "text_layer": true,
+      "sha256": "d3c9d37261c70a0f22ef8b96761b34b893993bf4247bc9318fb8b085ea14a754"
+    },
+    {
+      "key": "heldout_alt_alt2_scan",
+      "case": "HELDOUT_ALT-C06",
+      "category": "other",
+      "recipe": "raster scan of the two-field alteration (no text layer)",
+      "source": "heldout_alt_src",
+      "text_layer": false,
+      "sha256": "20f2822fd603f586b86a884e573002e8b71fb97ea5f9bf5f6a5984497c181422"
+    },
+    {
+      "key": "heldout_alt_alt3",
+      "case": "HELDOUT_ALT-C05",
+      "category": "other",
+      "recipe": "three fields altered: certificate number, issue date, valid until",
+      "source": "heldout_alt_src",
+      "text_layer": true,
+      "sha256": "90e71e4b9d007032e87a398e98b7bf261ae7c79e28c10c36d2ea64a3cf6b4eef"
+    },
+    {
+      "key": "heldout_alt_poor",
+      "case": "HELDOUT_ALT-C08",
+      "category": "other",
+      "recipe": "poor scan of the source",
+      "source": "heldout_alt_src",
+      "text_layer": false,
+      "sha256": "b232fb4741ef58a3cc97e4c19623bf3a5e9d0148ab21541bc7c9c1eda8f454da"
+    },
+    {
+      "key": "heldout_alt_src",
+      "case": "HELDOUT_ALT-C01",
+      "category": "other",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "178b309e5c11e3ac90eb4086b3fd78e81909b5f99acd39aba120721f340a8e03"
+    },
+    {
+      "key": "heldout_alt_tmpl",
+      "case": "HELDOUT_ALT-C07",
+      "category": "other",
+      "recipe": "same template, different underlying document (all critical fields differ)",
+      "source": null,
+      "text_layer": true,
+      "sha256": "b2ae2ba38f0a3f6a797528e94c4561eea6d0bfe260a407ebf7acc60e1902120f"
+    },
+    {
+      "key": "heldout_alt_vec",
+      "case": "HELDOUT_ALT-C02",
+      "category": "other",
+      "recipe": "benign copy: vector rescale 0.8",
+      "source": "heldout_alt_src",
+      "text_layer": true,
+      "sha256": "6279929f4631adbf5d30a07c01266f84ce0032a8a19fa1b0a95fccd408b70487"
+    },
+    {
+      "key": "ho_blank",
+      "case": "HO-C15",
+      "category": "other",
+      "recipe": "near-blank image-only page",
+      "source": null,
+      "text_layer": false,
+      "sha256": "123ddebf73303d6b8163cd346c89bdd2aa64b62fde3b9fe0c2b04c36184e18a6"
+    },
+    {
+      "key": "ho_fire",
+      "case": "HO-C13",
+      "category": "fire_safety_certificate",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "f566b40df176779daf2fabb97f776f0de23d7f76f096ecc6b7578b9ff89462e9"
+    },
+    {
+      "key": "ho_letter",
+      "case": "HO-C12",
+      "category": "other",
+      "recipe": "same frame and seal as the Konkan fire layout, unrelated body",
+      "source": null,
+      "text_layer": true,
+      "sha256": "26479532ff8e5a5546c7bab9da9151bc50952631917ec1ceb088898f1e149253"
+    },
+    {
+      "key": "ho_noc_meta",
+      "case": "HO-C08",
+      "category": "university_noc",
+      "recipe": "metadata changed + re-saved",
+      "source": "ho_noc_src",
+      "text_layer": true,
+      "sha256": "72697cb2d2f52af8a1eddeba9f14e1f7180cf0c3898b67565ea6f7542ecc5989"
+    },
+    {
+      "key": "ho_noc_old",
+      "case": "HO-C11",
+      "category": "university_noc",
+      "recipe": "same issuer layout and institution, earlier NOC (different number/date)",
+      "source": null,
+      "text_layer": true,
+      "sha256": "db1d9b6e85cbcb6e7e9bf364c3b49465faa9a0a527bf5a358941384e1650b71c"
+    },
+    {
+      "key": "ho_noc_scan",
+      "case": "HO-C09",
+      "category": "university_noc",
+      "recipe": "raster: crop 3%, brightness \u221220, contrast 1.2, JPEG q50 (no text layer)",
+      "source": "ho_noc_src",
+      "text_layer": false,
+      "sha256": "2610ea3468e7660824df3c7c078bdaae0f708cf96659a02416f02548c5dcc3ac"
+    },
+    {
+      "key": "ho_noc_src",
+      "case": "HO-C07",
+      "category": "university_noc",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "495956de1ed5b34ec990548fffc07a91a4a25cf58f83a9ff56b547363920e5b5"
+    },
+    {
+      "key": "ho_ssc_alter",
+      "case": "HO-C14",
+      "category": "structural_stability_certificate",
+      "recipe": "ho_ssc_src with issue/valid dates changed (controlled alteration)",
+      "source": "ho_ssc_src",
+      "text_layer": true,
+      "sha256": "d6f95613f0c26de9de44f976dc7122237df859a89e30fc6035a45c3511305073"
+    },
+    {
+      "key": "ho_ssc_exact",
+      "case": "HO-C02",
+      "category": "structural_stability_certificate",
+      "recipe": "byte copy of ho_ssc_src",
+      "source": "ho_ssc_src",
+      "text_layer": true,
+      "sha256": "e8bd0a33357467a230ecc089d62403ce3196316f60a1f80c9a0a8ad4d5a0e7f2"
+    },
+    {
+      "key": "ho_ssc_rot",
+      "case": "HO-C06",
+      "category": "structural_stability_certificate",
+      "recipe": "raster: rotated 90\u00b0, JPEG q60 (no text layer)",
+      "source": "ho_ssc_src",
+      "text_layer": false,
+      "sha256": "e21b8c2ef5a4a072ce7b2a521ac0889820f59b633dd363908cde7992b26124f1"
+    },
+    {
+      "key": "ho_ssc_scan",
+      "case": "HO-C05",
+      "category": "structural_stability_certificate",
+      "recipe": "raster scan: rotate \u22122\u00b0, scale 0.75, noise \u03c39, blur 3, JPEG q45 (no text layer)",
+      "source": "ho_ssc_src",
+      "text_layer": false,
+      "sha256": "c047fbd0efba710bfade8e8e3146111e6ef38e0f3dc847e214f10968b4c23a5e"
+    },
+    {
+      "key": "ho_ssc_src",
+      "case": "HO-C01",
+      "category": "structural_stability_certificate",
+      "recipe": "source",
+      "source": null,
+      "text_layer": true,
+      "sha256": "e8bd0a33357467a230ecc089d62403ce3196316f60a1f80c9a0a8ad4d5a0e7f2"
+    },
+    {
+      "key": "ho_ssc_tmpl",
+      "case": "HO-C10",
+      "category": "structural_stability_certificate",
+      "recipe": "same template, different institution/number/dates",
+      "source": null,
+      "text_layer": true,
+      "sha256": "ea45d04858989e6aa29bb74e3389b412367ce1e9c609f841fb964d54dbae1810"
+    },
+    {
+      "key": "ho_ssc_vcrop",
+      "case": "HO-C04",
+      "category": "structural_stability_certificate",
+      "recipe": "vector copy: crop box 4% margins",
+      "source": "ho_ssc_src",
+      "text_layer": true,
+      "sha256": "5b7fdf9594478c53c4db69b2e16ca7954cacc7749a43e668185d41fc951e2bbc"
+    },
+    {
+      "key": "ho_ssc_vec",
+      "case": "HO-C03",
+      "category": "structural_stability_certificate",
+      "recipe": "vector copy: scaled 0.7",
+      "source": "ho_ssc_src",
+      "text_layer": true,
+      "sha256": "3d7ba695d7901120f1edc7b659e7d3f15405521d3a584e76bd4967f98ae047d2"
+    }
+  ],
+  "latency": {
+    "a4_per_pair_ms_median": 836.9,
+    "a4_per_pair_ms_max": 30738.3,
+    "document_preparation_ms_total": 234059.4,
+    "note": "A4 per-pair latency includes text extraction/OCR of both documents (not cached in evaluation)."
+  },
+  "environment": {
+    "ocr_available": true,
+    "opencv_version": "5.0.0",
+    "ocr_engine": "rapidocr",
+    "ocr_engine_version": "rapidocr-onnxruntime 1.2.3, onnxruntime 1.31.0",
+    "unavailable_stages": [],
+    "split_notes": {
+      "dev": "development (thresholds v1\u2013v2 selected here)",
+      "dev2": "development additions for OCR/photo checks (v3)",
+      "heldout": "held-out v1 \u2014 inspected during v2 debugging; not pristine",
+      "heldout2": "held-out v2 \u2014 evaluated in D8 after v3 was frozen; now inspected",
+      "dev_alt": "alteration suite, development (v4 rule developed here)",
+      "heldout_alt": "alteration suite, held-out \u2014 evaluated once after v4 was frozen"
+    }
+  },
+  "pairs": [
+    {
+      "pair": "dev_p01",
+      "split": "dev",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "exact duplicate across cases",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_exact",
+      "recipe_a": "source",
+      "recipe_b": "byte copy of dev_fire_src",
+      "transform": "exact_copy",
+      "quality": "clean",
+      "A0": {
+        "positive": true,
+        "latency_ms": 0.002
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 48.48
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 37.1,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": null,
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Rule: identical file bytes (SHA-256)."
+        ],
+        "uncertainties": [
+          "Byte identity says nothing about authenticity or intent."
+        ],
+        "rule": "identical file bytes (SHA-256).",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p02",
+      "split": "dev",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "metadata-only change",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_meta",
+      "recipe_a": "source",
+      "recipe_b": "metadata changed + re-saved",
+      "transform": "metadata_resave",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.002
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 14.41
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 1182.2,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2956,
+        "geo_coverage": 0.6842,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2956 inliers of 2956 matches, coverage 0.6842.",
+          "Localized visual differences in 0 of 82 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p03",
+      "split": "dev",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "vector rescale + rotation",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_vec",
+      "recipe_a": "source",
+      "recipe_b": "vector copy: scaled 0.82, rotated 90\u00b0",
+      "transform": "vector_rescale_rotate",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 12.31
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 836.9,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 1163,
+        "geo_coverage": 0.6316,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 0/64 (page 1 vs 1, B rotated 270\u00b0).",
+          "Geometric verification verified: 1163 inliers of 1392 matches, coverage 0.6316.",
+          "Localized visual differences in 0 of 82 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p04",
+      "split": "dev",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "scan-like raster copy",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_scan",
+      "recipe_a": "source",
+      "recipe_b": "raster scan: rotate 1.2\u00b0, scale 0.8, noise \u03c36, JPEG q55 (no text layer)",
+      "transform": "raster_scan",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 15.63
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 10760.4,
+        "text_jaccard": 0.9224,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "verified",
+        "geo_inliers": 436,
+        "geo_coverage": 0.5789,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9224, containment 0.9628.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification verified: 436 inliers of 557 matches, coverage 0.5789.",
+          "Localized visual differences in 0 of 82 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p05",
+      "split": "dev",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "cropped, brightness/contrast raster",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_crop",
+      "recipe_a": "source",
+      "recipe_b": "raster: crop 5%, brightness +18, contrast 0.85, JPEG q70 (no text layer)",
+      "transform": "raster_crop_brightness",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 12,
+        "latency_ms": 14.38
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 9270.0,
+        "text_jaccard": 0.8795,
+        "text_status": "computed",
+        "phash_distance": 12,
+        "geo_status": "verified",
+        "geo_inliers": 778,
+        "geo_coverage": 0.5789,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8795, containment 0.9584.",
+          "Best page pHash distance 12/64 (page 1 vs 1).",
+          "Geometric verification verified: 778 inliers of 976 matches, coverage 0.5789.",
+          "Localized visual differences in 0 of 38 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p06",
+      "split": "dev",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same template, different institution",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_tmpl",
+      "recipe_a": "source",
+      "recipe_b": "same template, different institution/number/dates",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 4,
+        "latency_ms": 12.21
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 584.4,
+        "text_jaccard": 0.651,
+        "text_status": "computed",
+        "phash_distance": 4,
+        "geo_status": "verified",
+        "geo_inliers": 2084,
+        "geo_coverage": 0.6842,
+        "diff_cells": 17,
+        "fields": {
+          "agree": 0,
+          "conflict": 5,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.651, containment 0.7895.",
+          "Best page pHash distance 4/64 (page 1 vs 1).",
+          "Geometric verification verified: 2084 inliers of 2213 matches, coverage 0.6842.",
+          "Localized visual differences in 17 of 82 content cells after alignment.",
+          "5 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 17,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p07",
+      "split": "dev",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same issuer layout, different number/date",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_renew",
+      "recipe_a": "source",
+      "recipe_b": "same issuer layout and institution, earlier certificate (different number/dates)",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 12.07
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 525.9,
+        "text_jaccard": 0.863,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 2598,
+        "geo_coverage": 0.6842,
+        "diff_cells": 7,
+        "fields": {
+          "agree": 2,
+          "conflict": 3,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.863, containment 0.9295.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 2598 inliers of 2684 matches, coverage 0.6842.",
+          "Localized visual differences in 7 of 82 content cells after alignment.",
+          "3 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (7 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date, valid until differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [],
+        "rule": "aligned pages differ only at critical-field evidence (7 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date, valid until differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 7,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p08",
+      "split": "dev",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "similar logo/border, unrelated body",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_letter",
+      "recipe_a": "source",
+      "recipe_b": "same frame and seal as the fire layout, unrelated body",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 18,
+        "latency_ms": 12.75
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 2060.1,
+        "text_jaccard": 0.2637,
+        "text_status": "computed",
+        "phash_distance": 18,
+        "geo_status": "not_verified",
+        "geo_inliers": 33,
+        "geo_coverage": 0.2632,
+        "diff_cells": 37,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 5
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.2637, containment 0.4985.",
+          "Best page pHash distance 18/64 (page 1 vs 1).",
+          "Geometric verification not verified: 33 inliers of 280 matches, coverage 0.2632.",
+          "Rule: readable body text differs; any visual similarity is limited to layout elements."
+        ],
+        "uncertainties": [
+          "5 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "readable body text differs; any visual similarity is limited to layout elements.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p09",
+      "split": "dev",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "two documents of the same institution",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_occ",
+      "recipe_a": "source",
+      "recipe_b": "different document type, same institution",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 12.66
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 678.0,
+        "text_jaccard": 0.4421,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "not_verified",
+        "geo_inliers": 1042,
+        "geo_coverage": 0.4737,
+        "diff_cells": 23,
+        "fields": {
+          "agree": 2,
+          "conflict": 2,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.4421, containment 0.6449.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification not verified: 1042 inliers of 1546 matches, coverage 0.4737.",
+          "2 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p10",
+      "split": "dev",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "critical-field alteration",
+      "hero": false,
+      "a": "dev_fire_src",
+      "b": "dev_fire_alter",
+      "recipe_a": "source",
+      "recipe_b": "dev_fire_src with certificate number changed (controlled alteration)",
+      "transform": "field_alteration",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 13.44
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 559.8,
+        "text_jaccard": 0.9741,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2903,
+        "geo_coverage": 0.6842,
+        "diff_cells": 1,
+        "fields": {
+          "agree": 4,
+          "conflict": 1,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9741, containment 0.9869.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2903 inliers of 2905 matches, coverage 0.6842.",
+          "Localized visual differences in 1 of 82 content cells after alignment.",
+          "1 critical field(s) conflict.",
+          "4 critical field(s) agree.",
+          "Rule: shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review."
+        ],
+        "uncertainties": [],
+        "rule": "shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review.",
+        "regions_on_fields": 1,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p11",
+      "split": "dev",
+      "label": "distinct",
+      "hard_negative": false,
+      "scenario": "two near-blank unreadable pages",
+      "hero": false,
+      "a": "dev_blank_a",
+      "b": "dev_blank_b",
+      "recipe_a": "near-blank image-only page",
+      "recipe_b": "near-blank image-only page",
+      "transform": "different_document",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.0
+      },
+      "A1": {
+        "positive": false,
+        "distance": null,
+        "latency_ms": 58.32
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "INCONCLUSIVE",
+        "latency_ms": 30738.3,
+        "text_jaccard": null,
+        "text_status": "unavailable",
+        "phash_distance": null,
+        "geo_status": "inconclusive",
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Rule: neither text nor page images could be compared."
+        ],
+        "uncertainties": [
+          "Text of document A could not be read (processing failed, e.g. image-only pages without OCR). Text of document B could not be read (processing failed, e.g. image-only pages without OCR).",
+          "No page with enough visible content to compare.",
+          "No renderable page pair to verify."
+        ],
+        "rule": "neither text nor page images could be compared.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_p12",
+      "split": "dev",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "raster copy vs same-template negative",
+      "hero": false,
+      "a": "dev_fire_scan",
+      "b": "dev_fire_tmpl",
+      "recipe_a": "raster scan: rotate 1.2\u00b0, scale 0.8, noise \u03c36, JPEG q55 (no text layer)",
+      "recipe_b": "same template, different institution/number/dates",
+      "transform": "different_document",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 10,
+        "latency_ms": 0.02
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 10792.6,
+        "text_jaccard": 0.5986,
+        "text_status": "computed",
+        "phash_distance": 10,
+        "geo_status": "not_verified",
+        "geo_inliers": 371,
+        "geo_coverage": 0.4,
+        "diff_cells": 16,
+        "fields": {
+          "agree": 0,
+          "conflict": 5,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.5986, containment 0.7522.",
+          "Best page pHash distance 10/64 (page 1 vs 1).",
+          "Geometric verification not verified: 371 inliers of 454 matches, coverage 0.4.",
+          "5 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p01",
+      "split": "heldout",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "exact duplicate across cases",
+      "hero": false,
+      "a": "ho_ssc_src",
+      "b": "ho_ssc_exact",
+      "recipe_a": "source",
+      "recipe_b": "byte copy of ho_ssc_src",
+      "transform": "exact_copy",
+      "quality": "clean",
+      "A0": {
+        "positive": true,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 22.95
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 26.7,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": null,
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Rule: identical file bytes (SHA-256)."
+        ],
+        "uncertainties": [
+          "Byte identity says nothing about authenticity or intent."
+        ],
+        "rule": "identical file bytes (SHA-256).",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p02",
+      "split": "heldout",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "vector rescale",
+      "hero": true,
+      "a": "ho_ssc_src",
+      "b": "ho_ssc_vec",
+      "recipe_a": "source",
+      "recipe_b": "vector copy: scaled 0.7",
+      "transform": "vector_rescale",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 9.42
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 768.4,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 845,
+        "geo_coverage": 0.6667,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 845 inliers of 1045 matches, coverage 0.6667.",
+          "Localized visual differences in 0 of 86 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p03",
+      "split": "heldout",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "vector crop",
+      "hero": false,
+      "a": "ho_ssc_src",
+      "b": "ho_ssc_vcrop",
+      "recipe_a": "source",
+      "recipe_b": "vector copy: crop box 4% margins",
+      "transform": "vector_crop",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.002
+      },
+      "A1": {
+        "positive": false,
+        "distance": 4,
+        "latency_ms": 12.71
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 1098.1,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 4,
+        "geo_status": "verified",
+        "geo_inliers": 790,
+        "geo_coverage": 0.6667,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 4/64 (page 1 vs 1).",
+          "Geometric verification verified: 790 inliers of 1001 matches, coverage 0.6667.",
+          "Localized visual differences in 0 of 42 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p04",
+      "split": "heldout",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "scan-like raster copy",
+      "hero": false,
+      "a": "ho_ssc_src",
+      "b": "ho_ssc_scan",
+      "recipe_a": "source",
+      "recipe_b": "raster scan: rotate \u22122\u00b0, scale 0.75, noise \u03c39, blur 3, JPEG q45 (no text layer)",
+      "transform": "raster_scan",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 14.63
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 8061.1,
+        "text_jaccard": 0.8024,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "verified",
+        "geo_inliers": 306,
+        "geo_coverage": 0.619,
+        "diff_cells": 3,
+        "fields": {
+          "agree": 4,
+          "conflict": 0,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8024, containment 0.9062.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification verified: 306 inliers of 375 matches, coverage 0.619.",
+          "Localized visual differences in 3 of 86 content cells after alignment.",
+          "4 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 1,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p05",
+      "split": "heldout",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "raster rotated 90\u00b0",
+      "hero": false,
+      "a": "ho_ssc_src",
+      "b": "ho_ssc_rot",
+      "recipe_a": "source",
+      "recipe_b": "raster: rotated 90\u00b0, JPEG q60 (no text layer)",
+      "transform": "raster_rotate90",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 10.88
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 5590.5,
+        "text_jaccard": 0.8289,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 922,
+        "geo_coverage": 0.7143,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8289, containment 0.9085.",
+          "Best page pHash distance 0/64 (page 1 vs 1, B rotated 270\u00b0).",
+          "Geometric verification verified: 922 inliers of 1069 matches, coverage 0.7143.",
+          "Localized visual differences in 0 of 86 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p06",
+      "split": "heldout",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "metadata-only change",
+      "hero": false,
+      "a": "ho_noc_src",
+      "b": "ho_noc_meta",
+      "recipe_a": "source",
+      "recipe_b": "metadata changed + re-saved",
+      "transform": "metadata_resave",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 23.83
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 514.9,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2989,
+        "geo_coverage": 0.7895,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 4,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2989 inliers of 2989 matches, coverage 0.7895.",
+          "Localized visual differences in 0 of 84 content cells after alignment.",
+          "4 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p07",
+      "split": "heldout",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "cropped, brightness/contrast raster",
+      "hero": false,
+      "a": "ho_noc_src",
+      "b": "ho_noc_scan",
+      "recipe_a": "source",
+      "recipe_b": "raster: crop 3%, brightness \u221220, contrast 1.2, JPEG q50 (no text layer)",
+      "transform": "raster_crop_brightness",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 10,
+        "latency_ms": 18.19
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 9945.5,
+        "text_jaccard": 0.8939,
+        "text_status": "computed",
+        "phash_distance": 10,
+        "geo_status": "verified",
+        "geo_inliers": 642,
+        "geo_coverage": 0.6842,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 3,
+          "conflict": 0,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8939, containment 0.9494.",
+          "Best page pHash distance 10/64 (page 1 vs 1).",
+          "Geometric verification verified: 642 inliers of 789 matches, coverage 0.6842.",
+          "Localized visual differences in 0 of 80 content cells after alignment.",
+          "3 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p08",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same template, different institution",
+      "hero": true,
+      "a": "ho_ssc_src",
+      "b": "ho_ssc_tmpl",
+      "recipe_a": "source",
+      "recipe_b": "same template, different institution/number/dates",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 16.28
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 754.8,
+        "text_jaccard": 0.6562,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2113,
+        "geo_coverage": 0.7143,
+        "diff_cells": 22,
+        "fields": {
+          "agree": 0,
+          "conflict": 5,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.6562, containment 0.7969.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2113 inliers of 2287 matches, coverage 0.7143.",
+          "Localized visual differences in 22 of 86 content cells after alignment.",
+          "5 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 22,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p09",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same issuer layout, different number/date",
+      "hero": false,
+      "a": "ho_noc_src",
+      "b": "ho_noc_old",
+      "recipe_a": "source",
+      "recipe_b": "same issuer layout and institution, earlier NOC (different number/date)",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 17.85
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 556.7,
+        "text_jaccard": 0.8935,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2773,
+        "geo_coverage": 0.7895,
+        "diff_cells": 3,
+        "fields": {
+          "agree": 2,
+          "conflict": 2,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8935, containment 0.9448.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2773 inliers of 2794 matches, coverage 0.7895.",
+          "Localized visual differences in 3 of 84 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (3 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [],
+        "rule": "aligned pages differ only at critical-field evidence (3 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 3,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p10",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "similar logo/border, unrelated body",
+      "hero": false,
+      "a": "ho_fire",
+      "b": "ho_letter",
+      "recipe_a": "source",
+      "recipe_b": "same frame and seal as the Konkan fire layout, unrelated body",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 20,
+        "latency_ms": 25.38
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 294.6,
+        "text_jaccard": 0.2676,
+        "text_status": "computed",
+        "phash_distance": 20,
+        "geo_status": "not_verified",
+        "geo_inliers": 44,
+        "geo_coverage": 0.2105,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 5
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.2676, containment 0.4671.",
+          "Best page pHash distance 20/64 (page 1 vs 1).",
+          "Geometric verification not verified: 44 inliers of 280 matches, coverage 0.2105.",
+          "Rule: readable body text differs; any visual similarity is limited to layout elements."
+        ],
+        "uncertainties": [
+          "5 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "readable body text differs; any visual similarity is limited to layout elements.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p11",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "two documents of the same institution",
+      "hero": false,
+      "a": "ho_ssc_src",
+      "b": "ho_noc_src",
+      "recipe_a": "source",
+      "recipe_b": "source",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 8,
+        "latency_ms": 0.03
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 645.3,
+        "text_jaccard": 0.4265,
+        "text_status": "computed",
+        "phash_distance": 8,
+        "geo_status": "not_verified",
+        "geo_inliers": 889,
+        "geo_coverage": 0.2857,
+        "diff_cells": 30,
+        "fields": {
+          "agree": 2,
+          "conflict": 2,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.4265, containment 0.6069.",
+          "Best page pHash distance 8/64 (page 1 vs 1).",
+          "Geometric verification not verified: 889 inliers of 1483 matches, coverage 0.2857.",
+          "2 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p12",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "two documents of the same institution",
+      "hero": false,
+      "a": "ho_ssc_src",
+      "b": "ho_fire",
+      "recipe_a": "source",
+      "recipe_b": "source",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 12,
+        "latency_ms": 0.03
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 758.7,
+        "text_jaccard": 0.4707,
+        "text_status": "computed",
+        "phash_distance": 12,
+        "geo_status": "not_verified",
+        "geo_inliers": 1003,
+        "geo_coverage": 0.4286,
+        "diff_cells": 28,
+        "fields": {
+          "agree": 2,
+          "conflict": 3,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.4707, containment 0.6741.",
+          "Best page pHash distance 12/64 (page 1 vs 1).",
+          "Geometric verification not verified: 1003 inliers of 1611 matches, coverage 0.4286.",
+          "3 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p13",
+      "split": "heldout",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "critical-field alteration (dates)",
+      "hero": false,
+      "a": "ho_ssc_src",
+      "b": "ho_ssc_alter",
+      "recipe_a": "source",
+      "recipe_b": "ho_ssc_src with issue/valid dates changed (controlled alteration)",
+      "transform": "field_alteration",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 12.17
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 576.1,
+        "text_jaccard": 0.9563,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2906,
+        "geo_coverage": 0.7143,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 3,
+          "conflict": 2,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9563, containment 0.9777.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2906 inliers of 2916 matches, coverage 0.7143.",
+          "Localized visual differences in 0 of 86 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "3 critical field(s) agree.",
+          "Rule: similar template, but several critical fields differ."
+        ],
+        "uncertainties": [],
+        "rule": "similar template, but several critical fields differ.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p14",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": false,
+      "scenario": "raster copy vs unreadable page",
+      "hero": false,
+      "a": "ho_ssc_scan",
+      "b": "ho_blank",
+      "recipe_a": "raster scan: rotate \u22122\u00b0, scale 0.75, noise \u03c39, blur 3, JPEG q45 (no text layer)",
+      "recipe_b": "near-blank image-only page",
+      "transform": "different_document",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": null,
+        "latency_ms": 30.5
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "INCONCLUSIVE",
+        "latency_ms": 23067.1,
+        "text_jaccard": null,
+        "text_status": "unavailable",
+        "phash_distance": null,
+        "geo_status": "inconclusive",
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 4
+        },
+        "reasons": [
+          "Rule: neither text nor page images could be compared."
+        ],
+        "uncertainties": [
+          "Text of document B could not be read (processing failed, e.g. image-only pages without OCR).",
+          "No page with enough visible content to compare.",
+          "No renderable page pair to verify.",
+          "4 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "neither text nor page images could be compared.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p15",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "raster copy vs same-template negative",
+      "hero": false,
+      "a": "ho_ssc_scan",
+      "b": "ho_ssc_tmpl",
+      "recipe_a": "raster scan: rotate \u22122\u00b0, scale 0.75, noise \u03c39, blur 3, JPEG q45 (no text layer)",
+      "recipe_b": "same template, different institution/number/dates",
+      "transform": "different_document",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 0.02
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 8081.7,
+        "text_jaccard": 0.5233,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "not_verified",
+        "geo_inliers": 255,
+        "geo_coverage": 0.4615,
+        "diff_cells": 14,
+        "fields": {
+          "agree": 0,
+          "conflict": 4,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.5233, containment 0.6954.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification not verified: 255 inliers of 313 matches, coverage 0.4615.",
+          "4 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "ho_p16",
+      "split": "heldout",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "raster copy vs same-issuer negative",
+      "hero": false,
+      "a": "ho_noc_scan",
+      "b": "ho_noc_old",
+      "recipe_a": "raster: crop 3%, brightness \u221220, contrast 1.2, JPEG q50 (no text layer)",
+      "recipe_b": "same issuer layout and institution, earlier NOC (different number/date)",
+      "transform": "different_document",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 10,
+        "latency_ms": 0.03
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 9578.2,
+        "text_jaccard": 0.7988,
+        "text_status": "computed",
+        "phash_distance": 10,
+        "geo_status": "verified",
+        "geo_inliers": 521,
+        "geo_coverage": 0.8125,
+        "diff_cells": 3,
+        "fields": {
+          "agree": 1,
+          "conflict": 2,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.7988, containment 0.8922.",
+          "Best page pHash distance 10/64 (page 1 vs 1).",
+          "Geometric verification verified: 521 inliers of 622 matches, coverage 0.8125.",
+          "Localized visual differences in 3 of 83 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "1 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (3 region(s)); the rest of the page matches and 1 critical field(s) agree, while certificate number, issue date differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "aligned pages differ only at critical-field evidence (3 region(s)); the rest of the page matches and 1 critical field(s) agree, while certificate number, issue date differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 3,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "d2_p01",
+      "split": "dev2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "simulated photograph",
+      "hero": false,
+      "a": "d2_fire_src",
+      "b": "d2_fire_photo",
+      "recipe_a": "source",
+      "recipe_b": "simulated photograph: perspective \u00b16%, lighting gradient 25%, noise \u03c36, blur 3, JPEG q70",
+      "transform": "photo_sim",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 4,
+        "latency_ms": 28.71
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 11375.9,
+        "text_jaccard": 0.746,
+        "text_status": "computed",
+        "phash_distance": 4,
+        "geo_status": "verified",
+        "geo_inliers": 385,
+        "geo_coverage": 0.6,
+        "diff_cells": 34,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.746, containment 0.9308.",
+          "Best page pHash distance 4/64 (page 1 vs 1).",
+          "Geometric verification verified: 385 inliers of 502 matches, coverage 0.6.",
+          "Localized visual differences in 34 of 84 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 11,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "d2_p02",
+      "split": "dev2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "simulated photograph (strong)",
+      "hero": false,
+      "a": "d2_fire_src",
+      "b": "d2_fire_photo_strong",
+      "recipe_a": "source",
+      "recipe_b": "simulated photograph (strong): perspective \u00b110%, lighting 40%, noise \u03c310, blur 5, JPEG q50",
+      "transform": "photo_sim_strong",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 8,
+        "latency_ms": 14.32
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 11332.6,
+        "text_jaccard": 0.9091,
+        "text_status": "computed",
+        "phash_distance": 8,
+        "geo_status": "verified",
+        "geo_inliers": 129,
+        "geo_coverage": 0.55,
+        "diff_cells": 8,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9091, containment 0.9535.",
+          "Best page pHash distance 8/64 (page 1 vs 1).",
+          "Geometric verification verified: 129 inliers of 184 matches, coverage 0.55.",
+          "Localized visual differences in 8 of 83 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 1,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "d2_p03",
+      "split": "dev2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "poor scan",
+      "hero": false,
+      "a": "d2_fire_src",
+      "b": "d2_fire_poor",
+      "recipe_a": "source",
+      "recipe_b": "poor scan: 45 dpi, blur 7, noise \u03c322, contrast 0.6, JPEG q25",
+      "transform": "poor_scan",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": null,
+        "latency_ms": 11.49
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "INCONCLUSIVE",
+        "latency_ms": 14380.0,
+        "text_jaccard": null,
+        "text_status": "unavailable",
+        "phash_distance": null,
+        "geo_status": "inconclusive",
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 5
+        },
+        "reasons": [
+          "Rule: neither text nor page images could be compared."
+        ],
+        "uncertainties": [
+          "Text of document B could not be read (processing failed, e.g. image-only pages without OCR).",
+          "No page with enough visible content to compare.",
+          "No renderable page pair to verify.",
+          "5 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "neither text nor page images could be compared.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "d2_p04",
+      "split": "dev2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "raster scan",
+      "hero": false,
+      "a": "d2_fire_src",
+      "b": "d2_fire_scan",
+      "recipe_a": "source",
+      "recipe_b": "raster scan: rotate 0.8\u00b0, noise \u03c35, JPEG q65",
+      "transform": "raster_scan",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 14.47
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 9400.2,
+        "text_jaccard": 0.9129,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 601,
+        "geo_coverage": 0.65,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9129, containment 0.9604.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 601 inliers of 762 matches, coverage 0.65.",
+          "Localized visual differences in 0 of 84 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "d2_p05",
+      "split": "dev2",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "photo of same-template negative",
+      "hero": false,
+      "a": "d2_fire_src",
+      "b": "d2_fire_tmpl_photo",
+      "recipe_a": "source",
+      "recipe_b": "simulated photograph of a same-template certificate for a different institution",
+      "transform": "different_document",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 15.34
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 11382.9,
+        "text_jaccard": 0.4902,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "verified",
+        "geo_inliers": 224,
+        "geo_coverage": 0.6,
+        "diff_cells": 31,
+        "fields": {
+          "agree": 0,
+          "conflict": 5,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.4902, containment 0.7155.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification verified: 224 inliers of 311 matches, coverage 0.6.",
+          "Localized visual differences in 31 of 84 content cells after alignment.",
+          "5 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 15,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "d2_p06",
+      "split": "dev2",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "two photos, same template",
+      "hero": false,
+      "a": "d2_fire_photo",
+      "b": "d2_fire_tmpl_photo",
+      "recipe_a": "simulated photograph: perspective \u00b16%, lighting gradient 25%, noise \u03c36, blur 3, JPEG q70",
+      "recipe_b": "simulated photograph of a same-template certificate for a different institution",
+      "transform": "different_document",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 4,
+        "latency_ms": 0.05
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 17501.7,
+        "text_jaccard": 0.6163,
+        "text_status": "computed",
+        "phash_distance": 4,
+        "geo_status": "not_verified",
+        "geo_inliers": 481,
+        "geo_coverage": 0.36,
+        "diff_cells": 13,
+        "fields": {
+          "agree": 0,
+          "conflict": 5,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.6163, containment 0.7637.",
+          "Best page pHash distance 4/64 (page 1 vs 1).",
+          "Geometric verification not verified: 481 inliers of 593 matches, coverage 0.36.",
+          "5 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p01",
+      "split": "heldout2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "exact duplicate",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_exact",
+      "recipe_a": "source",
+      "recipe_b": "byte copy of h2_occ_src",
+      "transform": "exact_copy",
+      "quality": "clean",
+      "A0": {
+        "positive": true,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 24.56
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 26.4,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": null,
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 4,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Rule: identical file bytes (SHA-256)."
+        ],
+        "uncertainties": [
+          "Byte identity says nothing about authenticity or intent."
+        ],
+        "rule": "identical file bytes (SHA-256).",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p02",
+      "split": "heldout2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "metadata-only change",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_meta",
+      "recipe_a": "source",
+      "recipe_b": "metadata changed + re-saved",
+      "transform": "metadata_resave",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 11.79
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 537.9,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2978,
+        "geo_coverage": 0.6842,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 4,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2978 inliers of 2978 matches, coverage 0.6842.",
+          "Localized visual differences in 0 of 83 content cells after alignment.",
+          "4 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p03",
+      "split": "heldout2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "simulated photograph",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_photo",
+      "recipe_a": "source",
+      "recipe_b": "simulated photograph: perspective \u00b17%, lighting 25%, noise \u03c36, blur 3, JPEG q70",
+      "transform": "photo_sim",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 17.83
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 12536.4,
+        "text_jaccard": 0.9181,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "verified",
+        "geo_inliers": 181,
+        "geo_coverage": 0.5789,
+        "diff_cells": 18,
+        "fields": {
+          "agree": 3,
+          "conflict": 0,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9181, containment 0.9583.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification verified: 181 inliers of 245 matches, coverage 0.5789.",
+          "Localized visual differences in 18 of 83 content cells after alignment.",
+          "3 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 1,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p04",
+      "split": "heldout2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "raster scan",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_scan",
+      "recipe_a": "source",
+      "recipe_b": "raster scan: rotate 1.5\u00b0, scale 0.85, noise \u03c37, JPEG q55",
+      "transform": "raster_scan",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 14.79
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 8678.2,
+        "text_jaccard": 0.8981,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "verified",
+        "geo_inliers": 439,
+        "geo_coverage": 0.6842,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 3,
+          "conflict": 0,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8981, containment 0.9474.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification verified: 439 inliers of 536 matches, coverage 0.6842.",
+          "Localized visual differences in 0 of 83 content cells after alignment.",
+          "3 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p05",
+      "split": "heldout2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "raster rotated 270\u00b0",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_rot",
+      "recipe_a": "source",
+      "recipe_b": "raster rotated 270\u00b0, JPEG q60",
+      "transform": "raster_rotate270",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 10.1
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 6533.2,
+        "text_jaccard": 0.865,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 1928,
+        "geo_coverage": 0.6842,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 4,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.865, containment 0.9297.",
+          "Best page pHash distance 0/64 (page 1 vs 1, B rotated 90\u00b0).",
+          "Geometric verification verified: 1928 inliers of 1991 matches, coverage 0.6842.",
+          "Localized visual differences in 0 of 83 content cells after alignment.",
+          "4 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p06",
+      "split": "heldout2",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "poor scan",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_poor",
+      "recipe_a": "source",
+      "recipe_b": "poor scan",
+      "transform": "poor_scan",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": null,
+        "latency_ms": 9.8
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "INCONCLUSIVE",
+        "latency_ms": 14359.4,
+        "text_jaccard": null,
+        "text_status": "unavailable",
+        "phash_distance": null,
+        "geo_status": "inconclusive",
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 4
+        },
+        "reasons": [
+          "Rule: neither text nor page images could be compared."
+        ],
+        "uncertainties": [
+          "Text of document B could not be read (processing failed, e.g. image-only pages without OCR).",
+          "No page with enough visible content to compare.",
+          "No renderable page pair to verify.",
+          "4 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "neither text nor page images could be compared.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p07",
+      "split": "heldout2",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same template, different institution",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_tmpl",
+      "recipe_a": "source",
+      "recipe_b": "same template, different institution/number/date",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.0
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 12.2
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 645.4,
+        "text_jaccard": 0.6807,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 2196,
+        "geo_coverage": 0.6842,
+        "diff_cells": 18,
+        "fields": {
+          "agree": 0,
+          "conflict": 4,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.6807, containment 0.8118.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 2196 inliers of 2331 matches, coverage 0.6842.",
+          "Localized visual differences in 18 of 83 content cells after alignment.",
+          "4 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 17,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p08",
+      "split": "heldout2",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same issuer layout, different number/date",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_old",
+      "recipe_a": "source",
+      "recipe_b": "same issuer layout and institution, earlier certificate",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 12.3
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 504.4,
+        "text_jaccard": 0.8864,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2796,
+        "geo_coverage": 0.6842,
+        "diff_cells": 4,
+        "fields": {
+          "agree": 2,
+          "conflict": 2,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8864, containment 0.9408.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2796 inliers of 2819 matches, coverage 0.6842.",
+          "Localized visual differences in 4 of 83 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (4 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [],
+        "rule": "aligned pages differ only at critical-field evidence (4 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 4,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p09",
+      "split": "heldout2",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "similar seal/border, unrelated body",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_letter",
+      "recipe_a": "source",
+      "recipe_b": "same frame and seal as the occupancy layout, unrelated body",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 18,
+        "latency_ms": 11.09
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 2649.9,
+        "text_jaccard": 0.2508,
+        "text_status": "computed",
+        "phash_distance": 18,
+        "geo_status": "not_verified",
+        "geo_inliers": 28,
+        "geo_coverage": 0.1579,
+        "diff_cells": 32,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 4
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.2508, containment 0.4773.",
+          "Best page pHash distance 18/64 (page 1 vs 1).",
+          "Geometric verification not verified: 28 inliers of 324 matches, coverage 0.1579.",
+          "Rule: readable body text differs; any visual similarity is limited to layout elements."
+        ],
+        "uncertainties": [
+          "4 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "readable body text differs; any visual similarity is limited to layout elements.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p10",
+      "split": "heldout2",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "two documents of the same institution",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_noc",
+      "recipe_a": "source",
+      "recipe_b": "different document, same institution",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 12.21
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 618.8,
+        "text_jaccard": 0.4386,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "not_verified",
+        "geo_inliers": 857,
+        "geo_coverage": 0.4737,
+        "diff_cells": 31,
+        "fields": {
+          "agree": 2,
+          "conflict": 2,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.4386, containment 0.6658.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification not verified: 857 inliers of 1443 matches, coverage 0.4737.",
+          "2 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p11",
+      "split": "heldout2",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "certificate number changed",
+      "hero": false,
+      "a": "h2_occ_src",
+      "b": "h2_occ_alter",
+      "recipe_a": "source",
+      "recipe_b": "h2_occ_src with certificate number changed",
+      "transform": "field_alteration",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 14.69
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 521.6,
+        "text_jaccard": 0.9784,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2930,
+        "geo_coverage": 0.6842,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 3,
+          "conflict": 1,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9784, containment 0.9891.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2930 inliers of 2935 matches, coverage 0.6842.",
+          "Localized visual differences in 0 of 83 content cells after alignment.",
+          "1 critical field(s) conflict.",
+          "3 critical field(s) agree.",
+          "Rule: shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review."
+        ],
+        "uncertainties": [],
+        "rule": "shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p12",
+      "split": "heldout2",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "photo vs same-template negative",
+      "hero": false,
+      "a": "h2_occ_photo",
+      "b": "h2_occ_tmpl",
+      "recipe_a": "simulated photograph: perspective \u00b17%, lighting 25%, noise \u03c36, blur 3, JPEG q70",
+      "recipe_b": "same template, different institution/number/date",
+      "transform": "different_document",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 6,
+        "latency_ms": 0.03
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 10424.3,
+        "text_jaccard": 0.6223,
+        "text_status": "computed",
+        "phash_distance": 6,
+        "geo_status": "not_verified",
+        "geo_inliers": 190,
+        "geo_coverage": 0.32,
+        "diff_cells": 21,
+        "fields": {
+          "agree": 0,
+          "conflict": 3,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.6223, containment 0.7697.",
+          "Best page pHash distance 6/64 (page 1 vs 1).",
+          "Geometric verification not verified: 190 inliers of 248 matches, coverage 0.32.",
+          "3 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "h2_p13",
+      "split": "heldout2",
+      "label": "distinct",
+      "hard_negative": false,
+      "scenario": "raster copy vs unreadable page",
+      "hero": false,
+      "a": "h2_occ_scan",
+      "b": "h2_blank",
+      "recipe_a": "raster scan: rotate 1.5\u00b0, scale 0.85, noise \u03c37, JPEG q55",
+      "recipe_b": "near-blank image-only page",
+      "transform": "different_document",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": null,
+        "latency_ms": 27.82
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "INCONCLUSIVE",
+        "latency_ms": 23390.1,
+        "text_jaccard": null,
+        "text_status": "unavailable",
+        "phash_distance": null,
+        "geo_status": "inconclusive",
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 3
+        },
+        "reasons": [
+          "Rule: neither text nor page images could be compared."
+        ],
+        "uncertainties": [
+          "Text of document B could not be read (processing failed, e.g. image-only pages without OCR).",
+          "No page with enough visible content to compare.",
+          "No renderable page pair to verify.",
+          "3 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "neither text nor page images could be compared.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_alt_p1",
+      "split": "dev_alt",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "benign transformed copy",
+      "hero": false,
+      "a": "dev_alt_src",
+      "b": "dev_alt_vec",
+      "recipe_a": "source",
+      "recipe_b": "benign copy: vector rescale 0.8",
+      "transform": "vector_rescale",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 21.93
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 778.1,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 821,
+        "geo_coverage": 0.7,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 821 inliers of 1072 matches, coverage 0.7.",
+          "Localized visual differences in 0 of 85 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_alt_p2",
+      "split": "dev_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "one altered critical field",
+      "hero": false,
+      "a": "dev_alt_src",
+      "b": "dev_alt_alt1",
+      "recipe_a": "source",
+      "recipe_b": "one field altered: certificate number",
+      "transform": "field_alteration_1",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 12.16
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 513.9,
+        "text_jaccard": 0.9785,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2930,
+        "geo_coverage": 0.75,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 4,
+          "conflict": 1,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9785, containment 0.9892.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2930 inliers of 2932 matches, coverage 0.75.",
+          "Localized visual differences in 0 of 85 content cells after alignment.",
+          "1 critical field(s) conflict.",
+          "4 critical field(s) agree.",
+          "Rule: shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review."
+        ],
+        "uncertainties": [],
+        "rule": "shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_alt_p3",
+      "split": "dev_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "two altered fields (identity)",
+      "hero": false,
+      "a": "dev_alt_src",
+      "b": "dev_alt_alt2",
+      "recipe_a": "source",
+      "recipe_b": "two fields altered: institution name and address",
+      "transform": "field_alteration_2",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 12.49
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 540.6,
+        "text_jaccard": 0.7667,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2460,
+        "geo_coverage": 0.75,
+        "diff_cells": 9,
+        "fields": {
+          "agree": 3,
+          "conflict": 2,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.7667, containment 0.8698.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2460 inliers of 2537 matches, coverage 0.75.",
+          "Localized visual differences in 9 of 85 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "3 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (9 region(s)); the rest of the page matches and 3 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [],
+        "rule": "aligned pages differ only at critical-field evidence (9 region(s)); the rest of the page matches and 3 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 9,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_alt_p4",
+      "split": "dev_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "three altered fields (number and dates)",
+      "hero": false,
+      "a": "dev_alt_src",
+      "b": "dev_alt_alt3",
+      "recipe_a": "source",
+      "recipe_b": "three fields altered: certificate number, issue date, valid until",
+      "transform": "field_alteration_3",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.0
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 12.13
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 538.5,
+        "text_jaccard": 0.8884,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 2693,
+        "geo_coverage": 0.75,
+        "diff_cells": 6,
+        "fields": {
+          "agree": 2,
+          "conflict": 3,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8884, containment 0.9501.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 2693 inliers of 2742 matches, coverage 0.75.",
+          "Localized visual differences in 6 of 85 content cells after alignment.",
+          "3 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (6 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date, valid until differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [],
+        "rule": "aligned pages differ only at critical-field evidence (6 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date, valid until differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 6,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_alt_p5",
+      "split": "dev_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "scanned two-field alteration",
+      "hero": false,
+      "a": "dev_alt_src",
+      "b": "dev_alt_alt2_scan",
+      "recipe_a": "source",
+      "recipe_b": "raster scan of the two-field alteration (no text layer)",
+      "transform": "field_alteration_2_scan",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 13.95
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 9342.2,
+        "text_jaccard": 0.5626,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 528,
+        "geo_coverage": 0.7,
+        "diff_cells": 10,
+        "fields": {
+          "agree": 2,
+          "conflict": 2,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.5626, containment 0.775.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 528 inliers of 684 matches, coverage 0.7.",
+          "Localized visual differences in 10 of 85 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (10 region(s)); the rest of the page matches and 2 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "aligned pages differ only at critical-field evidence (10 region(s)); the rest of the page matches and 2 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 10,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_alt_p6",
+      "split": "dev_alt",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same template, different underlying document",
+      "hero": false,
+      "a": "dev_alt_src",
+      "b": "dev_alt_tmpl",
+      "recipe_a": "source",
+      "recipe_b": "same template, different underlying document (all critical fields differ)",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 4,
+        "latency_ms": 12.12
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 567.1,
+        "text_jaccard": 0.7039,
+        "text_status": "computed",
+        "phash_distance": 4,
+        "geo_status": "verified",
+        "geo_inliers": 2304,
+        "geo_coverage": 0.75,
+        "diff_cells": 13,
+        "fields": {
+          "agree": 0,
+          "conflict": 5,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.7039, containment 0.8326.",
+          "Best page pHash distance 4/64 (page 1 vs 1).",
+          "Geometric verification verified: 2304 inliers of 2425 matches, coverage 0.75.",
+          "Localized visual differences in 13 of 85 content cells after alignment.",
+          "5 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 13,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "dev_alt_p7",
+      "split": "dev_alt",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "poor-quality scan",
+      "hero": false,
+      "a": "dev_alt_src",
+      "b": "dev_alt_poor",
+      "recipe_a": "source",
+      "recipe_b": "poor scan of the source",
+      "transform": "poor_scan",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": null,
+        "latency_ms": 10.57
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "INCONCLUSIVE",
+        "latency_ms": 14508.9,
+        "text_jaccard": null,
+        "text_status": "unavailable",
+        "phash_distance": null,
+        "geo_status": "inconclusive",
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 5
+        },
+        "reasons": [
+          "Rule: neither text nor page images could be compared."
+        ],
+        "uncertainties": [
+          "Text of document B could not be read (processing failed, e.g. image-only pages without OCR).",
+          "No page with enough visible content to compare.",
+          "No renderable page pair to verify.",
+          "5 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "neither text nor page images could be compared.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "heldout_alt_p1",
+      "split": "heldout_alt",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "benign transformed copy",
+      "hero": false,
+      "a": "heldout_alt_src",
+      "b": "heldout_alt_vec",
+      "recipe_a": "source",
+      "recipe_b": "benign copy: vector rescale 0.8",
+      "transform": "vector_rescale",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 23.59
+      },
+      "A4": {
+        "positive": true,
+        "outcome": "MATCH_CONFIRMED_FOR_REVIEW",
+        "latency_ms": 819.2,
+        "text_jaccard": 1.0,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 962,
+        "geo_coverage": 0.7,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 5,
+          "conflict": 0,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 1.0, containment 1.0.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 962 inliers of 1186 matches, coverage 0.7.",
+          "Localized visual differences in 0 of 83 content cells after alignment.",
+          "5 critical field(s) agree.",
+          "Rule: strong text similarity corroborated by agreeing grounded critical fields."
+        ],
+        "uncertainties": [],
+        "rule": "strong text similarity corroborated by agreeing grounded critical fields.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "heldout_alt_p2",
+      "split": "heldout_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "one altered critical field",
+      "hero": false,
+      "a": "heldout_alt_src",
+      "b": "heldout_alt_alt1",
+      "recipe_a": "source",
+      "recipe_b": "one field altered: certificate number",
+      "transform": "field_alteration_1",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 15.21
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 529.2,
+        "text_jaccard": 0.9759,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2942,
+        "geo_coverage": 0.75,
+        "diff_cells": 0,
+        "fields": {
+          "agree": 4,
+          "conflict": 1,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.9759, containment 0.9878.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2942 inliers of 2945 matches, coverage 0.75.",
+          "Localized visual differences in 0 of 83 content cells after alignment.",
+          "1 critical field(s) conflict.",
+          "4 critical field(s) agree.",
+          "Rule: shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review."
+        ],
+        "uncertainties": [],
+        "rule": "shared content or layout with a conflicting critical field: possible alteration, or a different document on the same layout. Requires review.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "heldout_alt_p3",
+      "split": "heldout_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "two altered fields (identity)",
+      "hero": false,
+      "a": "heldout_alt_src",
+      "b": "heldout_alt_alt2",
+      "recipe_a": "source",
+      "recipe_b": "two fields altered: institution name and address",
+      "transform": "field_alteration_2",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": 2,
+        "latency_ms": 13.31
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 603.9,
+        "text_jaccard": 0.7325,
+        "text_status": "computed",
+        "phash_distance": 2,
+        "geo_status": "verified",
+        "geo_inliers": 2274,
+        "geo_coverage": 0.75,
+        "diff_cells": 9,
+        "fields": {
+          "agree": 3,
+          "conflict": 2,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.7325, containment 0.8498.",
+          "Best page pHash distance 2/64 (page 1 vs 1).",
+          "Geometric verification verified: 2274 inliers of 2391 matches, coverage 0.75.",
+          "Localized visual differences in 9 of 83 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "3 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (9 region(s)); the rest of the page matches and 3 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [],
+        "rule": "aligned pages differ only at critical-field evidence (9 region(s)); the rest of the page matches and 3 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 9,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "heldout_alt_p4",
+      "split": "heldout_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "three altered fields (number and dates)",
+      "hero": false,
+      "a": "heldout_alt_src",
+      "b": "heldout_alt_alt3",
+      "recipe_a": "source",
+      "recipe_b": "three fields altered: certificate number, issue date, valid until",
+      "transform": "field_alteration_3",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 11.83
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 535.3,
+        "text_jaccard": 0.8899,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2672,
+        "geo_coverage": 0.75,
+        "diff_cells": 5,
+        "fields": {
+          "agree": 2,
+          "conflict": 3,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.8899, containment 0.9463.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2672 inliers of 2753 matches, coverage 0.75.",
+          "Localized visual differences in 5 of 83 content cells after alignment.",
+          "3 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (5 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date, valid until differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [],
+        "rule": "aligned pages differ only at critical-field evidence (5 region(s)); the rest of the page matches and 2 critical field(s) agree, while certificate number, issue date, valid until differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 5,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "heldout_alt_p5",
+      "split": "heldout_alt",
+      "label": "altered",
+      "hard_negative": false,
+      "scenario": "scanned two-field alteration",
+      "hero": false,
+      "a": "heldout_alt_src",
+      "b": "heldout_alt_alt2_scan",
+      "recipe_a": "source",
+      "recipe_b": "raster scan of the two-field alteration (no text layer)",
+      "transform": "field_alteration_2_scan",
+      "quality": "degraded",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.0
+      },
+      "A1": {
+        "positive": false,
+        "distance": 4,
+        "latency_ms": 12.88
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "CANDIDATE",
+        "latency_ms": 9429.4,
+        "text_jaccard": 0.6265,
+        "text_status": "computed",
+        "phash_distance": 4,
+        "geo_status": "verified",
+        "geo_inliers": 506,
+        "geo_coverage": 0.65,
+        "diff_cells": 10,
+        "fields": {
+          "agree": 2,
+          "conflict": 2,
+          "inconclusive": 1
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.6265, containment 0.78.",
+          "Best page pHash distance 4/64 (page 1 vs 1).",
+          "Geometric verification verified: 506 inliers of 664 matches, coverage 0.65.",
+          "Localized visual differences in 10 of 83 content cells after alignment.",
+          "2 critical field(s) conflict.",
+          "2 critical field(s) agree.",
+          "Rule: aligned pages differ only at critical-field evidence (10 region(s)); the rest of the page matches and 2 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud."
+        ],
+        "uncertainties": [
+          "1 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "aligned pages differ only at critical-field evidence (10 region(s)); the rest of the page matches and 2 critical field(s) agree, while institution name, address differ. Possible alteration of a reused document, or a different certificate issued on the same template. Requires review; not a finding of fraud.",
+        "regions_on_fields": 10,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "heldout_alt_p6",
+      "split": "heldout_alt",
+      "label": "distinct",
+      "hard_negative": true,
+      "scenario": "same template, different underlying document",
+      "hero": false,
+      "a": "heldout_alt_src",
+      "b": "heldout_alt_tmpl",
+      "recipe_a": "source",
+      "recipe_b": "same template, different underlying document (all critical fields differ)",
+      "transform": "different_document",
+      "quality": "clean",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": true,
+        "distance": 0,
+        "latency_ms": 12.52
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "NOT_MATCHED",
+        "latency_ms": 576.1,
+        "text_jaccard": 0.6728,
+        "text_status": "computed",
+        "phash_distance": 0,
+        "geo_status": "verified",
+        "geo_inliers": 2073,
+        "geo_coverage": 0.75,
+        "diff_cells": 15,
+        "fields": {
+          "agree": 0,
+          "conflict": 5,
+          "inconclusive": 0
+        },
+        "reasons": [
+          "Text similarity: Jaccard 0.6728, containment 0.8073.",
+          "Best page pHash distance 0/64 (page 1 vs 1).",
+          "Geometric verification verified: 2073 inliers of 2223 matches, coverage 0.75.",
+          "Localized visual differences in 15 of 83 content cells after alignment.",
+          "5 critical field(s) conflict.",
+          "Rule: critical fields conflict and there is no strong evidence of shared content."
+        ],
+        "uncertainties": [],
+        "rule": "critical fields conflict and there is no strong evidence of shared content.",
+        "regions_on_fields": 15,
+        "text_low_quality": false
+      }
+    },
+    {
+      "pair": "heldout_alt_p7",
+      "split": "heldout_alt",
+      "label": "reuse",
+      "hard_negative": false,
+      "scenario": "poor-quality scan",
+      "hero": false,
+      "a": "heldout_alt_src",
+      "b": "heldout_alt_poor",
+      "recipe_a": "source",
+      "recipe_b": "poor scan of the source",
+      "transform": "poor_scan",
+      "quality": "poor",
+      "A0": {
+        "positive": false,
+        "latency_ms": 0.001
+      },
+      "A1": {
+        "positive": false,
+        "distance": null,
+        "latency_ms": 13.38
+      },
+      "A4": {
+        "positive": false,
+        "outcome": "INCONCLUSIVE",
+        "latency_ms": 14854.8,
+        "text_jaccard": null,
+        "text_status": "unavailable",
+        "phash_distance": null,
+        "geo_status": "inconclusive",
+        "geo_inliers": null,
+        "geo_coverage": null,
+        "diff_cells": null,
+        "fields": {
+          "agree": 0,
+          "conflict": 0,
+          "inconclusive": 5
+        },
+        "reasons": [
+          "Rule: neither text nor page images could be compared."
+        ],
+        "uncertainties": [
+          "Text of document B could not be read (processing failed, e.g. image-only pages without OCR).",
+          "No page with enough visible content to compare.",
+          "No renderable page pair to verify.",
+          "5 critical field comparison(s) inconclusive (missing or unreadable values)."
+        ],
+        "rule": "neither text nor page images could be compared.",
+        "regions_on_fields": 0,
+        "text_low_quality": false
+      }
+    }
+  ]
+}

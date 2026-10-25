@@ -157,6 +157,15 @@ Baseline before changes: backend 262 passed + 1 skipped, frontend 91 — re-veri
 | Local vision / language model | NOT PRESENT (none installed; none claimed) | `/system/info` reports `configured: false` |
 | Real phone photographs, campus photos | NOT PRESENT (simulated photographs only) | dataset notes |
 
+## Deliverable 9 — Evaluation completion, alteration analysis, status alignment
+
+See [d9-acceptance.md](d9-acceptance.md) for the full checklist (VERIFIED / PARTIAL / MISSING / BLOCKED).
+VERIFIED: A0/A1/A4 with manifest and timestamp; alteration suite and v4 localized-alteration rule; six
+source-verification labels with source type (migration 0009); campus-photo experiment (synthetic); access-control
+leak tests; migrations on disposable copies. BLOCKED: real printed-and-photographed captures (no camera/printer;
+capture-kit workflow provided). OMITTED: optional public EoA extraction check. Requires user action: back up and
+migrate the working database (0004 → 0009).
+
 ## Later deliverables
 
 | Feature | Status |

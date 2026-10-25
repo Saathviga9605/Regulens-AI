@@ -21,6 +21,8 @@ from app.models.enums import (
     RuleType,
     RunStatus,
     Severity,
+    IssuerSourceStatus,
+    SourceType,
     SourceVerificationStatus,
     VerificationOutcome,
 )
@@ -193,6 +195,10 @@ class VerificationAttempt(Base):
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     fields_compared: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     reference_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Source-verification dimension (migration 0009), derived from the adapter outcome by services/source_status.py.
+    source_status: Mapped[IssuerSourceStatus] = mapped_column(
+        str_enum(IssuerSourceStatus, "issuer_source_status"), nullable=False)
+    source_type: Mapped[SourceType] = mapped_column(str_enum(SourceType, "source_type"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
     __table_args__ = (Index("ix_verification_attempts_application", "application_id", "created_at"),)

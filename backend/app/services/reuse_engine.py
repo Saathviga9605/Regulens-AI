@@ -37,10 +37,10 @@ from dataclasses import asdict, dataclass, field
 from app.services import reuse_visual as visual
 from app.services.normalize import collapse_ws, is_grounded, normalize_identifier, normalize_name
 
-ENGINE_VERSION = "reuse_cascade_v3"
+ENGINE_VERSION = "reuse_cascade_v4"
 TEXT_NORM_VERSION = "txtnorm_v2"
 TEXT_METRIC = "char5_shingle_jaccard+containment"
-FIELD_COMPARE_VERSION = "fieldcmp_v2"
+FIELD_COMPARE_VERSION = "fieldcmp_v3"  # v3: address compared (localises identity alterations)
 FUSION_VERSION = "fusion_v1"
 EXPLANATION_VERSION = "explain_v1"
 
@@ -69,6 +69,7 @@ CRITICAL_FIELDS: dict[str, str] = {
     "valid_until": "date",
     "trust_name": "name",
     "resolution_date": "date",
+    "address": "name",
 }
 
 
@@ -80,7 +81,7 @@ class ReuseConfig:
     before the held-out split was evaluated.
     """
 
-    version: str = "reuse_thr_v3"
+    version: str = "reuse_thr_v4"
     min_text_chars: int = 60
     shingle_size: int = 5
     text_candidate: float = 0.45  # L1 retrieval: Jaccard at or above → candidate
@@ -101,6 +102,11 @@ class ReuseConfig:
     # disagreement involving an OCR line below ``low_ocr_field_confidence`` is inconclusive (possible misread).
     low_ocr_text_confidence: float = 0.60
     low_ocr_field_confidence: float = 0.80
+    # v4: with ≥2 conflicting fields, keep a CANDIDATE when aligned pages differ ONLY at critical-field evidence and at
+    # least this many critical fields still agree (shared underlying document with altered fields, or a different
+    # certificate on the same template — a human must decide). False reproduces v3 behaviour.
+    localized_alteration_rule: bool = True
+    min_agreeing_for_localized_alteration: int = 1
     max_pages: int = 10
     visual: visual.VisualParams = field(default_factory=visual.VisualParams)
 
@@ -348,7 +354,8 @@ def finalize_geometry(g: dict | None, config: ReuseConfig) -> dict | None:
     return g
 
 
-def decide(exact: dict, text: dict, vis: dict, geo: dict | None, fields: dict, config: ReuseConfig) -> tuple[str, list[str], list[str]]:
+def decide(exact: dict, text: dict, vis: dict, geo: dict | None, fields: dict, config: ReuseConfig,
+           regions: dict | None = None) -> tuple[str, list[str], list[str]]:
     """(outcome, reasons surfaced, uncertainties)."""
     reasons: list[str] = []
     unc: list[str] = []
@@ -403,6 +410,15 @@ def decide(exact: dict, text: dict, vis: dict, geo: dict | None, fields: dict, c
         if (strong_text or strong_visual) and conflicts <= config.max_conflicts_alteration:
             return CANDIDATE, reasons + ["Rule: shared content or layout with a conflicting critical field: possible alteration, "
                                          "or a different document on the same layout. Requires review."], unc
+        localized = bool(regions and geo_verified and regions["regions_total"] > 0
+                         and regions["regions_elsewhere"] == 0 and regions["regions_on_critical_fields"] > 0)
+        if (config.localized_alteration_rule and localized
+                and agrees >= config.min_agreeing_for_localized_alteration):
+            changed = ", ".join(c["field"].replace("_", " ") for c in fields["comparisons"] if c["outcome"] == "conflict")
+            return CANDIDATE, reasons + [
+                f"Rule: aligned pages differ only at critical-field evidence ({regions['regions_total']} region(s)); the rest of "
+                f"the page matches and {agrees} critical field(s) agree, while {changed} differ. Possible alteration of a reused "
+                "document, or a different certificate issued on the same template. Requires review; not a finding of fraud."], unc
         if strong_text or strong_visual:
             return NOT_MATCHED, reasons + ["Rule: similar template, but several critical fields differ."], unc
         return NOT_MATCHED, reasons + ["Rule: critical fields conflict and there is no strong evidence of shared content."], unc
@@ -446,7 +462,10 @@ def annotate_regions(fields: dict, geo: dict | None) -> dict:
         if not verified or not box:
             c["visual_difference"] = None
             continue
-        hits = [i for i, r in enumerate(regions) if _overlap(r["box"], box)]
+        # A field's evidence is its whole labelled line; a replacement value may be longer than the original, so
+        # the band extends to the right edge of the page (v4).
+        band = [box[0], box[1], 1.0, box[3]]
+        hits = [i for i, r in enumerate(regions) if _overlap(r["box"], band)]
         c["visual_difference"] = bool(hits)
         on_fields.update(hits)
     return {"regions_total": len(regions), "regions_on_critical_fields": len(on_fields),
@@ -619,7 +638,7 @@ def compare(a: DocumentInput, b: DocumentInput, config: ReuseConfig = DEFAULT_CO
                "reason": "No renderable page pair to verify."}
     fl = field_stage(a, b, config)
     regions = annotate_regions(fl, geo)
-    outcome, reasons, unc = decide(ex, tx, vi, geo, fl, config)
+    outcome, reasons, unc = decide(ex, tx, vi, geo, fl, config, regions)
     fusion = fuse(outcome, ex, tx, vi, geo, fl, regions, config, _rule_for(outcome, reasons))
     matched_pages = []
     if vi.get("status") == "computed":

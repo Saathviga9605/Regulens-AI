@@ -29,7 +29,7 @@ from app.services import extraction, pdf_text
 from app.services import reuse_engine as engine
 from app.services.reuse_dataset import Dataset, FixtureDoc, build_dataset, dataset_digest
 
-EVAL_VERSION = "reuse_eval_v2"  # v2: per-transform/quality breakdowns, OCR status, inconclusive counts
+EVAL_VERSION = "reuse_eval_v3"  # v3: alteration suite, campus experiment, fixture manifest, timestamp, hard-neg candidates
 # Frozen after dev-split selection (see docs/reuse-detection.md, "Threshold selection").
 A1_PHASH_THRESHOLD = 0
 
@@ -67,10 +67,13 @@ def confusion(rows: list[dict], arm: str) -> dict:
     tn = sum(1 for r in binary if r["label"] == "distinct" and not r[arm]["positive"])
     hard = [r for r in binary if r["hard_negative"]]
     hard_fp = sum(1 for r in hard if r[arm]["positive"])
+    hard_candidates = sum(1 for r in hard if r[arm].get("outcome") == engine.CANDIDATE)
     return {"tp": tp, "fp": fp, "tn": tn, "fn": fn, "pairs": len(binary),
             "precision": ratio(tp, tp + fp, "predicted positives"),
             "recall": ratio(tp, tp + fn, "labelled positives"),
             "hard_negative_fp": hard_fp, "hard_negative_fp_rate": ratio(hard_fp, len(hard), "hard negatives"),
+            "hard_negative_candidates": hard_candidates,
+            "inconclusive": sum(1 for r in rows if r[arm].get("outcome") == engine.INCONCLUSIVE),
             "latency_ms_total": round(sum(r[arm]["latency_ms"] for r in rows), 1),
             "latency_ms_mean": round(sum(r[arm]["latency_ms"] for r in rows) / len(rows), 2) if rows else None}
 
@@ -119,7 +122,9 @@ class EvalResult:
                              f"| {fmt(r)} ({r['numerator']}/{r['denominator']}) | {m['hard_negative_fp']}/{h['denominator']} "
                              f"| {m['latency_ms_total']} |")
             o = d["a4_outcomes"][split]
-            lines += ["", f"A4 outcomes: " + ", ".join(f"{k} {v}" for k, v in o.items()), ""]
+            m4 = arms["A4"]
+        lines += ["", f"A4 outcomes: " + ", ".join(f"{k} {v}" for k, v in o.items())
+                  + f". Hard negatives surfaced as CANDIDATE (review, not confirmed): {m4.get('hard_negative_candidates', 0)}.", ""]
         f = d["field_exact_match"]
         t = d["evidence_traceability"]
         lines += ["## Critical-field exact match", "", "| Field | Exact / evaluated |", "|---|---|"]
@@ -143,13 +148,28 @@ class EvalResult:
                   f"OCR pages {d['failures'].get('ocr_pages')}, unreadable pages {d['failures'].get('unreadable_pages')}, "
                   f"inconclusive pairs {d['failures']['inconclusive']}.",
                   "", "Split notes: " + "; ".join(f"{k}: {v}" for k, v in env.get("split_notes", {}).items())]
+        if d.get("alteration_suite"):
+            lines += ["", "## Alteration suite (A4 outcome; altered pairs are review candidates, never confirmations)", "",
+                      "| Split | Altered pairs | Candidate | Not matched | Inconclusive | Confirmed |", "|---|---|---|---|---|---|"]
+            for split, a in d["alteration_suite"].items():
+                lines.append(f"| {split} | {a['pairs']} | {a['candidate']} | {a['not_matched']} | {a['inconclusive']} | {a['confirmed']} |")
+        c = d.get("campus_experiment")
+        if c:
+            lines += ["", "## Campus-photo experiment (separate; synthetic facades; advisory indicator only)", "",
+                      "| Split | TP | FP | TN | FN | Inconclusive |", "|---|---|---|---|---|---|"]
+            for split, m in c["metrics"].items():
+                lines.append(f"| {split} | {m['tp']} | {m['fp']} | {m['tn']} | {m['fn']} | {m['inconclusive']} |")
+        pc = d.get("physical_capture") or {}
+        lines += ["", f"Real printed-and-photographed captures: **{pc.get('status')}** — {pc.get('reason', '')}",
+                  "", f"Evaluated at {d.get('evaluated_at')}; fixture manifest: {len(d.get('fixture_manifest', []))} documents (in metrics.json)."]
         lines += ["", "## Stages that could not run", ""] + [f"- {s}" for s in d["environment"]["unavailable_stages"] or ["none"]]
         return "\n".join(lines) + "\n"
 
 
 def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None,
              config: engine.ReuseConfig = engine.DEFAULT_CONFIG,
-             splits: tuple[str, ...] = ("dev", "dev2", "heldout", "heldout2"),
+             splits: tuple[str, ...] = ("dev", "dev2", "dev_alt", "heldout", "heldout2", "heldout_alt"),
+             include_campus: bool = True,
              a1_threshold: int = A1_PHASH_THRESHOLD) -> EvalResult:
     from app.services.reuse_visual import CV2_VERSION
 
@@ -266,7 +286,28 @@ def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None
     ocr_pages = sum(engine.provenance(i)["ocr_pages"] for i in inputs.values())
     unreadable = sum(engine.provenance(i)["unreadable_pages"] for i in inputs.values())
     lat = sorted(r["A4"]["latency_ms"] for r in rows)
+    alteration = {}
+    for split in splits:
+        alt = [r for r in rows if r["split"] == split and r["label"] == "altered"]
+        if alt:
+            alteration[split] = {"pairs": len(alt), "candidate": sum(r["A4"]["outcome"] == engine.CANDIDATE for r in alt),
+                                 "not_matched": sum(r["A4"]["outcome"] == engine.NOT_MATCHED for r in alt),
+                                 "inconclusive": sum(r["A4"]["outcome"] == engine.INCONCLUSIVE for r in alt),
+                                 "confirmed": sum(r["A4"]["outcome"] == engine.MATCH_CONFIRMED for r in alt),
+                                 "by_pair": {r["pair"]: r["A4"]["outcome"] for r in alt}}
+    manifest = [{"key": k, "case": d.case, "category": d.category, "recipe": d.recipe, "source": d.source_key,
+                 "text_layer": d.has_text_layer, "sha256": _sha(d.pdf)} for k, d in sorted(ds.docs.items())]
+    from datetime import datetime, timezone
+    from pathlib import Path as _P
+
+    from app.services import physical_capture
+    campus = None
+    if include_campus:
+        from app.services.image_reuse import evaluate_campus
+        campus = evaluate_campus()
+    capture = physical_capture.status(_P(__file__).resolve().parents[3] / "docs" / "evaluation" / "physical-capture" / "manifest.json")
     data = {
+        "evaluated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "eval_version": EVAL_VERSION, "dataset_version": ds.version, "dataset_digest": dataset_digest(ds),
         "config_version": config.version, "pipeline_version": engine.pipeline_version(config),
         "config": config.snapshot(), "a1_threshold": a1_threshold, "splits": list(splits),
@@ -277,6 +318,8 @@ def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None
                      "low_quality_text_pairs": sum(1 for r in rows if r["A4"]["text_low_quality"]),
                      "ocr_pages": ocr_pages, "unreadable_pages": unreadable, "documents": len(inputs)},
         "by_transform": by_transform, "by_quality": by_quality, "field_outcomes_by_label": field_by_label,
+        "alteration_suite": alteration, "campus_experiment": campus, "physical_capture": capture,
+        "fixture_manifest": manifest,
         "latency": {"a4_per_pair_ms_median": lat[len(lat) // 2] if lat else None, "a4_per_pair_ms_max": lat[-1] if lat else None,
                     "document_preparation_ms_total": round(sum(prep_ms.values()), 1),
                     "note": "A4 per-pair latency includes text extraction/OCR of both documents (not cached in evaluation)."},
@@ -287,7 +330,9 @@ def evaluate(ds: Dataset | None = None, *, ocr: pdf_text.OcrEngine | None = None
                         "split_notes": {"dev": "development (thresholds v1–v2 selected here)",
                                         "dev2": "development additions for OCR/photo checks (v3)",
                                         "heldout": "held-out v1 — inspected during v2 debugging; not pristine",
-                                        "heldout2": "fresh held-out — evaluated once after v3 was frozen"}},
+                                        "heldout2": "held-out v2 — evaluated in D8 after v3 was frozen; now inspected",
+                                        "dev_alt": "alteration suite, development (v4 rule developed here)",
+                                        "heldout_alt": "alteration suite, held-out — evaluated once after v4 was frozen"}},
         "pairs": rows,
     }
     return EvalResult(data)

@@ -180,13 +180,24 @@ function SimulatedIssuerChecks({ documentId, enabled }: { documentId: string; en
       {!enabled && <p className="text-xs text-ink-subtle">Available after the document has been processed successfully.</p>}
       {error && <p role="alert" className="text-sm text-danger-700">{error}</p>}
       {attempts.error && <p className="text-sm text-danger-700">{attempts.error}</p>}
+      {attempts.data && attempts.data.length === 0 && (
+        <p className="text-sm text-ink" data-testid="source-status-pending">
+          Source-verification status: <strong>Verification pending</strong>{" "}
+          <Pill className="bg-surface-muted text-ink-muted ring-line">no check run yet</Pill>
+        </p>
+      )}
       {(attempts.data ?? []).map((a: VerificationAttempt) => (
         <div key={a.id} className="rounded border border-warning-line bg-surface p-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <Pill className="bg-warning-bg text-warning-800 ring-warning-line">{a.simulation_label ?? "Not simulated"}</Pill>
-            <strong>{VERIFICATION_OUTCOME_LABELS[a.outcome]}</strong>
+            <span>Source-verification status:</span>
+            <strong data-testid="source-status">{a.source_status_label}</strong>
+            <Pill className={a.source_type === "LIVE" ? "bg-success-bg text-success-700 ring-success-line"
+              : "bg-warning-bg text-warning-800 ring-warning-line"}>{a.source_type.replace("_", " ")}</Pill>
             <span className="text-xs text-ink-subtle">{formatDateTime(a.created_at)}</span>
           </div>
+          <p className="mt-1 text-xs text-ink-subtle">
+            Adapter result: {VERIFICATION_OUTCOME_LABELS[a.outcome]} · {a.simulation_label ?? "Not simulated"}
+          </p>
           <p className="mt-1 text-ink">{a.explanation}</p>
           {a.fields_compared.length > 0 && (
             <ul className="mt-1 text-xs text-ink-muted">

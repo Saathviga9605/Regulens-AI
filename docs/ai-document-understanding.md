@@ -1,5 +1,7 @@
 # Evidence-grounded document understanding and reuse detection (Deliverable 8)
 
+> **Deliverable 9:** cascade v4 (localized-alteration rule, address compared), dataset `reuse_ds_v3` and current results are in [d9-acceptance.md](d9-acceptance.md). The D8 results below remain the historical record.
+
 ReguLens runs entirely on the local machine. No paid API, API key, cloud inference or network call is used for
 analysis, and no model weights are downloaded at start-up. This page states exactly which component is which.
 

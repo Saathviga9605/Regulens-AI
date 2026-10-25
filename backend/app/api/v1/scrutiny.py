@@ -35,6 +35,7 @@ from app.schemas.scrutiny import (
     RunSummaryRead,
     VerificationAttemptRead,
 )
+from app.services import source_status
 from app.services import documents as document_service
 from app.services import audit, issuer_verification, processing as processing_service, review, rule_catalog, scrutiny
 from app.services.applications import get_application
@@ -112,7 +113,8 @@ def _attempt_read(a: VerificationAttempt) -> VerificationAttemptRead:
         method=a.method, simulated=a.simulated,
         simulation_label=issuer_verification.SIMULATION_LABEL if a.simulated else None, outcome=a.outcome,
         explanation=a.explanation, fields_compared=a.fields_compared, reference_code=a.reference_code,
-        created_at=a.created_at)
+        source_status=a.source_status.value, source_status_label=source_status.LABELS[a.source_status],
+        source_type=a.source_type.value, created_at=a.created_at)
 
 
 @router.post("/documents/{document_id}/issuer-verifications", response_model=VerificationAttemptRead,

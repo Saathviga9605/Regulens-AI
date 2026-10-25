@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Application, Document, Finding, FindingReviewAction, ScrutinyRun
 from app.models.enums import FindingKind
-from app.services import audit, issuer_verification, processing as processing_service, review
+from app.services import audit, issuer_verification, source_status, processing as processing_service, review
 from app.services.scrutiny import evaluation_rule
 
 LABEL = "PRELIMINARY SCRUTINY — HUMAN REVIEW REQUIRED"
@@ -115,7 +115,8 @@ def build_report(session: Session, application: Application, run: ScrutinyRun) -
         doc_rows.append(f"<tr><td>{e(d.original_filename)}</td><td>{e(d.category.value)}</td><td>{e(d.status.value)}</td>"
                         f"<td>{e(proc.status.value if proc else 'not processed')}</td>"
                         f"<td>{e(proc.failure_reason if proc and proc.failure_reason else '')}</td></tr>")
-    att_rows = [f"<tr><td>{e(a.document_filename)}</td><td>{e(a.outcome.value)}</td><td>{e(a.explanation)}</td></tr>"
+    att_rows = [f"<tr><td>{e(a.document_filename)}</td><td>{e(source_status.display(a.source_status, a.source_type))}</td>"
+                f"<td>{e(a.explanation)}</td></tr>"
                 for a in attempts.values()]
     req_rows = [f"<tr><td>{e(r.requested_evidence)}</td><td>{e(r.status.value)}</td><td>{e(r.due_date or '—')}</td>"
                 f"<td>{e(r.created_by)}</td><td>{e(', '.join(link.document_filename for link in r.documents) or '—')}</td></tr>"
@@ -151,7 +152,7 @@ low: {e(severities.get('low', 0))}, info: {e(severities.get('info', 0))}
 {_findings_html(findings, run.rule_snapshot, history)}
 <h2>Simulated issuer verification</h2>
 <p class='demo'>{e(issuer_verification.SIMULATION_LABEL)}</p>
-<table><tr><th>Document</th><th>Simulated outcome</th><th>Explanation</th></tr>{''.join(att_rows) or '<tr><td colspan="3">No simulated checks were run.</td></tr>'}</table>
+<table><tr><th>Document</th><th>Source-verification status (source type)</th><th>Explanation</th></tr>{''.join(att_rows) or '<tr><td colspan="3">No simulated checks were run.</td></tr>'}</table>
 <h2>Additional evidence requests</h2>
 <table><tr><th>Requested evidence</th><th>Status</th><th>Due</th><th>Requested by</th><th>Linked documents</th></tr>{''.join(req_rows) or '<tr><td colspan="5">None.</td></tr>'}</table>
 <h2>Limitations and inconclusive results</h2>

@@ -84,6 +84,14 @@ export function CasePairPage() {
       <Alert tone="warning" title="Not a misconduct finding">{pair.notice} Outcomes are produced by a deterministic
         matching pipeline ({pair.pipeline_version}, thresholds {pair.config_version}).</Alert>
 
+      <Alert tone="info" title="What the statuses on this page mean">
+        <strong>Reuse outcome</strong> ({REUSE_OUTCOME_LABELS[pair.outcome]}) is the matching result for this pair of files.{" "}
+        <strong>Reviewer disposition</strong> ({PAIR_REVIEW_LABELS[pair.review_status]}) is the human decision recorded below.
+        Neither is a scrutiny rule outcome or a source-verification status (Verified, Mismatch detected, Expired,
+        Verification pending, Source unavailable, Manual review required), which are shown per document in the
+        application workspace. Differing critical fields are evidence for review, not a finding of fraud.
+      </Alert>
+
       <ExplanationCard evidence={ev} />
 
       <div className="grid gap-5 lg:grid-cols-2">

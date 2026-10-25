@@ -215,6 +215,24 @@ class VerificationOutcome(StrEnum):
     UNSUPPORTED = "unsupported"
 
 
+class IssuerSourceStatus(StrEnum):
+    """Project Bible v3.0 source-verification labels (display text in services/source_status.py). Separate from rule
+    outcomes, evidence state, reviewer disposition and cross-case reuse outcomes."""
+
+    VERIFIED = "verified"
+    MISMATCH_DETECTED = "mismatch_detected"
+    EXPIRED = "expired"
+    VERIFICATION_PENDING = "verification_pending"
+    SOURCE_UNAVAILABLE = "source_unavailable"
+    MANUAL_REVIEW_REQUIRED = "manual_review_required"
+
+
+class SourceType(StrEnum):
+    LIVE = "LIVE"  # never produced: no live issuer integration exists
+    SIMULATED = "SIMULATED"
+    NOT_CONNECTED = "NOT_CONNECTED"
+
+
 class ReferenceAvailability(StrEnum):
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"

@@ -299,4 +299,5 @@ regulens-ai/
 - [Design system (tokens, components, layout, accessibility)](docs/design-system.md)
 - [Cross-case document reuse (cascade, permissions, evaluation)](docs/reuse-detection.md)
 - [Local OCR, evidence fusion and explanations (what is OCR, CV, rules or a model)](docs/ai-document-understanding.md)
+- [Deliverable 9 acceptance: checklist, status mapping, migration and demo steps](docs/d9-acceptance.md)
 - [Implementation status](docs/implementation-status.md)
