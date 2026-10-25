@@ -406,6 +406,10 @@ export function Dialog({ title, open, onClose, children, footer, width = "max-w-
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  // Callers usually pass an inline onClose; keeping it in a ref stops the focus effect re-running (and stealing
+  // focus from a text field) on every render while the dialog is open.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -414,7 +418,7 @@ export function Dialog({ title, open, onClose, children, footer, width = "max-w-
     const first = panel.current?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? panel.current)?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+      if (e.key === "Escape") { e.stopPropagation(); closeRef.current(); }
       if (e.key !== "Tab" || !panel.current) return;
       const items = Array.from(panel.current.querySelectorAll<HTMLElement>(FOCUSABLE));
       if (items.length === 0) return;
@@ -428,7 +432,7 @@ export function Dialog({ title, open, onClose, children, footer, width = "max-w-
       document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[var(--z-dialog)] flex items-end justify-center bg-brand-950/50 p-0 sm:items-center sm:p-4"

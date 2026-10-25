@@ -4,7 +4,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ToastProvider, useToast } from "../src/components/Toast";
-import { ConfirmDialog } from "../src/components/ui";
+import { ConfirmDialog, Dialog } from "../src/components/ui";
 import type { SystemInfoResponse } from "../src/types/api";
 import { REVIEWER, jsonResponse, mockApi, renderApp } from "./helpers";
 
@@ -98,6 +98,23 @@ function DialogHarness({ onConfirm }: { onConfirm: () => Promise<void> }) {
 }
 
 describe("Dialogs and toasts", () => {
+  it("keeps focus in a text field while typing (inline onClose does not re-run the focus effect)", async () => {
+    function Typing() {
+      const [value, setValue] = useState("");
+      return (
+        <Dialog open title="Reason" onClose={() => undefined}>
+          <label>Reason <textarea value={value} onChange={(e) => setValue(e.target.value)} /></label>
+        </Dialog>
+      );
+    }
+    render(<Typing />);
+    const box = screen.getByRole("textbox", { name: "Reason" });
+    await userEvent.click(box);
+    await userEvent.type(box, "several words");
+    expect(box).toHaveValue("several words");
+    expect(box).toHaveFocus();
+  });
+
   it("traps focus, closes on Escape and restores focus to the trigger", async () => {
     render(<DialogHarness onConfirm={async () => {}} />);
     const trigger = screen.getByRole("button", { name: "Open" });

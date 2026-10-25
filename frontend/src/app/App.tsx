@@ -8,6 +8,8 @@ import { ApplicationDetailPage } from "../pages/applications/ApplicationDetailPa
 import { ApplicationsListPage } from "../pages/applications/ApplicationsListPage";
 import { AuditTrailPage } from "../pages/AuditTrailPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { CasePairPage } from "../pages/CasePairPage";
+import { CrossCasePage } from "../pages/CrossCasePage";
 import { HelpPage } from "../pages/HelpPage";
 import { InstitutionCreatePage } from "../pages/institutions/InstitutionCreatePage";
 import { InstitutionDetailPage } from "../pages/institutions/InstitutionDetailPage";
@@ -39,6 +41,8 @@ export function App() {
               <Route path="institutions/new" element={<InstitutionCreatePage />} />
               <Route path="institutions/:institutionCode" element={<InstitutionDetailPage />} />
               <Route path="alerts" element={<AlertsPage />} />
+              <Route path="cross-case" element={<CrossCasePage />} />
+              <Route path="case-pairs/:pairId" element={<CasePairPage />} />
               <Route path="scrutiny-rules" element={<ScrutinyRulesPage />} />
               <Route path="audit-trail" element={<RequireAdmin><AuditTrailPage /></RequireAdmin>} />
               <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />

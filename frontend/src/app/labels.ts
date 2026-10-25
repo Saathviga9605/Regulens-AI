@@ -220,6 +220,35 @@ export const ALERT_EVENT_LABELS: Record<string, string> = {
   evidence_uploaded: "Evidence uploaded",
   finding_escalated: "Finding escalated",
   processing_failed: "Processing failure",
+  cross_case_match: "Possible cross-case reuse",
+};
+
+export const REUSE_OUTCOME_LABELS: Record<string, string> = {
+  MATCH_CONFIRMED_FOR_REVIEW: "Shared content — confirmed for review",
+  CANDIDATE: "Candidate — needs review",
+  NOT_MATCHED: "Not matched",
+  INCONCLUSIVE: "Inconclusive",
+};
+
+export const REUSE_OUTCOME_TONES: Record<string, "danger" | "warning" | "neutral" | "info"> = {
+  MATCH_CONFIRMED_FOR_REVIEW: "danger",
+  CANDIDATE: "warning",
+  NOT_MATCHED: "neutral",
+  INCONCLUSIVE: "info",
+};
+
+export const PAIR_REVIEW_LABELS: Record<string, string> = {
+  not_reviewed: "Not reviewed",
+  confirmed_candidate: "Confirmed for further review",
+  dismissed: "Dismissed",
+  escalated: "Escalated",
+};
+
+export const PAIR_ACTION_LABELS: Record<string, string> = {
+  confirm_candidate: "Confirm for further review",
+  dismiss: "Dismiss",
+  escalate: "Escalate",
+  note: "Add observation",
 };
 
 export const VERIFICATION_OUTCOME_LABELS: Record<VerificationOutcome, string> = {

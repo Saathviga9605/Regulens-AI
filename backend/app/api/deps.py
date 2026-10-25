@@ -68,9 +68,23 @@ async def get_current_actor(request: Request) -> Actor:
         if resolved is None:
             raise _unauthenticated()
         _, user = resolved
-        actor = Actor(user.id, user.username, user.role)
+        actor = Actor(user.id, user.username, user.role, bool(user.cross_case_reviewer))
     current_actor.set(actor)
     request.state.actor = actor
+    return actor
+
+
+async def require_cross_case_reviewer(request: Request, actor: Actor = Depends(get_current_actor)) -> Actor:
+    """Linked-case identities, documents, page images and match evidence need the explicit cross-case permission.
+    The administrator role alone does not grant it. Refusals are audited with the pair id (no content)."""
+    if not actor.cross_case_reviewer:
+        pair_id = request.path_params.get("pair_id")
+        audit.record_now(request.app.state.session_factory, "cross_case.access_denied", "case_pair",
+                         pair_id or f"{request.method} {request.url.path}"[:64], outcome=AuditOutcome.DENIED,
+                         details={"pair_id": pair_id, "action": f"{request.method} {request.url.path}"[:120],
+                                  "required_permission": "cross_case_reviewer"}, actor=actor)
+        raise AppError(403, "cross_case_permission_required",
+                       "Cross-case match details require the cross-case reviewer permission.")
     return actor
 
 

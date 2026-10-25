@@ -52,6 +52,14 @@ Other users: `python -m app.cli create-user --username NAME --role reviewer|admi
 Denied attempts are audited (`authorization.denied`). Administrators cannot demote or deactivate themselves.
 **Limitation:** there is no per-application assignment — every reviewer can access every application.
 
+### Cross-case reviewer permission (Deliverable 7)
+A per-user `cross_case_reviewer` flag, granted by an administrator (never to themselves) and independent of role,
+is required for every case-pair route (pair list/detail, page images, dispositions). Ordinary reviewers receive only
+restricted alerts that never name the linked case. Grants/revocations revoke sessions and are audited
+(`user.permission_changed`); successful and refused cross-case access is audited with actor, pair id and action and
+no document content. See [reuse-detection.md](reuse-detection.md#cross-case-access-control). Limitation: no
+per-application assignment exists, so applications themselves remain visible to all reviewers.
+
 ## Audit log
 `audit_events` is written in the same database transaction as the action it describes (failures/denials are written
 separately). Recorded: sign-in/out (success, failure, lockout), application/institution create/edit/status, document

@@ -123,6 +123,26 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Repo-owned browser smoke script (`npm run smoke`, opt-in writes) | Implemented and tested | passed twice consecutively on a scratch DB |
 | Automated contrast audit (axe or similar) | Planned | colours chosen for WCAG AA; not tool-audited |
 
+## Deliverable 7 — Cross-case document reuse detection
+
+Baseline before changes (main @ 1cb58a1): backend 230 passed + 1 skipped, frontend 82, tsc clean — VERIFIED.
+
+| Component | Status | Evidence |
+|---|---|---|
+| Existing document intake, SHA-256, within-case duplicates | VERIFIED (unchanged) | test_documents; `test_same_file_within_one_case_keeps_existing_duplicate_policy` |
+| Page text + evidence-grounded field extraction (reused) | VERIFIED; field exact match 18/23 on fixtures (misses = no OCR) | reuse eval |
+| Production scrutiny profile default / APH demo profile explicit | VERIFIED (untouched) | existing scrutiny tests |
+| L0–L3 cascade, residual map, field comparison, decisions | Implemented and tested | test_reuse.py (34) |
+| Persistence, versioned pairs, stable reruns, history | Implemented and tested | rerun + new-config tests; scratch DB |
+| Cross-case permission, restricted alerts, audited access/denial | Implemented and tested | API tests; browser (4 direct calls → 403) |
+| Comparison workspace + dispositions | Implemented and tested | reuse.test.tsx; browser |
+| Dataset generator, A0/A1/A4 evaluation + exports | Implemented and tested | `docs/evaluation/reuse-d7/` |
+| OCR for raster copies | BROKEN in this environment (Tesseract not installed) — reported, not simulated | eval `unavailable_stages` |
+| Phone-photographed and campus-photo pairs | NOT PRESENT | not attempted |
+
+Also fixed: `Dialog` re-ran its focus effect on every render with an inline `onClose`, stealing focus from text
+fields (regression test added).
+
 ## Later deliverables
 
 | Feature | Status |
@@ -188,6 +208,16 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Demo passwords in `frontend/dist` or `src` | none found |
 | Real browser (Edge headless via Playwright), scratch DB on ports 8030/5195 | login, overview, queue, scrutiny, finding action (double-click → 1 audit event), upload, delete dialog (cancel/confirm), copilot citation, report PDF, reviewer 403, rule and user confirmations, audit without secrets; no page overflow at 360/390/768/1024/1440/1920; mobile drawer and dialog fit; only console error = intentional wrong-password 401 |
 | Screenshots reviewed | login, overview, workspace with delete dialog, mobile drawer |
+
+## Verification log — Deliverable 7 (2026-10-25)
+
+| Check | Result |
+|---|---|
+| `python -m pytest` | **262 passed, 1 skipped** |
+| `npm test` / typecheck / build / audit | **91 passed** / clean / success / 0 vulnerabilities |
+| Migration 0007 | fresh DB; copy of populated 0004 DB (0004→0007, 2 users/12 apps/12 docs kept); 0006↔0007 round trip |
+| Evaluation (`reuse-eval`) | held-out A4 TP4 FP0 TN8 FN3, hard-neg FP 0/7; A1 FP 2/7; A0 recall 1/7 |
+| Browser acceptance (Edge, scratch DB, ports 8040/5196) | steps 1–17 passed; D6 smoke script passed on the same servers |
 
 ## Known limitations
 

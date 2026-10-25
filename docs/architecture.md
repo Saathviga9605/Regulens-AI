@@ -138,3 +138,13 @@ browser ── Bearer token ──► router (get_current_actor → contextvars 
 Auth: `services/auth.py`, `core/security.py`, `api/deps.py`. Frontend: `AuthContext` + `guards` (UI only; the
 server enforces roles), `ReviewQueuePage`, `ReviewActions`, `EvidenceRequestsPanel`, `CopilotPanel`, `ActivityLog`,
 `AlertsPage`, `AuditTrailPage`, `UsersPage`; the API client attaches the token and fetches documents/reports as blobs.
+
+## Cross-case reuse (Deliverable 7)
+
+`services/reuse_engine.py` (pure cascade + decision), `reuse_visual.py` (rendering, pHash, ORB/RANSAC, residual
+map; OpenCV + NumPy), `reuse.py` (scans, persistence, restricted views, dispositions, evaluation storage),
+`reuse_dataset.py` / `reuse_eval.py` (synthetic fixtures, A0/A1/A4), `reuse_fixtures.py` (demo cases).
+API in `api/v1/reuse.py` (open router, permission-guarded `restricted_router`, `evaluation_router`).
+Frontend: `components/CrossCasePanel.tsx` (workspace section), `pages/CasePairPage.tsx` (comparison),
+`pages/CrossCasePage.tsx` (pair list + evaluation), Users page permission toggle. Scans are synchronous with a
+per-application running-scan guard; no queue or broker. See [reuse-detection.md](reuse-detection.md).

@@ -519,6 +519,7 @@ export interface User {
   display_name: string;
   role: UserRole;
   is_active: boolean;
+  cross_case_reviewer: boolean;
   created_at: string;
 }
 
@@ -541,6 +542,7 @@ export interface UserUpdateInput {
   role?: UserRole;
   is_active?: boolean;
   password?: string;
+  cross_case_reviewer?: boolean;
 }
 
 export type ReviewActionType =
@@ -710,4 +712,191 @@ export interface CopilotAnswer {
   limitations: string[];
   disclaimer: string;
   suggestions: string[];
+}
+
+// --- Cross-case document reuse (Deliverable 7) -------------------------------------------------------
+
+export type ReuseOutcome = "MATCH_CONFIRMED_FOR_REVIEW" | "CANDIDATE" | "NOT_MATCHED" | "INCONCLUSIVE";
+export type PairReviewStatus = "not_reviewed" | "confirmed_candidate" | "dismissed" | "escalated";
+export type PairActionType = "confirm_candidate" | "dismiss" | "escalate" | "note";
+
+export interface ScanRun {
+  id: string;
+  status: "running" | "completed" | "failed";
+  pipeline_version: string;
+  config_version: string;
+  triggered_by: string;
+  started_at: string;
+  finished_at: string | null;
+  documents_scanned: number;
+  comparisons: number;
+  candidates: number;
+  pairs_created: number;
+  pairs_reused: number;
+  outcome_counts: Partial<Record<ReuseOutcome, number>>;
+  failure_reason: string | null;
+}
+
+export interface CaseAlert {
+  pair_id: string;
+  outcome: ReuseOutcome;
+  review_status: PairReviewStatus;
+  detected_at: string;
+  local_document: { document_id: string | null; filename: string | null };
+  restricted: boolean;
+  linked: { application_code: string | null; institution_name: string | null; filename: string | null } | null;
+}
+
+export interface CaseAlertList {
+  items: CaseAlert[];
+  can_view_details: boolean;
+  latest_scan: ScanRun | null;
+  notice: string;
+}
+
+export interface PairSide {
+  document_id: string | null;
+  document_available: boolean;
+  filename: string | null;
+  category: string | null;
+  application_code: string | null;
+  institution_name: string | null;
+  page_count: number | null;
+  sha256: string;
+}
+
+export interface PairSummary {
+  id: string;
+  outcome: ReuseOutcome;
+  outcome_meaning: string;
+  review_status: PairReviewStatus;
+  review_version: number;
+  candidate_methods: string[];
+  candidate_score: number | null;
+  pipeline_version: string;
+  config_version: string;
+  created_at: string;
+  updated_at: string;
+  a: PairSide;
+  b: PairSide;
+}
+
+export interface FieldSideView {
+  raw_value: string | null;
+  page_number: number | null;
+  evidence_quote: string | null;
+  status: string;
+}
+
+export interface FieldComparison {
+  field: string;
+  kind: string;
+  a: FieldSideView | null;
+  b: FieldSideView | null;
+  normalized?: { a: string | null; b: string | null };
+  outcome: "agree" | "conflict" | "inconclusive";
+  explanation: string;
+}
+
+export interface DifferenceRegion {
+  box: [number, number, number, number];
+  differing_px: number;
+}
+
+export interface GeometricEvidence {
+  method: string;
+  status: "verified" | "not_verified" | "inconclusive" | "unavailable";
+  detector?: string;
+  opencv_version?: string | null;
+  page_a?: number;
+  page_b?: number;
+  keypoints_a?: number;
+  keypoints_b?: number;
+  tentative_matches?: number;
+  inliers?: number;
+  inlier_ratio?: number;
+  coverage?: number;
+  reason?: string;
+  transform?: { type: string; scale: number; plausible: boolean };
+  differences?: { cells_judged: number; cells_different: number; cells_outside_overlap: number; ecc_refined?: boolean;
+    regions: DifferenceRegion[] };
+  thresholds?: { min_inliers: number; min_inlier_ratio: number; min_coverage: number };
+}
+
+export interface MatchEvidence {
+  exact: { method: string; equal: boolean; note: string };
+  text: { method: string; status: "computed" | "unavailable"; jaccard?: number; containment?: number; reason?: string;
+    normalization: string; chars_a?: number; chars_b?: number };
+  visual: { method: string; status: "computed" | "unavailable"; distance?: number; similarity?: number; page_a?: number;
+    page_b?: number; rotation_b_degrees?: number; reason?: string };
+  geometric: GeometricEvidence | null;
+  fields: { comparisons: FieldComparison[]; agree: number; conflict: number; inconclusive: number; note: string };
+  matched_pages: { page_a: number; page_b: number; basis: string; rotation_b_degrees: number }[];
+  reasons: string[];
+  uncertainties: string[];
+  stage_status: Record<string, string>;
+  config: Record<string, unknown>;
+  latency_ms: number;
+  created_at: string;
+}
+
+export interface PairAction {
+  id: string;
+  action_type: PairActionType;
+  previous_status: PairReviewStatus;
+  new_status: PairReviewStatus;
+  actor_username: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface PairDetail extends PairSummary {
+  evidence: MatchEvidence;
+  actions: PairAction[];
+  notice: string;
+  limitations: string[];
+}
+
+export interface EvaluationSummary {
+  id: string;
+  created_at: string;
+  created_by: string;
+  eval_version: string;
+  dataset_version: string;
+  dataset_digest: string;
+  config_version: string;
+  pipeline_version: string;
+  duration_ms: number;
+}
+
+export interface Ratio {
+  value: number | null;
+  numerator: number;
+  denominator: number;
+  note?: string;
+}
+
+export interface ArmMetrics {
+  tp: number;
+  fp: number;
+  tn: number;
+  fn: number;
+  pairs: number;
+  precision: Ratio;
+  recall: Ratio;
+  hard_negative_fp: number;
+  hard_negative_fp_rate: Ratio;
+  latency_ms_total: number;
+}
+
+export interface EvaluationDetail extends EvaluationSummary {
+  results: {
+    metrics: Record<string, Record<"A0" | "A1" | "A4", ArmMetrics>>;
+    a4_outcomes: Record<string, Record<ReuseOutcome, number>>;
+    field_exact_match: Record<string, Ratio>;
+    evidence_traceability: Ratio;
+    composition: { documents: number; cases: number; pairs: Record<string, Record<string, number>> };
+    environment: { ocr_available: boolean; opencv_version: string | null; unavailable_stages: string[] };
+    a1_threshold: number;
+  };
 }

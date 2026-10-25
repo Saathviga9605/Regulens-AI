@@ -9,6 +9,15 @@
   create-user --username U --role reviewer|admin [--display-name N]
                               Password read from REGULENS_NEW_USER_PASSWORD or an interactive prompt.
   reset-data --confirm-reset  DELETE all institution/application/document data and stored files (development/test only).
+  reuse-fixtures --load       Add the four fictional cross-case reuse demo cases (idempotent; never modifies data).
+  reuse-fixtures --reset --confirm-reset
+                              Delete ONLY the reuse fixture cases (development/test only).
+  reuse-scan --application CODE
+                              Run the cross-case reuse scan for one application (as the system actor).
+  grant-cross-case --username U [--revoke]
+                              Grant or revoke the cross-case reviewer permission (audited).
+  reuse-eval [--out DIR]      Run the A0/A1/A4 evaluation on the synthetic fixtures; writes metrics.json,
+                              metrics.csv and summary.md (no database or network needed).
 """
 
 import argparse
@@ -41,7 +50,22 @@ def main(argv: list[str] | None = None) -> int:
     cu.add_argument("--display-name", default=None)
     reset = sub.add_parser("reset-data", help="Delete ALL institution, application and document data")
     reset.add_argument("--confirm-reset", action="store_true", help="Required: confirms the destructive reset")
+    rf = sub.add_parser("reuse-fixtures", help="Load or reset the cross-case reuse demo cases")
+    rf_mode = rf.add_mutually_exclusive_group(required=True)
+    rf_mode.add_argument("--load", action="store_true")
+    rf_mode.add_argument("--reset", action="store_true")
+    rf.add_argument("--confirm-reset", action="store_true", help="Required with --reset")
+    rs = sub.add_parser("reuse-scan", help="Run the cross-case reuse scan for one application")
+    rs.add_argument("--application", required=True)
+    gc = sub.add_parser("grant-cross-case", help="Grant or revoke the cross-case reviewer permission")
+    gc.add_argument("--username", required=True)
+    gc.add_argument("--revoke", action="store_true")
+    re_ = sub.add_parser("reuse-eval", help="Run the A0/A1/A4 evaluation on synthetic fixtures")
+    re_.add_argument("--out", default=None, help="Directory for metrics.json, metrics.csv and summary.md")
     args = parser.parse_args(argv)
+
+    if args.command == "reuse-eval":
+        return _reuse_eval(args.out)
 
     settings = get_settings()
     configure_logging("WARNING")
@@ -89,8 +113,75 @@ def main(argv: list[str] | None = None) -> int:
                     print(str(exc), file=sys.stderr)
                     return 2
                 print(f"All institution, application and document data deleted ({removed} stored files removed).")
+            elif args.command == "reuse-fixtures":
+                from app.services import reuse_fixtures
+
+                if args.load:
+                    storage = DocumentStorage(settings.document_storage_path)
+                    storage.ensure_dirs()
+                    res = reuse_fixtures.load(session, storage, settings.max_upload_bytes)
+                    print(f"Reuse fixtures: {len(res.created)} created, {len(res.skipped)} documents already present")
+                    for key, code in res.application_codes.items():
+                        print(f"  {key}: {code}")
+                else:
+                    try:
+                        removed = reuse_fixtures.reset(session, settings, confirm=args.confirm_reset)
+                    except reuse_fixtures.FixtureResetRefused as exc:
+                        print(str(exc), file=sys.stderr)
+                        return 2
+                    print(f"Reuse fixture cases deleted ({removed} stored files removed). Other data untouched.")
+            elif args.command == "reuse-scan":
+                from app.core.context import SYSTEM_ACTOR
+                from app.services import reuse
+                from app.services.pdf_text import TesseractOcr
+
+                storage = DocumentStorage(settings.document_storage_path)
+                try:
+                    run = reuse.run_scan(session, storage, settings, TesseractOcr.from_settings(settings),
+                                         args.application, SYSTEM_ACTOR)
+                except AppError as exc:
+                    print(exc.message, file=sys.stderr)
+                    return 2
+                print(json.dumps({"run_id": run.id, "status": run.status.value, "documents_scanned": run.documents_scanned,
+                                  "comparisons": run.comparisons, "candidates": run.candidates,
+                                  "pairs_created": run.pairs_created, "pairs_reused": run.pairs_reused,
+                                  "outcomes": run.outcome_counts}, indent=2))
+            elif args.command == "grant-cross-case":
+                from sqlalchemy import select
+
+                from app.core.context import SYSTEM_ACTOR
+                from app.models import User
+
+                user = session.execute(select(User).where(User.username == args.username)).scalar_one_or_none()
+                if user is None:
+                    print(f"No user '{args.username}'.", file=sys.stderr)
+                    return 2
+                auth.update_user(session, user.id, SYSTEM_ACTOR, cross_case_reviewer=not args.revoke)
+                print(f"Cross-case reviewer permission {'revoked from' if args.revoke else 'granted to'} '{user.username}'.")
     finally:
         engine.dispose()
+    return 0
+
+
+def _reuse_eval(out: str | None) -> int:
+    from pathlib import Path
+
+    from app.core.config import get_settings as _settings
+    from app.services.pdf_text import TesseractOcr
+    from app.services.reuse_eval import evaluate
+
+    result = evaluate(ocr=TesseractOcr.from_settings(_settings()))
+    if out:
+        target = Path(out)
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "metrics.json").write_text(json.dumps(result.data, indent=2, default=str), encoding="utf-8")
+        (target / "metrics.csv").write_text(result.to_csv(), encoding="utf-8")
+        (target / "summary.md").write_text(result.to_markdown(), encoding="utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")  # legacy Windows consoles cannot encode every character
+    print(result.to_markdown())
+    if out:
+        print(f"Wrote metrics.json, metrics.csv and summary.md to {target}")
     return 0
 
 

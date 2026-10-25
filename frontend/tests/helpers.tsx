@@ -146,6 +146,10 @@ export function mockApi(routes: Record<string, Handler>) {
     if (method === "GET" && /^\/applications\/[^/]+\/evidence-requests$/.test(call.path)) return jsonResponse([]);
     if (method === "GET" && /^\/applications\/[^/]+\/audit-events$/.test(call.path)) return jsonResponse(page([]));
     if (method === "GET" && /\/findings\/[^/]+\/actions$/.test(call.path)) return jsonResponse([]);
+    if (method === "GET" && /^\/applications\/[^/]+\/cross-case-alerts$/.test(call.path)) {
+      return jsonResponse({ items: [], can_view_details: currentUser.cross_case_reviewer, latest_scan: null,
+        notice: "A possible match is a prompt for human review. Document reuse is not automatically misconduct." });
+    }
     return jsonResponse({ error: { code: "unmocked", message: `Unmocked ${method} ${path}`, request_id: "t" } }, 599);
   });
   return { spy, calls, callsTo: (method: string, path: string) => calls.filter((c) => c.method === method && c.path === path) };
@@ -153,9 +157,11 @@ export function mockApi(routes: Record<string, Handler>) {
 
 export const REVIEWER: User = {
   id: "u-reviewer", username: "demo.reviewer", display_name: "Demo Reviewer", role: "reviewer", is_active: true,
-  created_at: "2026-10-23T09:00:00Z",
+  cross_case_reviewer: false, created_at: "2026-10-23T09:00:00Z",
 };
 export const ADMIN: User = { ...REVIEWER, id: "u-admin", username: "demo.admin", display_name: "Demo Admin", role: "admin" };
+export const SENIOR: User = { ...REVIEWER, id: "u-senior", username: "senior.reviewer", display_name: "Senior Reviewer",
+  cross_case_reviewer: true };
 let currentUser: User = ADMIN;
 
 /** Renders the app signed in (token present, /auth/me answered) unless `signedIn` is false. */

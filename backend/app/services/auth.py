@@ -35,12 +35,16 @@ def create_user(session: Session, *, username: str, display_name: str, role: Use
 
 
 def update_user(session: Session, user_id: str, actor: Actor, *, role: UserRole | None = None,
-                is_active: bool | None = None, display_name: str | None = None, password: str | None = None) -> User:
+                is_active: bool | None = None, display_name: str | None = None, password: str | None = None,
+                cross_case_reviewer: bool | None = None) -> User:
     user = session.get(User, user_id)
     if user is None:
         raise NotFoundError("User was not found.")
     if user.id == actor.user_id and ((role and role != UserRole.ADMIN) or is_active is False):
         raise ConflictError("self_lockout", "You cannot remove your own administrator role or deactivate yourself.")
+    if user.id == actor.user_id and cross_case_reviewer is not None and cross_case_reviewer != user.cross_case_reviewer:
+        raise ConflictError("self_permission_change",
+                            "You cannot change your own cross-case reviewer permission; ask another administrator.")
     changed = []
     if role is not None and role != user.role:
         changed.append("role")
@@ -50,6 +54,12 @@ def update_user(session: Session, user_id: str, actor: Actor, *, role: UserRole 
     if is_active is not None and is_active != user.is_active:
         changed.append("is_active")
         user.is_active = is_active
+    if cross_case_reviewer is not None and cross_case_reviewer != user.cross_case_reviewer:
+        changed.append("cross_case_reviewer")
+        audit.record(session, "user.permission_changed", "user", user.id,
+                     details={"username": user.username, "permission": "cross_case_reviewer",
+                              "granted": cross_case_reviewer})
+        user.cross_case_reviewer = cross_case_reviewer
     if display_name is not None and display_name.strip() != user.display_name:
         changed.append("display_name")
         user.display_name = display_name.strip()
@@ -59,7 +69,7 @@ def update_user(session: Session, user_id: str, actor: Actor, *, role: UserRole 
         user.password_hash = hash_password(password)
     if changed:
         user.updated_at = utcnow()
-        if "password" in changed or "is_active" in changed or "role" in changed:
+        if {"password", "is_active", "role", "cross_case_reviewer"} & set(changed):
             _revoke_all(session, user.id)  # privilege/credential change ends existing sessions
         audit.record(session, "user.updated", "user", user.id,
                      details={"username": user.username, "changed": changed, "is_active": user.is_active})

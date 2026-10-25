@@ -218,3 +218,36 @@ class VerificationOutcome(StrEnum):
 class ReferenceAvailability(StrEnum):
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
+
+
+# --- Cross-case document reuse (Deliverable 7) ---------------------------------------------------
+
+class ReuseOutcome(StrEnum):
+    """Matching outcome of the reuse cascade. Not a compliance, authenticity or misconduct finding."""
+
+    MATCH_CONFIRMED_FOR_REVIEW = "MATCH_CONFIRMED_FOR_REVIEW"
+    CANDIDATE = "CANDIDATE"
+    NOT_MATCHED = "NOT_MATCHED"
+    INCONCLUSIVE = "INCONCLUSIVE"
+
+
+class ReuseScanStatus(StrEnum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PairReviewStatus(StrEnum):
+    """Reviewer disposition of a case pair, stored separately from the system-generated evidence."""
+
+    NOT_REVIEWED = "not_reviewed"
+    CONFIRMED_CANDIDATE = "confirmed_candidate"  # needs further review; not a misconduct finding
+    DISMISSED = "dismissed"
+    ESCALATED = "escalated"
+
+
+class PairActionType(StrEnum):
+    CONFIRM_CANDIDATE = "confirm_candidate"
+    DISMISS = "dismiss"
+    ESCALATE = "escalate"
+    NOTE = "note"

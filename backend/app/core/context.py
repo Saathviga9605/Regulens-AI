@@ -16,6 +16,8 @@ class Actor:
     user_id: str | None
     username: str
     role: UserRole | None
+    # Senior cross-case review permission (linked-case identities and match evidence). Independent of role.
+    cross_case_reviewer: bool = False
 
     @property
     def is_admin(self) -> bool:

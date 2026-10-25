@@ -207,3 +207,18 @@ AuditEvent (append-only), User/Role. These will reference `applications.id` and 
 `findings` gains `review_version` (optimistic concurrency) and the new review-state CHECK. The migration maps legacy
 values (`acknowledged` → `confirmed`, `needs_follow_up` → `escalated`); downgrade maps back. `reset-data` also clears
 review/evidence/alert rows but keeps users, rules and the audit log (and audits the reset).
+
+## Cross-case reuse (migration 0007, additive)
+
+| Table | Key columns |
+|---|---|
+| users | + `cross_case_reviewer` boolean, default false |
+| document_fingerprints | document_id FK (cascade), sha256, feature_version, text_fingerprint (SHA-256 of normalised text), text_chars, pages JSON (per-page pHashes ×4 rotations, ink fraction); unique (document_id, feature_version) |
+| reuse_scan_runs | application_id FK, status running/completed/failed, pipeline_version, config_version, config JSON, counts, outcome_counts, failure_reason |
+| case_pairs | input_key unique (hash of document ids, SHA-256s, pipeline and config versions), document_a/b_id FK SET NULL, application_a/b_id FK RESTRICT, sha256_a/b, candidate_methods, outcome, candidate_score, pipeline/config version, review_status, review_version, first/last run, is_evaluation_fixture, ground_truth_label (CHECK: only for fixtures; never set by production scans), CHECKs for distinct applications and documents |
+| match_evidence | pair_id unique FK (cascade); exact/text/visual/geometric/fields JSON, matched_pages, reasons, uncertainties, stage_status, snapshot (identities at evaluation time), config, latency_ms. Written once, never updated |
+| case_pair_review_actions | append-only dispositions: action_type, previous/new status, actor, note, time |
+| reuse_evaluation_runs | stored A0/A1/A4 results with dataset digest and versions |
+
+Downgrade to 0006 drops these tables and the column. Verified on a fresh database, on a copy of a populated
+0004 database (0004→0007, data preserved) and by an automated 0006→0007→0006→0007 round-trip test.

@@ -367,3 +367,22 @@ Changed: findings now include `review_version` and `allowed_actions`; review sta
 `not_reviewed | confirmed | dismissed | escalated | awaiting_evidence | resolved`. The previous
 `PATCH …/findings/{id}/review` endpoint was **removed** (replaced by review actions). Document content and reports
 require the bearer header; `Content-Disposition` is exposed via CORS.
+
+## Cross-case document reuse (Deliverable 7)
+
+Details: [reuse-detection.md](reuse-detection.md). All routes require a session.
+
+| Method | Path | Access | Notes |
+|---|---|---|---|
+| POST | `/applications/{code}/cross-case-scans` | any reviewer | Runs the cascade synchronously against other cases' documents (processes unprocessed documents first). 201 `ScanRun` (counts only). 409 `scan_in_progress` if a scan for the case is running |
+| GET | `/applications/{code}/cross-case-scans` | any reviewer | Latest 10 runs (counts only) |
+| GET | `/applications/{code}/cross-case-alerts` | any reviewer | `{items, can_view_details, latest_scan, notice}`; items carry `linked` (application code, institution, filename) **only** for cross-case reviewers |
+| GET | `/case-pairs?application_code&outcome&review_status&include_superseded&page&page_size` | `cross_case_reviewer` | Paginated `PairSummary` (current pipeline/config by default) |
+| GET | `/case-pairs/{pair_id}` | `cross_case_reviewer` | `PairDetail`: both sides, outcome + meaning, evidence (exact/text/visual/geometric/fields/matched pages/reasons/uncertainties/stage status/config), actions, notice, limitations. Audited `cross_case.pair_viewed` |
+| GET | `/case-pairs/{pair_id}/pages/{a|b}/{page}` | `cross_case_reviewer` | PNG render (no-store). 410 if the document was deleted. Audited |
+| GET/POST | `/case-pairs/{pair_id}/review-actions` | `cross_case_reviewer` | POST `{action: confirm_candidate|dismiss|escalate|note, note, expected_version}`; reason ≥ 10 chars for the first three; 409 `stale_review` |
+| POST/GET | `/reuse-evaluations`, `/reuse-evaluations/{id}`, `/reuse-evaluations/{id}/export?format=csv|md|json` | `cross_case_reviewer` or admin | Runs/stores A0/A1/A4 on synthetic fixtures (409 if one is running) |
+
+Refusals return 403 `cross_case_permission_required` and are audited as `cross_case.access_denied`.
+`PATCH /users/{id}` accepts `cross_case_reviewer` (admin; changing one's own permission → 409
+`self_permission_change`). `UserRead` gains `cross_case_reviewer`.

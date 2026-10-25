@@ -4,6 +4,7 @@ import {
   ClipboardList,
   FileText,
   History,
+  Layers,
   LayoutDashboard,
   LifeBuoy,
   SlidersHorizontal,
@@ -37,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: "/applications", label: "Applications", icon: FileText },
       { path: "/institutions", label: "Institutions", icon: Building2 },
       { path: "/alerts", label: "Alerts", icon: Bell },
+      { path: "/cross-case", label: "Cross-case reuse", icon: Layers },
     ],
   },
   {

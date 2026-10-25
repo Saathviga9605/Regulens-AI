@@ -14,6 +14,14 @@ from app.models.review import (
     User,
 )
 from app.models.processing import DocumentPage, DocumentProcessing, ExtractedField
+from app.models.reuse import (
+    CasePair,
+    CasePairReviewAction,
+    DocumentFingerprint,
+    MatchEvidence,
+    ReuseEvaluationRun,
+    ReuseScanRun,
+)
 from app.models.scrutiny import (
     Finding,
     IssuerReferenceRecord,
@@ -46,4 +54,10 @@ __all__ = [
     "ScrutinyRule",
     "ScrutinyRun",
     "VerificationAttempt",
+    "CasePair",
+    "CasePairReviewAction",
+    "DocumentFingerprint",
+    "MatchEvidence",
+    "ReuseEvaluationRun",
+    "ReuseScanRun",
 ]

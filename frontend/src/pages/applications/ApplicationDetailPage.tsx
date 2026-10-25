@@ -18,6 +18,7 @@ import { DocumentsPanel } from "../../components/DocumentsPanel";
 import { ScrutinyPanel } from "../../components/ScrutinyPanel";
 import { ActivityLog } from "../../components/ActivityLog";
 import { CopilotPanel } from "../../components/CopilotPanel";
+import { CrossCasePanel } from "../../components/CrossCasePanel";
 import { EvidenceRequestsPanel } from "../../components/EvidenceRequestsPanel";
 import { AlertList } from "../AlertsPage";
 import {
@@ -108,7 +109,8 @@ export function ApplicationDetailPage() {
 
       <SectionNav label="Workspace sections" sections={[
         { id: "overview", label: "Overview" }, { id: "documents", label: "Documents" },
-        { id: "scrutiny", label: "Scrutiny & findings" }, { id: "evidence", label: "Evidence requests" },
+        { id: "scrutiny", label: "Scrutiny & findings" }, { id: "cross-case", label: "Cross-case reuse" },
+        { id: "evidence", label: "Evidence requests" },
         { id: "copilot", label: "Copilot" }, { id: "alerts", label: "Alerts" }, { id: "activity", label: "Activity" },
         { id: "institution", label: "Institution" },
       ]} />
@@ -220,6 +222,10 @@ export function ApplicationDetailPage() {
 
       <div id="scrutiny" className="scroll-mt-28">
         <ScrutinyPanel applicationCode={a.application_code} onRunCompleted={bump} focus={focus} />
+      </div>
+
+      <div id="cross-case" className="scroll-mt-28">
+        <CrossCasePanel applicationCode={a.application_code} onScanned={bump} />
       </div>
 
       <div id="evidence" className="scroll-mt-28">

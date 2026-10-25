@@ -1,0 +1,37 @@
+split,arm,tp,fp,tn,fn,precision,precision_num,precision_den,recall,recall_num,recall_den,hard_negative_fp,hard_negatives,latency_ms_total
+dev,A0,1,0,6,4,1.0,1,1,0.2,1,5,0,5,0.0
+dev,A1,3,0,6,2,1.0,3,3,0.6,3,5,0,5,176.9
+dev,A4,3,0,6,2,1.0,3,3,0.6,3,5,0,5,8797.6
+heldout,A0,1,0,8,6,1.0,1,1,0.1429,1,7,0,7,0.0
+heldout,A1,3,2,6,4,0.6,3,5,0.4286,3,7,2,7,165.4
+heldout,A4,4,0,8,3,1.0,4,4,0.5714,4,7,0,7,9290.6
+
+pair,split,label,hard_negative,scenario,a0,a1_distance,a1,a4_outcome,text_jaccard,phash_distance,geo_status,geo_inliers,diff_cells,field_agree,field_conflict,field_inconclusive
+dev_p01,dev,reuse,False,exact duplicate across cases,True,0,True,MATCH_CONFIRMED_FOR_REVIEW,1.0,0,,,,4,0,0
+dev_p02,dev,reuse,False,metadata-only change,False,0,True,MATCH_CONFIRMED_FOR_REVIEW,1.0,0,verified,2956,0,4,0,0
+dev_p03,dev,reuse,False,vector rescale + rotation,False,0,True,MATCH_CONFIRMED_FOR_REVIEW,1.0,0,verified,1163,0,4,0,0
+dev_p04,dev,reuse,False,scan-like raster copy,False,6,False,CANDIDATE,,6,verified,436,0,0,0,4
+dev_p05,dev,reuse,False,"cropped, brightness/contrast raster",False,12,False,CANDIDATE,,12,verified,778,0,0,0,4
+dev_p06,dev,distinct,True,"same template, different institution",False,4,False,NOT_MATCHED,0.6672,4,verified,2084,17,0,4,0
+dev_p07,dev,distinct,True,"same issuer layout, different number/date",False,2,False,NOT_MATCHED,0.8776,2,verified,2598,7,1,3,0
+dev_p08,dev,distinct,True,"similar logo/border, unrelated body",False,18,False,NOT_MATCHED,0.2876,18,not_verified,33,37,0,0,4
+dev_p09,dev,distinct,True,two documents of the same institution,False,6,False,NOT_MATCHED,0.46,6,not_verified,1042,23,1,2,1
+dev_p10,dev,altered,False,critical-field alteration,False,0,True,CANDIDATE,0.9766,0,verified,2903,1,3,1,0
+dev_p11,dev,distinct,False,two near-blank unreadable pages,False,,False,INCONCLUSIVE,,,inconclusive,,,0,0,0
+dev_p12,dev,distinct,True,raster copy vs same-template negative,False,10,False,NOT_MATCHED,,10,not_verified,371,16,0,0,4
+ho_p01,heldout,reuse,False,exact duplicate across cases,True,0,True,MATCH_CONFIRMED_FOR_REVIEW,1.0,0,,,,4,0,0
+ho_p02,heldout,reuse,False,vector rescale,False,2,False,MATCH_CONFIRMED_FOR_REVIEW,1.0,2,verified,845,0,4,0,0
+ho_p03,heldout,reuse,False,vector crop,False,4,False,MATCH_CONFIRMED_FOR_REVIEW,1.0,4,verified,790,0,4,0,0
+ho_p04,heldout,reuse,False,scan-like raster copy,False,6,False,CANDIDATE,,6,verified,306,3,0,0,4
+ho_p05,heldout,reuse,False,raster rotated 90°,False,0,True,CANDIDATE,,0,verified,922,0,0,0,4
+ho_p06,heldout,reuse,False,metadata-only change,False,0,True,MATCH_CONFIRMED_FOR_REVIEW,1.0,0,verified,2989,0,3,0,0
+ho_p07,heldout,reuse,False,"cropped, brightness/contrast raster",False,4,False,CANDIDATE,,4,verified,642,0,0,0,3
+ho_p08,heldout,distinct,True,"same template, different institution",False,0,True,NOT_MATCHED,0.6767,0,verified,2113,22,0,4,0
+ho_p09,heldout,distinct,True,"same issuer layout, different number/date",False,0,True,NOT_MATCHED,0.8959,0,verified,2773,3,1,2,0
+ho_p10,heldout,distinct,True,"similar logo/border, unrelated body",False,20,False,NOT_MATCHED,0.2904,20,not_verified,44,,0,0,4
+ho_p11,heldout,distinct,True,two documents of the same institution,False,8,False,NOT_MATCHED,0.4454,8,not_verified,889,30,1,2,1
+ho_p12,heldout,distinct,True,two documents of the same institution,False,12,False,NOT_MATCHED,0.4984,12,not_verified,1003,28,1,3,0
+ho_p13,heldout,altered,False,critical-field alteration (dates),False,0,True,NOT_MATCHED,0.9606,0,verified,2906,0,2,2,0
+ho_p14,heldout,distinct,False,raster copy vs unreadable page,False,,False,INCONCLUSIVE,,,inconclusive,,,0,0,0
+ho_p15,heldout,distinct,True,raster copy vs same-template negative,False,6,False,NOT_MATCHED,,6,not_verified,255,14,0,0,4
+ho_p16,heldout,distinct,True,raster copy vs same-issuer negative,False,4,False,CANDIDATE,,4,verified,521,3,0,0,3

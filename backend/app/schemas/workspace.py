@@ -28,6 +28,7 @@ class UserRead(BaseModel):
     display_name: str
     role: UserRole
     is_active: bool
+    cross_case_reviewer: bool = False
     created_at: datetime
 
 
@@ -49,6 +50,7 @@ class UserUpdate(PartialUpdateModel):
     display_name: str | None = Field(default=None, min_length=2, max_length=120)
     role: UserRole | None = None
     is_active: bool | None = None
+    cross_case_reviewer: bool | None = None
     password: str | None = Field(default=None, min_length=10, max_length=200)
 
 

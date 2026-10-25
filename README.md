@@ -236,6 +236,22 @@ or `data/documents/`, and reset is never run against them. They need no network 
 is skipped when Tesseract is not installed; OCR-unavailable behaviour and the OCR code path (with a stub engine) are
 always tested.
 
+### Cross-case reuse demo (Deliverable 7)
+
+```powershell
+cd backend
+python -m app.cli reuse-fixtures --load                    # four fictional cases A–D (idempotent)
+python -m app.cli reuse-scan --application <code of case A>  # printed by the previous command
+python -m app.cli grant-cross-case --username demo.reviewer  # or use the Users page as admin
+python -m app.cli reuse-eval --out ..\docs\evaluation\reuse-d7   # A0/A1/A4 metrics (JSON, CSV, Markdown)
+python -m app.cli reuse-fixtures --reset --confirm-reset    # removes only the fixture cases (dev/test)
+```
+
+Case B holds a rescaled copy of case A's certificate (transformed positive); case D uses the same template with a
+different institution (hard negative); case C is a raster scan (stays a candidate without OCR). Open case A →
+"Cross-case reuse" → "Open comparison" (requires the cross-case reviewer permission). See
+[docs/reuse-detection.md](docs/reuse-detection.md).
+
 ## Configuration
 
 All settings live in `.env` at the repo root; see [.env.example](.env.example) for documented defaults.
@@ -264,4 +280,5 @@ regulens-ai/
 - [Reviewer workflow (review states, evidence requests, alerts, report, copilot)](docs/review-workflow.md)
 - [Security, roles and audit](docs/security.md)
 - [Design system (tokens, components, layout, accessibility)](docs/design-system.md)
+- [Cross-case document reuse (cascade, permissions, evaluation)](docs/reuse-detection.md)
 - [Implementation status](docs/implementation-status.md)

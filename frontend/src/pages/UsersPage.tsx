@@ -27,7 +27,8 @@ const EMPTY_FORM = { username: "", display_name: "", role: "reviewer" as UserRol
 /** A change awaiting explicit confirmation. Nothing is sent until the admin confirms. */
 type Pending =
   | { kind: "role"; user: User; role: UserRole }
-  | { kind: "active"; user: User; active: boolean };
+  | { kind: "active"; user: User; active: boolean }
+  | { kind: "cross_case"; user: User; grant: boolean };
 
 export function UsersPage() {
   const { user: me } = useAuth();
@@ -46,11 +47,13 @@ export function UsersPage() {
     setApplying(true);
     setPendingError(null);
     try {
-      const change = pending.kind === "role" ? { role: pending.role } : { is_active: pending.active };
+      const change = pending.kind === "role" ? { role: pending.role }
+        : pending.kind === "active" ? { is_active: pending.active } : { cross_case_reviewer: pending.grant };
       const updated = await apiClient.updateUser(pending.user.id, change);
       const text = pending.kind === "role"
         ? `Role updated: ${updated.username} is now ${ROLES[updated.role]}.`
-        : `${updated.is_active ? "Reactivated" : "Deactivated"}: ${updated.username}.`;
+        : pending.kind === "active" ? `${updated.is_active ? "Reactivated" : "Deactivated"}: ${updated.username}.`
+        : `Cross-case reviewer permission ${updated.cross_case_reviewer ? "granted to" : "removed from"} ${updated.username}.`;
       setMessage({ tone: "success", text });
       toast(text);
       setPending(null);
@@ -96,9 +99,13 @@ export function UsersPage() {
       {message && <Alert tone={message.tone}>{message.text}</Alert>}
 
       <ConfirmDialog open={pending !== null} busy={applying} error={pendingError}
-        destructive={pending?.kind === "active" && !pending.active}
-        title={pending?.kind === "role" ? "Change role?" : pending?.kind === "active" && !pending.active ? "Deactivate user?" : "Reactivate user?"}
-        confirmLabel={pending?.kind === "role" ? "Change role" : pending?.kind === "active" && !pending.active ? "Deactivate" : "Reactivate"}
+        destructive={(pending?.kind === "active" && !pending.active) || (pending?.kind === "cross_case" && !pending.grant)}
+        title={pending?.kind === "role" ? "Change role?" : pending?.kind === "cross_case"
+          ? (pending.grant ? "Grant cross-case permission?" : "Remove cross-case permission?")
+          : pending?.kind === "active" && !pending.active ? "Deactivate user?" : "Reactivate user?"}
+        confirmLabel={pending?.kind === "role" ? "Change role" : pending?.kind === "cross_case"
+          ? (pending.grant ? "Grant permission" : "Remove permission")
+          : pending?.kind === "active" && !pending.active ? "Deactivate" : "Reactivate"}
         onConfirm={applyPending} onCancel={() => { setPending(null); setPendingError(null); }}>
         {pending?.kind === "role" && (
           <p>Change <strong>{pending.user.username}</strong> from {ROLES[pending.user.role]} to <strong>{ROLES[pending.role]}</strong>?
@@ -109,6 +116,12 @@ export function UsersPage() {
             {pending.active ? " They will be able to sign in again." : " They are signed out immediately and cannot sign in until reactivated."}
             {" "}The change is recorded in the audit trail.</p>
         )}
+        {pending?.kind === "cross_case" && (
+          <p>{pending.grant ? "Grant" : "Remove"} the cross-case reviewer permission {pending.grant ? "to" : "from"}{" "}
+            <strong>{pending.user.username}</strong>? {pending.grant
+              ? "They will see linked-case identities, documents, page images and match evidence across applications."
+              : "They will see only restricted cross-case alerts."} Their sessions are signed out and the change is audited.</p>
+        )}
       </ConfirmDialog>
 
       <Card title="Accounts">
@@ -116,13 +129,14 @@ export function UsersPage() {
           <ErrorState message={users.error} onRetry={users.reload} />
         ) : (
           <div className={TABLE.wrap}>
-            <table className={`${TABLE.table} min-w-[40rem]`}>
+            <table className={`${TABLE.table} min-w-[46rem]`}>
               <caption className="sr-only">Users</caption>
               <thead>
                 <tr>
                   <th scope="col" className={TABLE.th}>User</th>
                   <th scope="col" className={TABLE.th}>Role</th>
                   <th scope="col" className={TABLE.th}>Status</th>
+                  <th scope="col" className={TABLE.th}>Cross-case</th>
                   <th scope="col" className={TABLE.th}>Created</th>
                 </tr>
               </thead>
@@ -149,6 +163,15 @@ export function UsersPage() {
                           <input type="checkbox" checked={u.is_active} disabled={self || applying} aria-label={`Active: ${u.username}`}
                             onChange={(e) => setPending({ kind: "active", user: u, active: e.target.checked })} className="h-4 w-4" />
                           <span aria-hidden="true">{u.is_active ? "Active" : "Inactive"}</span>
+                        </label>
+                      </td>
+                      <td className={TABLE.td}>
+                        <label className="inline-flex items-center gap-2 text-sm"
+                          title={self ? "Another administrator must change your own permission" : undefined}>
+                          <input type="checkbox" checked={u.cross_case_reviewer} disabled={self || applying}
+                            aria-label={`Cross-case reviewer: ${u.username}`}
+                            onChange={(e) => setPending({ kind: "cross_case", user: u, grant: e.target.checked })} className="h-4 w-4" />
+                          <span aria-hidden="true">{u.cross_case_reviewer ? "Granted" : "—"}</span>
                         </label>
                       </td>
                       <td className={`${TABLE.td} text-xs`}>{formatDateTime(u.created_at)}</td>

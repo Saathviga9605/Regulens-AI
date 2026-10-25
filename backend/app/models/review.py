@@ -24,6 +24,8 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(str_enum(UserRole, "user_role"), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    # Senior cross-case review permission: granted by an administrator, never implied by the admin role.
+    cross_case_reviewer: Mapped[bool] = mapped_column(nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 

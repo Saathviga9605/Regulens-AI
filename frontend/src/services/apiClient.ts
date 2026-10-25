@@ -36,6 +36,16 @@ import type {
   User,
   UserCreateInput,
   UserUpdateInput,
+  CaseAlertList,
+  EvaluationDetail,
+  EvaluationSummary,
+  PairAction,
+  PairActionType,
+  PairDetail,
+  PairReviewStatus,
+  PairSummary,
+  ReuseOutcome,
+  ScanRun,
   ScrutinyRule,
   ScrutinyRun,
   ScrutinyRunSummary,
@@ -421,5 +431,46 @@ export const apiClient = {
     return request(`/applications/${enc(applicationCode)}/copilot`, {
       method: "POST", body: { question, finding_id: findingId ?? null },
     });
+  },
+
+  // Cross-case reuse. Detail endpoints require the cross-case reviewer permission (403 otherwise).
+  startCrossCaseScan(applicationCode: string): Promise<ScanRun> {
+    return request(`/applications/${enc(applicationCode)}/cross-case-scans`, { method: "POST", timeoutMs: LONG_TIMEOUT_MS });
+  },
+  listCrossCaseScans(applicationCode: string): Promise<ScanRun[]> {
+    return request(`/applications/${enc(applicationCode)}/cross-case-scans`);
+  },
+  crossCaseAlerts(applicationCode: string): Promise<CaseAlertList> {
+    return request(`/applications/${enc(applicationCode)}/cross-case-alerts`);
+  },
+  listCasePairs(query: { page?: number; page_size?: number; application_code?: string; outcome?: ReuseOutcome;
+    review_status?: PairReviewStatus } = {}): Promise<Page<PairSummary>> {
+    return request("/case-pairs", { query: { ...query } });
+  },
+  getCasePair(pairId: string): Promise<PairDetail> {
+    return request(`/case-pairs/${enc(pairId)}`);
+  },
+  async casePairPageImage(pairId: string, side: "a" | "b", page: number): Promise<Blob> {
+    return (await requestBlob(`/case-pairs/${enc(pairId)}/pages/${side}/${page}`)).blob;
+  },
+  addPairAction(pairId: string, action: PairActionType, note: string, expectedVersion: number): Promise<PairDetail> {
+    return request(`/case-pairs/${enc(pairId)}/review-actions`, {
+      method: "POST", body: { action, note: note || null, expected_version: expectedVersion },
+    });
+  },
+  listPairActions(pairId: string): Promise<PairAction[]> {
+    return request(`/case-pairs/${enc(pairId)}/review-actions`);
+  },
+  runReuseEvaluation(): Promise<EvaluationDetail> {
+    return request("/reuse-evaluations", { method: "POST", timeoutMs: LONG_TIMEOUT_MS });
+  },
+  listReuseEvaluations(): Promise<EvaluationSummary[]> {
+    return request("/reuse-evaluations");
+  },
+  getReuseEvaluation(id: string): Promise<EvaluationDetail> {
+    return request(`/reuse-evaluations/${enc(id)}`);
+  },
+  exportReuseEvaluation(id: string, format: "csv" | "md" | "json"): Promise<{ blob: Blob; filename: string | null }> {
+    return requestBlob(`/reuse-evaluations/${enc(id)}/export`, { format });
   },
 };
