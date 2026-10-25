@@ -46,15 +46,19 @@ synthetic demo data say nothing about real-world accuracy.
 
 Rules are rows in `scrutiny_rules` (defaults in `services/rule_catalog.py`, inserted at startup if missing, never
 overwritten). Each has a stable ID, type, validated parameters, severity, enabled flag, source, source reference,
-source-verification status, demo-only flag and version. Parameters are validated against a fixed schema per type
-(`extra="forbid"`); nothing is executed. Any change increments `version`; each run stores a snapshot.
+source-verification status, provenance, effective period, demo-only flag and version. Parameters are validated
+against a fixed schema per type (`extra="forbid"`); nothing is executed. Content changes to non-registry rules
+increment `version`; registry-managed rule content is immutable and only its audited enabled state can change.
+Each run snapshots provenance, effective dates and evaluator version.
 
 **No default rule is a verified AICTE requirement.**
 
 | ID | Type | Basis |
 |----|------|-------|
-| EXP-001…004 | expected_document | **Demo-only, unverified** prototype expectations (EXP-004 applies only to intake-increase / new-course applications) |
-| FLD-001…004 | required_field | **Demo-only, unverified** |
+| EXP-001, EXP-002, EXP-004 | expected_document | **Demo-only, unverified** prototype expectations (EXP-004 applies only to intake-increase / new-course applications) |
+| EXP-003 | expected_document | Retired; retained only for historical run snapshots |
+| FLD-001, FLD-003, FLD-004 | required_field | **Demo-only, unverified** |
+| FLD-002 | required_field | Retired; retained only for historical run snapshots |
 | PRC-001 | processing_quality | Integrity check (not regulatory) |
 | CLS-001 | classification_consistency | Integrity check |
 | CON-001/002 | institution_name_match | Integrity check vs application record (snapshot if frozen) |
@@ -64,10 +68,34 @@ source-verification status, demo-only flag and version. Parameters are validated
 | DAT-001 | date_order | Issue date not after stated validity |
 | DAT-002 | expiry_before_scrutiny | Only explicitly stated validity dates; never inferred |
 | VER-001 | simulated_issuer_outcome | Reports latest **simulated** issuer check per document |
+| — | validity_period, conditional_document, issuer_authority, alternative_document_group | Evaluator infrastructure; production defaults do not load APH candidates |
+
+### Isolated APH EoA demo profile
+Scrutiny accepts `ruleset_profile: "aph_eoa_demo"` for the explicit demo profile. It loads the positional mapping
+R01–R08 → APH-101–APH-108 without inserting rules into `scrutiny_rules` or invoking production activation.
+It accepts only existing private self-financing technical-institution EoA applications and rejects an operator
+date override; the application `submitted_at` date is its sole reference date.
+R03 (other structural checks) is intentionally omitted. R02 evaluates the one-of group; R04–R07 are recorded as
+alternative members, never cumulative requirements. R08 evaluates the strictly-more-than-30-years condition using
+the application `submitted_at` date. If submission or certificate evidence is unavailable, the result stays
+inconclusive.
+
+Every demo finding and run carries the exact notice **DEMO RULESET - formal approval pending**. Findings and PDF
+reports include the candidate's clause, PDF/printed page and short quote. These citations and rules remain
+unverified drafts; the profile does not approve them or change the production rule set. Issuer authority is not
+independently verified. The demo run logs its profile and profile version, and its snapshot records both the profile
+version and evaluator version.
 
 Outcomes: `pass`, `issue`, `inconclusive`, `not_applicable`. Unusable (ambiguous/unverified) values give
 `inconclusive`; a field absent from one document is never a conflict; inconclusive findings are reported one severity
 step lower than the rule's severity.
+
+### Reference dates and effective periods
+An explicit `scrutiny_date` is labelled `operator_override`. Otherwise the engine uses the application's internal
+`submitted_at` date (when it was marked ready), not an independently verified portal submission date. If that field
+is unavailable, the reference date remains unavailable; the system clock is never substituted. Date-dependent
+evaluators return `inconclusive` without a date. Rules outside a known effective period return `not_applicable`;
+unknown bounds are labelled and do not prevent evaluation.
 
 ## Anomaly indicators (never conclusions)
 `exact_duplicate` (existing SHA-256 duplicate metadata), `content_in_other_application` (count only),
@@ -89,5 +117,5 @@ All PDFs carry a "FICTIONAL DEMONSTRATION DOCUMENT - NOT A GENUINE CERTIFICATE" 
 | Application (seed) | Content | Expected results |
 |---|---|---|
 | seed-app-01 Deccan Ridge (`REG-EoA-2026-0001` on a fresh DB) | 4 consistent documents | Clean: 0 issues; issuer check on fire certificate → simulated match; occupancy → simulated unavailable |
-| seed-app-06 Hooghly (`REG-EoA-2026-0005`) | Fire cert valid until 31 Dec 2025; survey 312 vs 318; area 9,500 sq m vs 86,000 sq ft; exact duplicate; no structural certificate | CON-003, CON-005, DAT-002, EXP-003 issues; duplicate indicator; issuer checks → simulated expired / mismatch |
+| seed-app-06 Hooghly (`REG-EoA-2026-0005`) | Fire cert valid until 31 Dec 2025; survey 312 vs 318; area 9,500 sq m vs 86,000 sq ft; exact duplicate; no structural certificate | CON-003, CON-005, DAT-002 issues; duplicate indicator; issuer checks → simulated expired / mismatch; EXP-003 is retired |
 | seed-app-09 Aravalli (`REG-EoA-2026-0008`) | Image-only scan, resolution uploaded as university NOC, ambiguous date `05/06/2026`, password-protected PDF | PRC-001 issues, CLS-001 mismatch, ambiguous field, inconclusive required-field checks |

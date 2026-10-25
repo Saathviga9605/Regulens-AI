@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.core.errors import ConflictError, NotFoundError
+from app.core.errors import AppError, ConflictError, NotFoundError
 from app.db.types import utcnow
 from app.models import (
     Application,
@@ -39,6 +39,7 @@ from app.models.enums import (
     DocumentStatus,
     FieldStatus,
     FindingKind,
+    InstitutionType,
     ProcessingStatus,
     ReviewStatus,
     RuleOutcome as O,
@@ -49,14 +50,16 @@ from app.models.enums import (
 )
 from app.services import issuer_verification, processing as processing_service
 from app.services import alerts, audit
+from app.services import aph_demo_ruleset
 from app.services.applications import get_application
 from app.services.documents import other_application_matches
-from app.services.normalize import is_grounded, normalize_identifier, text_similarity
+from app.services.normalize import is_grounded, normalize_identifier, normalize_name, text_similarity
 from app.services.storage import DocumentStorage
 
 logger = logging.getLogger("regulens.scrutiny")
 
 STALE_RUN_AFTER = timedelta(minutes=15)
+EVALUATOR_VERSION = "2"
 LABELS = {c: c.value.replace("_", " ") for c in DocumentCategory}
 
 
@@ -96,7 +99,8 @@ class Ctx:
     application: Application
     institution: dict
     documents: list[DocCtx]
-    scrutiny_date: date
+    scrutiny_date: date | None
+    scrutiny_date_source: str
     verifications: dict
 
     def of_category(self, category: DocumentCategory) -> list[DocCtx]:
@@ -119,7 +123,8 @@ def _institution_view(application: Application) -> dict:
     }
 
 
-def build_context(session: Session, application: Application, scrutiny_date: date) -> Ctx:
+def build_context(session: Session, application: Application, scrutiny_date: date | None,
+                  scrutiny_date_source: str = "unavailable") -> Ctx:
     docs = session.execute(
         select(Document).where(Document.application_id == application.id,
                                Document.status != DocumentStatus.INTAKE_FAILED)
@@ -134,7 +139,7 @@ def build_context(session: Session, application: Application, scrutiny_date: dat
         pages = {p.page_number: p.text for p in processing.pages} if processing else {}
         fields = {f.field_name: f for f in processing.fields} if processing else {}
         contexts.append(DocCtx(d, processing, pages, fields, matches.get(d.id, 0)))
-    return Ctx(application, _institution_view(application), contexts, scrutiny_date,
+    return Ctx(application, _institution_view(application), contexts, scrutiny_date, scrutiny_date_source,
                issuer_verification.latest_attempts(session, application.id))
 
 
@@ -199,6 +204,389 @@ def eval_expected_document(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
     return [Eval("application", O.ISSUE, f"No document categorised as {label} has been uploaded.",
                  f"Expected document not found: {label}", "missing_document",
                  missing_evidence=f"A document uploaded with the category '{label}'.")]
+
+
+def _elapsed_years(start: date, years: int) -> date:
+    try:
+        return start.replace(year=start.year + years)
+    except ValueError:
+        return start.replace(year=start.year + years, day=28)
+
+
+def _date_field(doc: DocCtx, field_name: str) -> tuple[ExtractedField | None, date | None]:
+    field = doc.field(field_name)
+    normalized = _date_of(doc.usable(field_name))
+    try:
+        return field, date.fromisoformat(normalized) if normalized else None
+    except ValueError:
+        return field, None
+
+
+def eval_validity_period(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
+    category = DocumentCategory(p["category"])
+    docs = [doc for doc in ctx.originals() if doc.document.category == category]
+    if not docs:
+        return [Eval("application", O.NOT_APPLICABLE, f"No {LABELS[category]} uploaded.", rule.title,
+                     "validity_period")]
+    results = []
+    for doc in docs:
+        subject = f"document:{doc.document.id}"
+        source_field, issue_date = _date_field(doc, p["start_field"])
+        if not doc.processed_ok():
+            results.append(_unprocessed(doc, subject, rule.title))
+        elif source_field is None or issue_date is None:
+            results.append(Eval(
+                subject, O.INCONCLUSIVE,
+                f"The issue date needed to assess the stated {p['years']}-year period in '{doc.label}' "
+                "is missing or unreadable.",
+                f"{rule.title}: issue date needs review", "validity_period", [doc.document.id],
+                [source_field.id] if source_field else [], [_ev(doc, source_field)] if source_field else [],
+                missing_evidence="An unambiguous, grounded issue date and an available reference date.",
+            ))
+        elif ctx.scrutiny_date is None:
+            results.append(Eval(
+                subject, O.INCONCLUSIVE, "The scrutiny reference date is unavailable, so the validity period "
+                "cannot be assessed.", f"{rule.title}: reference date unavailable", "validity_period",
+                [doc.document.id], [source_field.id], [_ev(doc, source_field)],
+                [{"source": "reference_date", "value": None, "date_source": ctx.scrutiny_date_source}],
+                "A scrutiny reference date derived from the application or explicitly supplied by an operator.",
+            ))
+        else:
+            expiry = _elapsed_years(issue_date, p["years"])
+            outcome = O.ISSUE if ctx.scrutiny_date > expiry else O.PASS
+            explanation = (f"The stated {p['years']}-year period from {issue_date.isoformat()} ends on "
+                           f"{expiry.isoformat()}; the reference date is {ctx.scrutiny_date.isoformat()}.")
+            results.append(Eval(
+                subject, outcome, explanation, rule.title if outcome == O.PASS else f"{rule.title}: period elapsed",
+                "validity_period", [doc.document.id], [source_field.id], [_ev(doc, source_field)],
+                [{"source": "issue_date", "value": issue_date.isoformat()},
+                 {"source": "calculated_period_end", "value": expiry.isoformat()},
+                 {"source": "reference_date", "value": ctx.scrutiny_date.isoformat(),
+                  "date_source": ctx.scrutiny_date_source}],
+            ))
+    return results
+
+
+def eval_conditional_document(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
+    required = DocumentCategory(p["required_category"])
+    trigger = DocumentCategory(p["trigger_category"])
+    triggers = [doc for doc in ctx.originals() if doc.document.category == trigger]
+    if not triggers:
+        return [Eval("application", O.INCONCLUSIVE, f"No {LABELS[trigger]} is available to assess the "
+                     "condition that may require this document.", f"{rule.title}: trigger evidence unavailable",
+                     "conditional_document", missing_evidence=f"A readable {LABELS[trigger]} issue date.")]
+    if ctx.scrutiny_date is None:
+        return [Eval("application", O.INCONCLUSIVE, "The scrutiny reference date is unavailable, so the "
+                     "condition cannot be assessed.", f"{rule.title}: reference date unavailable",
+                     "conditional_document", missing_evidence="A scrutiny reference date.")]
+    if ctx.scrutiny_date_source != p["reference_date_source"]:
+        return [Eval(
+            "application", O.INCONCLUSIVE,
+            f"The rule requires a reference date from {p['reference_date_source']}, but the available date is "
+            f"from {ctx.scrutiny_date_source}.",
+            f"{rule.title}: reference date source needs review", "conditional_document",
+            missing_evidence=f"A reference date sourced from {p['reference_date_source']}.",
+        )]
+    out = []
+    for doc in triggers:
+        subject = f"document:{doc.document.id}"
+        source_field, trigger_date = _date_field(doc, p["trigger_field"])
+        if not doc.processed_ok() or trigger_date is None:
+            out.append(Eval(
+                subject, O.INCONCLUSIVE, f"The trigger date in '{doc.label}' is missing or unreadable.",
+                f"{rule.title}: trigger date needs review", "conditional_document", [doc.document.id],
+                [source_field.id] if source_field else [], [_ev(doc, source_field)] if source_field else [],
+                missing_evidence="A grounded, unambiguous trigger date.",
+            ))
+            continue
+        due_date = _elapsed_years(trigger_date, p["years_elapsed"])
+        condition_met = (ctx.scrutiny_date >= due_date if p["comparison"] == "at_least"
+                         else ctx.scrutiny_date > due_date)
+        if not condition_met:
+            out.append(Eval(subject, O.NOT_APPLICABLE,
+                            f"The condition is not met: the {p['comparison'].replace('_', ' ')} "
+                            f"{p['years_elapsed']}-year threshold from {trigger_date.isoformat()} is "
+                            f"{due_date.isoformat()}.",
+                            rule.title, "conditional_document", [doc.document.id], [source_field.id],
+                            [_ev(doc, source_field)]))
+            continue
+        required_docs = ctx.of_category(required)
+        if required_docs:
+            out.append(Eval(subject, O.PASS, f"The condition is met and a {LABELS[required]} is present.",
+                            rule.title, "conditional_document",
+                            [doc.document.id, *[item.document.id for item in required_docs]],
+                            [source_field.id], [_ev(doc, source_field), *[_doc_ref(item) for item in required_docs]],
+                            [{"source": "condition_due_date", "value": due_date.isoformat()},
+                             {"source": "reference_date", "value": ctx.scrutiny_date.isoformat(),
+                              "date_source": ctx.scrutiny_date_source}]))
+        else:
+            out.append(Eval(subject, O.ISSUE, f"The condition is met, but no {LABELS[required]} is present.",
+                            f"{rule.title}: required document not found", "conditional_document",
+                            [doc.document.id], [source_field.id], [_ev(doc, source_field)],
+                            [{"source": "condition_due_date", "value": due_date.isoformat()},
+                             {"source": "reference_date", "value": ctx.scrutiny_date.isoformat(),
+                              "date_source": ctx.scrutiny_date_source}],
+                            f"A {LABELS[required]} because the stated condition is met."))
+    return out
+
+
+def eval_alternative_document_group(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
+    categories = [DocumentCategory(value) for value in p["categories"]]
+    labels = [LABELS[category] for category in categories]
+    application_types = p["application_types"]
+    if ctx.application.application_type.value not in application_types:
+        return [Eval(
+            "application", O.NOT_APPLICABLE,
+            f"Applies only to application types {', '.join(application_types)}.",
+            rule.title, "alternative_document_group",
+        )]
+
+    documents = [doc for category in categories for doc in ctx.originals()
+                 if doc.document.category == category]
+    if not documents:
+        predicted = [doc for doc in ctx.documents if doc.processing and
+                     doc.processing.predicted_category in categories]
+        if predicted:
+            return [Eval(
+                "application", O.INCONCLUSIVE,
+                "No accepted alternative was uploaded under its category, but one or more documents "
+                "may match; verify their document types.",
+                f"{rule.title}: document type needs review", "alternative_document_group",
+                [doc.document.id for doc in predicted],
+                evidence=[_doc_ref(doc) for doc in predicted],
+                missing_evidence=f"One of: {', '.join(labels)}.",
+            )]
+        return [Eval(
+            "application", O.ISSUE,
+            f"None of the accepted alternatives was uploaded: {', '.join(labels)}.",
+            f"{rule.title}: no accepted alternative found", "missing_document",
+            missing_evidence=f"One valid document from: {', '.join(labels)}.",
+        )]
+
+    if (p["validity_reference"] != "operator_override" or
+            ctx.scrutiny_date_source != "operator_override" or ctx.scrutiny_date is None):
+        return [Eval(
+            "application", O.INCONCLUSIVE,
+            "An accepted document is present, but its validity cannot be assessed without an explicitly "
+            "supplied operator reference date.",
+            f"{rule.title}: validity date needs review", "alternative_document_group",
+            [doc.document.id for doc in documents],
+            evidence=[_doc_ref(doc) for doc in documents],
+            compared_values=[{"source": "reference_date", "value": ctx.scrutiny_date.isoformat()
+                              if ctx.scrutiny_date else None,
+                              "date_source": ctx.scrutiny_date_source}],
+            missing_evidence="An explicit operator-supplied reference date and a grounded validity end date.",
+        )]
+
+    evidence: list[dict] = []
+    document_ids: list[str] = []
+    field_ids: list[str] = []
+    compared_values: list[dict] = []
+    has_valid = False
+    has_unknown_validity = False
+    for doc in documents:
+        validity_field, valid_until = _date_field(doc, "valid_until")
+        document_ids.append(doc.document.id)
+        if not doc.processed_ok() or validity_field is None or valid_until is None:
+            has_unknown_validity = True
+            evidence.append(_ev(doc, validity_field) if validity_field else _doc_ref(doc))
+            continue
+        field_ids.append(validity_field.id)
+        evidence.append(_ev(doc, validity_field))
+        compared_values.append({"source": "valid_until", "document_id": doc.document.id,
+                                "value": valid_until.isoformat()})
+        has_valid = has_valid or valid_until >= ctx.scrutiny_date
+
+    compared_values.append({"source": "reference_date", "value": ctx.scrutiny_date.isoformat(),
+                            "date_source": ctx.scrutiny_date_source})
+    if has_valid:
+        outcome = O.PASS
+        explanation = "At least one accepted alternative has a grounded validity date that includes the " \
+                      f"explicit operator reference date {ctx.scrutiny_date.isoformat()}."
+        title = rule.title
+        missing_evidence = None
+    elif has_unknown_validity:
+        outcome = O.INCONCLUSIVE
+        explanation = "No accepted alternative could be confirmed valid because one or more validity dates " \
+                      "are missing, unreadable, or ambiguous."
+        title = f"{rule.title}: validity needs review"
+        missing_evidence = "A grounded, unambiguous valid-until date for at least one accepted alternative."
+    else:
+        outcome = O.ISSUE
+        explanation = "Every uploaded accepted alternative has an expired validity date as of the explicit " \
+                      f"operator reference date {ctx.scrutiny_date.isoformat()}."
+        title = f"{rule.title}: no currently valid alternative"
+        missing_evidence = "At least one accepted alternative with current validity."
+    return [Eval("application", outcome, explanation, title, "alternative_document_group",
+                 document_ids, field_ids, evidence, compared_values, missing_evidence)]
+
+
+def _demo_aph_fire_safety(rule, ctx: Ctx) -> list[Eval]:
+    present = ctx.of_category(DocumentCategory.FIRE_SAFETY_CERTIFICATE)
+    if not present:
+        return eval_expected_document(rule, rule.parameters, ctx)
+
+    results = []
+    for doc in present:
+        subject = f"document:{doc.document.id}"
+        if not doc.processed_ok():
+            results.append(_unprocessed(doc, subject, rule.title))
+            continue
+        validity_field, valid_until = _date_field(doc, "valid_until")
+        if validity_field is None or valid_until is None:
+            results.append(Eval(
+                subject, O.INCONCLUSIVE,
+                f"The stated validity of '{doc.label}' is missing or unreadable.",
+                f"{rule.title}: validity needs review", "validity_period", [doc.document.id],
+                [validity_field.id] if validity_field else [],
+                [_ev(doc, validity_field)] if validity_field else [_doc_ref(doc)],
+                missing_evidence="A grounded, unambiguous validity end date.",
+            ))
+        elif ctx.scrutiny_date is None:
+            results.append(Eval(
+                subject, O.INCONCLUSIVE,
+                "The application submission date is unavailable, so the stated validity cannot be assessed.",
+                f"{rule.title}: submission date unavailable", "validity_period", [doc.document.id],
+                [validity_field.id], [_ev(doc, validity_field)],
+                missing_evidence="The application submission date.",
+            ))
+        elif valid_until < ctx.scrutiny_date:
+            results.append(Eval(
+                subject, O.ISSUE,
+                f"'{doc.label}' states validity until {valid_until.isoformat()}, before the application "
+                f"submission date {ctx.scrutiny_date.isoformat()}.",
+                f"{rule.title}: stated validity ended", "expired_validity", [doc.document.id],
+                [validity_field.id], [_ev(doc, validity_field)],
+                [{"source": "stated_valid_until", "value": valid_until.isoformat()},
+                 {"source": "application_submission_date", "value": ctx.scrutiny_date.isoformat()}],
+            ))
+        else:
+            results.append(Eval(
+                subject, O.INCONCLUSIVE,
+                f"'{doc.label}' states validity through {valid_until.isoformat()}, but the issuing authority "
+                "has not been independently verified.",
+                f"{rule.title}: issuer requires human review", "validity_period", [doc.document.id],
+                [validity_field.id], [_ev(doc, validity_field)],
+                [{"source": "stated_valid_until", "value": valid_until.isoformat()},
+                 {"source": "application_submission_date", "value": ctx.scrutiny_date.isoformat()}],
+                "Independent verification that the issuer is a competent authority.",
+            ))
+    return results
+
+
+def _demo_aph_alternative_group(rule, ctx: Ctx) -> list[Eval]:
+    p = rule.parameters
+    categories = [DocumentCategory(category) for category in p["categories"]]
+    labels = [LABELS[category] for category in categories]
+    if ctx.application.application_type.value not in p["application_types"]:
+        return [Eval("application", O.NOT_APPLICABLE, "This application type is outside the demo rule scope.",
+                     rule.title, "alternative_document_group")]
+
+    documents = [doc for category in categories for doc in ctx.originals()
+                 if doc.document.category == category]
+    if not documents:
+        predicted = [doc for doc in ctx.documents if doc.processing and
+                     doc.processing.predicted_category in categories]
+        if predicted:
+            return [Eval(
+                "application", O.INCONCLUSIVE,
+                "No accepted alternative was uploaded under its category, but one or more documents may match; "
+                "verify their document types.",
+                f"{rule.title}: document type needs review", "alternative_document_group",
+                [doc.document.id for doc in predicted],
+                evidence=[_doc_ref(doc) for doc in predicted],
+                missing_evidence=f"One of: {', '.join(labels)}.",
+            )]
+        return [Eval(
+            "application", O.ISSUE,
+            f"None of the accepted alternatives was uploaded: {', '.join(labels)}.",
+            f"{rule.title}: no accepted alternative found", "missing_document",
+            missing_evidence=f"One valid document from: {', '.join(labels)}.",
+        )]
+
+    evidence = []
+    document_ids = []
+    field_ids = []
+    compared_values = []
+    expired_count = 0
+    unclear_count = 0
+    for doc in documents:
+        document_ids.append(doc.document.id)
+        validity_field, valid_until = _date_field(doc, "valid_until")
+        if not doc.processed_ok() or validity_field is None or valid_until is None:
+            unclear_count += 1
+            evidence.append(_ev(doc, validity_field) if validity_field else _doc_ref(doc))
+            continue
+        field_ids.append(validity_field.id)
+        evidence.append(_ev(doc, validity_field))
+        compared_values.append({"source": "stated_valid_until", "document_id": doc.document.id,
+                                "value": valid_until.isoformat()})
+        if ctx.scrutiny_date is not None and valid_until < ctx.scrutiny_date:
+            expired_count += 1
+        else:
+            unclear_count += 1
+
+    if ctx.scrutiny_date is None:
+        outcome = O.INCONCLUSIVE
+        explanation = "The application submission date is unavailable, so the validity of the alternatives " \
+                      "cannot be assessed."
+        title = f"{rule.title}: submission date unavailable"
+        missing_evidence = "The application submission date and a grounded validity end date."
+    elif expired_count == len(documents) and unclear_count == 0:
+        outcome = O.ISSUE
+        explanation = "Every uploaded accepted alternative states a validity end date before the application " \
+                      f"submission date {ctx.scrutiny_date.isoformat()}."
+        title = f"{rule.title}: no currently valid alternative"
+        missing_evidence = "At least one alternative whose stated validity covers the submission date."
+    else:
+        outcome = O.INCONCLUSIVE
+        explanation = "At least one accepted alternative is present, but its validity and/or issuing authority " \
+                      "cannot be fully verified from the available evidence."
+        title = f"{rule.title}: alternative needs human review"
+        missing_evidence = "A grounded validity period and human verification of the competent authority."
+    compared_values.append({"source": "application_submission_date",
+                            "value": ctx.scrutiny_date.isoformat() if ctx.scrutiny_date else None,
+                            "date_source": ctx.scrutiny_date_source})
+    return [Eval("application", outcome, explanation, title, "alternative_document_group", document_ids,
+                 field_ids, evidence, compared_values, missing_evidence)]
+
+
+def eval_issuer_authority(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
+    category = DocumentCategory(p["category"])
+    state = ctx.application.institution.state
+    expected = p["authority_directory"].get(state)
+    if expected is None:
+        return [Eval("application", O.INCONCLUSIVE,
+                     f"No authority-directory entry is configured for {state}; issuer authority was not inferred.",
+                     f"{rule.title}: authority coverage unknown", "issuer_authority",
+                     missing_evidence=f"A verified authority-directory entry for {state}.")]
+    out = []
+    for doc in [item for item in ctx.originals() if item.document.category == category]:
+        field = doc.usable("issuing_authority")
+        subject = f"document:{doc.document.id}"
+        if not field:
+            out.append(Eval(subject, O.INCONCLUSIVE,
+                            f"The issuing authority in '{doc.label}' is missing or unreadable.",
+                            f"{rule.title}: issuer needs review", "issuer_authority", [doc.document.id],
+                            [doc.field("issuing_authority").id] if doc.field("issuing_authority") else [],
+                            [_ev(doc, doc.field("issuing_authority"))] if doc.field("issuing_authority") else [],
+                            missing_evidence="A grounded issuing-authority field."))
+            continue
+        normalized_issuer = normalize_name(field.raw_value)
+        matches = [authority for authority in expected if normalize_name(authority) == normalized_issuer]
+        outcome = O.PASS if matches else O.ISSUE
+        out.append(Eval(
+            subject, outcome,
+            (f"The stated issuer in '{doc.label}' matches a configured authority-directory entry for {state}."
+             if matches else f"The stated issuer in '{doc.label}' does not match a configured authority entry for {state}; "
+             "this is an inconsistency indicator and requires human review."),
+            rule.title if matches else f"{rule.title}: issuer requires review", "issuer_authority",
+            [doc.document.id], [field.id], [_ev(doc, field)],
+            [{"source": "stated_issuer", "value": field.raw_value},
+             {"source": "authority_directory", "value": expected, "jurisdiction": state}],
+        ))
+    return out or [Eval("application", O.NOT_APPLICABLE, f"No {LABELS[category]} uploaded.", rule.title,
+                        "issuer_authority")]
 
 
 def eval_required_field(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
@@ -482,6 +870,11 @@ def eval_date_order(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
 def eval_expiry(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
     name = p["field_name"]
     cats = set(p.get("categories") or [])
+    if ctx.scrutiny_date is None:
+        return [Eval("application", O.INCONCLUSIVE,
+                     "The scrutiny reference date is unavailable, so stated validity dates cannot be assessed.",
+                     f"{rule.title}: reference date unavailable", "expired_validity",
+                     missing_evidence="A scrutiny reference date derived from the application or explicitly supplied.")]
     today = ctx.scrutiny_date.isoformat()
     out = []
     for d in ctx.originals():
@@ -529,6 +922,10 @@ def eval_simulated_issuer(rule: ScrutinyRule, p: dict, ctx: Ctx) -> list[Eval]:
 
 EVALUATORS = {
     RuleType.EXPECTED_DOCUMENT: eval_expected_document,
+    RuleType.VALIDITY_PERIOD: eval_validity_period,
+    RuleType.CONDITIONAL_DOCUMENT: eval_conditional_document,
+    RuleType.ISSUER_AUTHORITY: eval_issuer_authority,
+    RuleType.ALTERNATIVE_DOCUMENT_GROUP: eval_alternative_document_group,
     RuleType.REQUIRED_FIELD: eval_required_field,
     RuleType.PROCESSING_QUALITY: eval_processing_quality,
     RuleType.CLASSIFICATION_CONSISTENCY: eval_classification,
@@ -631,7 +1028,9 @@ def _rule_snapshot(rules: list[ScrutinyRule]) -> list[dict]:
     return [{"rule_id": r.rule_id, "version": r.version, "title": r.title, "rule_type": r.rule_type.value,
              "parameters": r.parameters, "severity": r.severity.value, "source": r.source,
              "source_reference": r.source_reference,
-             "source_verification_status": r.source_verification_status.value, "is_demo_only": r.is_demo_only}
+             "source_verification_status": r.source_verification_status.value, "is_demo_only": r.is_demo_only,
+             "provenance": r.provenance, "effective_from": r.effective_from, "effective_to": r.effective_to,
+             "evaluator_version": EVALUATOR_VERSION}
             for r in rules]
 
 
@@ -639,9 +1038,37 @@ def _needs_processing(session: Session, document: Document) -> bool:
     return not processing_service.is_current(processing_service.get_processing(session, document.id), document)
 
 
+def _evaluate_rule(rule, ctx: Ctx, demo_profile: bool) -> list[Eval]:
+    if demo_profile and rule.rule_id == "R01":
+        return _demo_aph_fire_safety(rule, ctx)
+    if demo_profile and rule.rule_id == "R02":
+        return _demo_aph_alternative_group(rule, ctx)
+    return EVALUATORS[rule.rule_type](rule, rule.parameters, ctx)
+
+
 def start_run(session: Session, storage: DocumentStorage, settings: Settings, ocr, application_code: str,
-              scrutiny_date: date | None = None) -> ScrutinyRun:
+              scrutiny_date: date | None = None, ruleset_profile: str = "production") -> ScrutinyRun:
     application = get_application(session, application_code)
+    if ruleset_profile == aph_demo_ruleset.PROFILE_ID:
+        if scrutiny_date is not None:
+            raise AppError(
+                422, "demo_ruleset_submission_date_required",
+                "The APH demo profile uses only the application submission date; scrutiny_date overrides are not allowed.",
+            )
+        if application.institution.institution_type != InstitutionType.PRIVATE_SELF_FINANCING:
+            raise AppError(
+                422, "demo_ruleset_not_applicable",
+                "The APH demo profile is limited to existing private self-financing technical institutions.",
+            )
+    if scrutiny_date is not None:
+        reference_date = scrutiny_date
+        reference_date_source = "operator_override"
+    elif application.submitted_at is not None:
+        reference_date = application.submitted_at.date()
+        reference_date_source = "application_marked_ready_internal"
+    else:
+        reference_date = None
+        reference_date_source = "unavailable"
     running = session.execute(select(ScrutinyRun).where(ScrutinyRun.application_id == application.id,
                                                         ScrutinyRun.status == RunStatus.RUNNING)).scalars().all()
     for stale in running:
@@ -652,13 +1079,15 @@ def start_run(session: Session, storage: DocumentStorage, settings: Settings, oc
     number = (session.execute(select(func.max(ScrutinyRun.run_number))
                               .where(ScrutinyRun.application_id == application.id)).scalar() or 0) + 1
     run = ScrutinyRun(application_id=application.id, run_number=number, status=RunStatus.RUNNING,
-                      scrutiny_date=(scrutiny_date or date.today()).isoformat(), rule_set_version="pending")
+                      scrutiny_date=reference_date.isoformat() if reference_date else None,
+                      scrutiny_date_source=reference_date_source, rule_set_version="pending")
     session.add(run)
     session.commit()
     run_id = run.id
 
     try:
-        _execute(session, storage, settings, ocr, run, application, scrutiny_date or date.today())
+        _execute(session, storage, settings, ocr, run, application, reference_date, reference_date_source,
+                 ruleset_profile)
     except Exception as exc:
         session.rollback()
         logger.error("Scrutiny run failed", exc_info=exc, extra={"error_type": type(exc).__name__})
@@ -671,7 +1100,8 @@ def start_run(session: Session, storage: DocumentStorage, settings: Settings, oc
     return get_run(session, run_id)
 
 
-def _execute(session, storage, settings, ocr, run: ScrutinyRun, application: Application, today: date) -> None:
+def _execute(session, storage, settings, ocr, run: ScrutinyRun, application: Application, today: date | None,
+             date_source: str, ruleset_profile: str = "production") -> None:
     warnings: list[str] = []
     docs = session.execute(select(Document).where(Document.application_id == application.id,
                                                   Document.status != DocumentStatus.INTAKE_FAILED)
@@ -686,12 +1116,25 @@ def _execute(session, storage, settings, ocr, run: ScrutinyRun, application: App
     if ocr_missing and not (ocr and ocr.available):
         warnings.append("Some pages had no text layer and OCR is not available; those pages were not read.")
 
-    ctx = build_context(session, application, today)
-    rules = session.execute(select(ScrutinyRule).where(ScrutinyRule.enabled.is_(True))
-                            .order_by(ScrutinyRule.rule_id)).scalars().all()
-    snapshot = _rule_snapshot(rules)
+    ctx = build_context(session, application, today, date_source)
+    demo_profile = ruleset_profile == aph_demo_ruleset.PROFILE_ID
+    if demo_profile:
+        rules = list(aph_demo_ruleset.DEMO_RULES)
+        snapshot = [aph_demo_ruleset.snapshot_rule(rule, EVALUATOR_VERSION) for rule in rules]
+        warnings.append(aph_demo_ruleset.DEMO_NOTICE)
+    else:
+        rules = session.execute(select(ScrutinyRule).where(ScrutinyRule.enabled.is_(True),
+                                                            ScrutinyRule.retired.is_(False))
+                                .order_by(ScrutinyRule.rule_id)).scalars().all()
+        snapshot = _rule_snapshot(rules)
     run.rule_snapshot = snapshot
     run.rule_set_version = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()[:12]
+    logger.info(
+        "Scrutiny ruleset selected",
+        extra={"ruleset_profile": aph_demo_ruleset.PROFILE_ID if demo_profile else "production",
+               "ruleset_version": aph_demo_ruleset.PROFILE_VERSION if demo_profile else run.rule_set_version,
+               "rule_set_version": run.rule_set_version, "rule_count": len(rules)},
+    )
     run.documents_considered = [
         {"document_id": d.document.id, "filename": d.label, "category": d.document.category.value,
          "sha256": d.document.sha256, "intake_status": d.document.status.value,
@@ -705,7 +1148,48 @@ def _execute(session, storage, settings, ocr, run: ScrutinyRun, application: App
     outcomes = {o.value: 0 for o in O}
     severities = {s.value: 0 for s in Severity}
     for rule in rules:
-        for e in EVALUATORS[rule.rule_type](rule, rule.parameters, ctx):
+        if rule.provenance in ("regulatory", "checklist") and today is not None:
+            try:
+                starts = date.fromisoformat(rule.effective_from) if rule.effective_from else None
+                ends = date.fromisoformat(rule.effective_to) if rule.effective_to else None
+            except ValueError as exc:
+                raise ValueError(f"Rule {rule.rule_id} has an invalid effective date.") from exc
+            if (starts is not None and today < starts) or (ends is not None and today > ends):
+                evaluations = [Eval(
+                    "application", O.NOT_APPLICABLE,
+                    f"Reference date {today.isoformat()} is outside the rule's effective period "
+                    f"({rule.effective_from or 'unknown'} to {rule.effective_to or 'unknown'}).",
+                    rule.title, "rule_not_effective",
+                    compared_values=[{"source": "reference_date", "value": today.isoformat(),
+                                      "date_source": date_source},
+                                     {"source": "effective_period", "from": rule.effective_from,
+                                      "to": rule.effective_to}],
+                )]
+            else:
+                evaluations = _evaluate_rule(rule, ctx, demo_profile)
+                if starts is None or ends is None:
+                    for evaluation in evaluations:
+                        evaluation.explanation += " The rule's effective period is unknown."
+                        evaluation.compared_values.append(
+                            {"source": "effective_period", "from": rule.effective_from,
+                             "to": rule.effective_to, "status": "unknown"}
+                        )
+        else:
+            evaluations = _evaluate_rule(rule, ctx, demo_profile)
+            if rule.provenance in ("regulatory", "checklist") and today is None:
+                for evaluation in evaluations:
+                    evaluation.explanation += " The effective period could not be checked because the reference date is unavailable."
+                    evaluation.compared_values.append(
+                        {"source": "effective_period", "from": rule.effective_from,
+                         "to": rule.effective_to, "status": "unchecked"}
+                    )
+        for e in evaluations:
+            if demo_profile:
+                e.explanation = f"{aph_demo_ruleset.DEMO_NOTICE}. {e.explanation}"
+            e.compared_values.append(
+                {"source": "scrutiny_reference_date", "value": today.isoformat() if today else None,
+                 "date_source": date_source}
+            )
             review = e.outcome in (O.ISSUE, O.INCONCLUSIVE)
             evaluation = RuleEvaluation(
                 run_id=run.id, position=position, rule_id=rule.rule_id, rule_version=rule.version,
@@ -732,6 +1216,8 @@ def _execute(session, storage, settings, ocr, run: ScrutinyRun, application: App
 
     indicators = detect_anomalies(ctx)
     for ind in indicators:
+        if demo_profile:
+            ind.explanation = f"{aph_demo_ruleset.DEMO_NOTICE}. {ind.explanation}"
         severities[ind.severity.value] += 1
         session.add(Finding(
             application_id=application.id, run_id=run.id, finding_key=f"anomaly:{ind.detector}:{ind.subject}",

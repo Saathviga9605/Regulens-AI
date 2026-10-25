@@ -81,7 +81,7 @@ export const POLICY: IntakePolicy = {
   max_upload_bytes: 20 * 1024 * 1024,
   accepted_content_types: ["application/pdf"],
   accepted_extensions: [".pdf"],
-  categories: ["fire_safety_certificate", "occupancy_certificate", "completion_certificate",
+  categories: ["fire_safety_certificate", "occupancy_certificate", "completion_certificate", "building_license", "form_d",
     "structural_stability_certificate", "building_plan", "university_noc", "trust_resolution", "other"],
   intake_open_statuses: ["draft", "awaiting_additional_evidence"],
 };

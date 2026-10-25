@@ -366,7 +366,8 @@ def test_intake_policy(client, settings) -> None:
     body = client.get("/api/v1/documents/intake-policy").json()
     assert body["max_upload_bytes"] == settings.max_upload_bytes
     assert body["accepted_content_types"] == ["application/pdf"]
-    assert len(body["categories"]) == 8 and "other" in body["categories"]
+    assert len(body["categories"]) == 10 and "other" in body["categories"]
+    assert {"building_license", "form_d"} <= set(body["categories"])
     assert body["intake_open_statuses"] == ["draft", "awaiting_additional_evidence"]
 
 

@@ -15,6 +15,12 @@ data/*
 uploads/
 data/documents/
 *.part
+# Local source material; do not commit the handbook PDF.
+/docs/APH Final.pdf
+# Extracted source pages and unreviewed registry candidates stay local.
+/rules-registry/source/local/
+/rules-registry/candidates/
+/rules-registry/drafts/
 
 # Python
 __pycache__/

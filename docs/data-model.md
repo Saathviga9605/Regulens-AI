@@ -79,7 +79,7 @@ relative to the repo root; directory auto-created; git-ignored). `PRAGMA foreign
 | application_id | VARCHAR(36) | FK → applications.id `ON DELETE RESTRICT` |
 | original_filename | VARCHAR(255) | sanitised base name; display only, never a path |
 | storage_key | VARCHAR(32) | UNIQUE, server-generated hex; NULL only for `intake_failed` |
-| category | VARCHAR(40) | CHECK enum (8 prototype categories) |
+| category | VARCHAR(40) | CHECK enum (10 prototype categories after migration `0006`; includes Building License and Form D) |
 | mime_type | VARCHAR(100) | detected from content (`application/pdf`) |
 | size_bytes | BIGINT | CHECK ≥ 0 |
 | sha256 | VARCHAR(64) | CHECK length 64, INDEX |
@@ -102,12 +102,16 @@ relative to the repo root; directory auto-created; git-ignored). `PRAGMA foreign
 ### Scrutiny tables (migration `0003`)
 | Table | Key columns | Notes |
 |-------|-------------|-------|
-| scrutiny_rules | rule_id (PK), title, description, rule_type, parameters JSON, severity, enabled, source, source_reference, source_verification_status, is_demo_only, version, timestamps | Configuration; kept by reset |
-| scrutiny_runs | id, application_id (FK RESTRICT), run_number, status, scrutiny_date, rule_set_version, rule_snapshot JSON, documents_considered JSON, warnings, summary JSON, failure_reason, started_at, finished_at | UNIQUE (application_id, run_number); history is never deleted by reruns |
+| scrutiny_rules | rule_id (PK), title, description, rule_type, parameters JSON, severity, enabled, source, source_reference, source_verification_status, is_demo_only, provenance, registry_managed, retired, effective_from, effective_to, version, timestamps | Migration `0005`; configuration kept by reset; managed rules permit only audited enabled-state changes |
+| scrutiny_runs | id, application_id (FK RESTRICT), run_number, status, nullable scrutiny_date, scrutiny_date_source, rule_set_version, rule_snapshot JSON, documents_considered JSON, warnings, summary JSON, failure_reason, started_at, finished_at | Migration `0005`; UNIQUE (application_id, run_number); history is never deleted by reruns |
 | rule_evaluations | id, run_id (FK CASCADE), position, rule_id, rule_version, subject_key, outcome, severity, explanation, document_ids/field_ids/evidence/compared_values JSON, missing_evidence, human_review_recommended | UNIQUE (run_id, rule_id, subject_key) |
 | findings | id, application_id (FK RESTRICT), run_id (FK CASCADE), evaluation_id (FK CASCADE, nullable), finding_key, kind, finding_type, title, severity, outcome, explanation, uncertainty, rule_id/version or detector, evidence JSON, review_status, review_note, reviewed_at, created_at | UNIQUE (run_id, finding_key) — stable keys across runs |
 | issuer_reference_records | id, reference_code (UNIQUE), document_category, issuing_authority, certificate_number(_normalized INDEX), institution_name, issue_date, valid_until, availability, seed_key | **Synthetic only** |
 | verification_attempts | id, application_id (FK RESTRICT), document_id (FK SET NULL), document_filename, adapter, method, simulated, outcome, explanation, fields_compared JSON, reference_code, created_at | |
+
+The reference date defaults to the application's internal `submitted_at` (marked-ready) date, not a verified
+government submission date. An operator override is labelled; when neither is available the date remains null.
+The system clock is not a fallback. Rule snapshots include evaluator version, provenance, and effective dates.
 
 Evidence in evaluations/findings is stored as JSON snapshots (document id, filename, page, quote, value) rather than
 foreign keys, so run history remains readable after a document is deleted or reprocessed. Each run is committed in

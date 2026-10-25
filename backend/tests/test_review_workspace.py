@@ -113,9 +113,9 @@ def test_actions_scoped_and_only_on_latest_run(client, reviewer, scrutinised, de
 # --- evidence requests ------------------------------------------------------------------------------
 
 def test_evidence_request_lifecycle_with_explicit_upload_link(reviewer, scrutinised, app) -> None:
-    code, f = scrutinised["code"], find(scrutinised, "rule:EXP-003")
-    r = act(reviewer, code, f, "request_evidence", note="No structural certificate was uploaded.",
-            requested_evidence="Structural stability certificate", due_date=(date.today() + timedelta(days=7)).isoformat())
+    code, f = scrutinised["code"], find(scrutinised, "rule:DAT-002")
+    r = act(reviewer, code, f, "request_evidence", note="The stated validity date has passed.",
+            requested_evidence="Current fire safety certificate", due_date=(date.today() + timedelta(days=7)).isoformat())
     assert r.status_code == 201 and r.json()["new_status"] == "awaiting_evidence"
     request_id = r.json()["evidence_request_id"]
     other = reviewer.post(f"/api/v1/applications/{code}/evidence-requests",
@@ -295,7 +295,7 @@ def test_report_pdf_content_and_authorization(reviewer, anon, scrutinised, demo,
     for needle in ("PRELIMINARY SCRUTINY — HUMAN REVIEW REQUIRED", "FICTIONAL DEMONSTRATION DATA", code,
                    "Hooghly Riverside Engineering College", "Conflicting survey number", "Survey No.: 318",
                    "SIMULATED — NOT VERIFIED WITH THE ISSUING AUTHORITY", "not an official AICTE decision",
-                   "Survey conflict confirmed", "DEMO-ONLY RULE", "occupancy-certificate.pdf"):
+                   "Survey conflict confirmed", "occupancy-certificate.pdf"):
         assert needle in flat, needle
     assert str(app.state.document_storage.root) not in text and "Deccan Ridge" not in text
     assert pdf.page_count >= 2

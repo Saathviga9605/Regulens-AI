@@ -5,7 +5,17 @@ import logging
 import sys
 from datetime import datetime, timezone
 
-_EXTRA_FIELDS = ("request_id", "path", "method", "status_code", "error_type")
+_EXTRA_FIELDS = (
+    "request_id",
+    "path",
+    "method",
+    "status_code",
+    "error_type",
+    "ruleset_profile",
+    "ruleset_version",
+    "rule_set_version",
+    "rule_count",
+)
 
 
 class JsonFormatter(logging.Formatter):

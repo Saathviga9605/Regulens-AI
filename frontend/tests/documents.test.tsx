@@ -127,6 +127,8 @@ describe("Documents panel", () => {
     renderApp(APP_PATH);
     await user.click(await screen.findByRole("button", { name: "Upload PDF" }));
     expect(screen.getByText(/PDF only, up to 2.0 KB/)).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Building License" })).toHaveValue("building_license");
+    expect(screen.getByRole("option", { name: "Form D" })).toHaveValue("form_d");
 
     await user.click(screen.getByRole("button", { name: "Upload" }));
     expect(screen.getByText("Select a document category.")).toBeInTheDocument();

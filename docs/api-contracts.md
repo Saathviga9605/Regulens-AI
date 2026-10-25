@@ -171,7 +171,7 @@ identifies content for comparison; it does not prove authenticity.
   "uploaded_at": "…", "created_at": "…", "updated_at": "…"
 }
 ```
-- `category`: `fire_safety_certificate | occupancy_certificate | completion_certificate | structural_stability_certificate | building_plan | university_noc | trust_resolution | other`.
+- `category`: `fire_safety_certificate | occupancy_certificate | completion_certificate | building_license | form_d | structural_stability_certificate | building_plan | university_noc | trust_resolution | other`.
   Categories are organisational; none is mandatory.
 - `status`: `uploaded | duplicate_detected | intake_failed`.
 - `duplicate_of` (when `duplicate_detected`): `{id, original_filename, category, uploaded_at}` of the original in the
@@ -274,33 +274,44 @@ Synthetic reference values are never returned.
 
 ### GET /scrutiny-rules → 200 [Rule]  ·  GET /scrutiny-rules/{rule_id} → 200 | 404
 `Rule`: `rule_id, title, description, rule_type, parameters, severity (info|low|medium|high), enabled, source,
-source_reference, source_verification_status (verified|unverified|not_applicable), is_demo_only, version, created_at,
-updated_at`.
+source_reference, source_verification_status (verified|unverified|not_applicable), is_demo_only,
+provenance (regulatory|checklist|integrity|demo), registry_managed, retired, effective_from, effective_to, version,
+created_at, updated_at`.
 
 ### POST /scrutiny-rules → 201 | 409 `rule_exists` | 422
 Body: `rule_id` (`^[A-Z]{2,6}-\d{3}$`), `title`, `description`, `rule_type`, `parameters`, `severity`, optional
 `enabled`, `source`, `source_reference`, `source_verification_status` (default `unverified`), `is_demo_only`
 (default `true`). Parameters are validated against the rule type's schema; unknown keys → 422.
+`alternative_document_group` requires an explicit non-empty `application_types` list and an operator-supplied
+validity reference date. This evaluator is infrastructure only; no APH rule is seeded or active.
 
-### PATCH /scrutiny-rules/{rule_id} → 200 | 404 | 422
-Any of `title, description, parameters, severity, enabled, source, source_reference, source_verification_status,
-is_demo_only`. `rule_type`, `rule_id` and `version` cannot be set. A real change increments `version`.
+### PATCH /scrutiny-rules/{rule_id} → 200 | 404 | 409 `registry_rule_immutable` | 422
+For non-registry rules, any of `title, description, parameters, severity, enabled, source, source_reference,
+source_verification_status, is_demo_only`. `rule_type`, `rule_id` and `version` cannot be set. A real change
+increments `version`. For a registry-managed rule, only `enabled` may be changed; that transition is audited.
+The approved registry importer and append-only rule-version storage are not implemented yet.
 
 ## Scrutiny runs and findings
 
 Runs and findings are addressed under their application; a run/finding of another application returns 404.
 
 ### POST /applications/{application_code}/scrutiny-runs → 201 Run | 404 | 409 `scrutiny_run_in_progress` | 422
-Optional body `{"scrutiny_date": "YYYY-MM-DD"}` (2000–2100; default today) — the date used for expiry checks.
+Optional body `{"scrutiny_date": "YYYY-MM-DD", "ruleset_profile": "production|aph_eoa_demo"}`.
+`ruleset_profile` defaults to `production`; `aph_eoa_demo` explicitly selects the isolated APH demo profile and does
+not alter production activation. The demo profile is limited to existing private self-financing technical
+institutions and rejects an explicit `scrutiny_date` so its date basis cannot be overridden;
+an explicit production-profile `scrutiny_date` is labelled `operator_override`;
+otherwise the internal application `submitted_at` (marked-ready) calendar date is used. If unavailable, the date
+and source are null/`unavailable`; the system date is never substituted.
 Processes documents with missing/stale results first. An unexpected engine error yields a run with
 `status: "failed"` and a generic `failure_reason`; earlier runs are untouched.
 
 ### GET /applications/{application_code}/scrutiny-runs → 200 Page[RunSummary] (newest first)
 ### GET /applications/{application_code}/scrutiny-runs/{run_id} → 200 Run | 404
 `RunSummary`: `id, application_code, run_number, status (running|completed|completed_with_warnings|failed),
-scrutiny_date, rule_set_version, summary {evaluation_outcomes, finding_severities, rule_findings, anomaly_indicators,
+scrutiny_date, scrutiny_date_source, ruleset_profile, ruleset_profile_version, rule_set_version, summary {evaluation_outcomes, finding_severities, rule_findings, anomaly_indicators,
 documents_considered, documents_processed_ok, rules_evaluated}, warnings, failure_reason, started_at, finished_at`.
-`Run` adds `rule_snapshot`, `documents_considered` and `evaluations[]`
+`Run` adds `rule_snapshot` (demo snapshots include candidate ID and citation), `documents_considered` and `evaluations[]`
 (`rule_id, rule_version, subject_key, outcome (pass|issue|inconclusive|not_applicable), severity, explanation,
 document_ids, field_ids, evidence[], compared_values[], missing_evidence, human_review_recommended`).
 

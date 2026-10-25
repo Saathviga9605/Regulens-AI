@@ -61,6 +61,20 @@ def test_text_pdf_extracts_pages_with_one_based_numbers(client, code, no_ocr) ->
     assert pages["total"] == 2 and "Valid Until: 30 November 2030" in pages["items"][1]["text"]
 
 
+@pytest.mark.parametrize(
+    ("category", "heading"),
+    [("building_license", "BUILDING LICENSE"), ("form_d", "FORM D")],
+)
+def test_aph_alternative_document_categories_process_and_classify(client, code, no_ocr, category, heading) -> None:
+    content = demo.build_pdf([heading, "Certificate No.: SYN-1", "Valid Until: 30 November 2030"])
+    document = upload(client, code, content, category=category).json()
+    result = process(client, document["id"]).json()
+    assert result["status"] == "completed"
+    assert result["classification"]["predicted_category"] == category
+    fields = {field["field_name"]: field for field in result["fields"]}
+    assert fields["valid_until"]["normalized_value"]["date"] == "2030-11-30"
+
+
 def test_ocr_unavailable_is_not_a_successful_empty_extraction(client, code, no_ocr, storage) -> None:
     content = demo.build_pdf(demo.FIRE_A, image_only=True, title="scan")
     doc = upload(client, code, content, name="scan.pdf").json()

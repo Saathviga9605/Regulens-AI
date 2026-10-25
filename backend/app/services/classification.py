@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from app.models.enums import DocumentCategory as C
 
-CLASSIFIER_VERSION = "cls-1"
+CLASSIFIER_VERSION = "cls-2"
 HEADING_LINES = 8
 
 _S = list[tuple[str, float, str]]
@@ -34,6 +34,12 @@ SIGNALS: dict[C, _S] = {
     C.COMPLETION_CERTIFICATE: [
         (r"\bcompletion\s+certificate\b", 5, "phrase 'completion certificate'"),
         (r"\bconstruction\s+(?:has\s+been\s+|was\s+)?completed\b", 1.5, "states construction completed"),
+    ],
+    C.BUILDING_LICENSE: [
+        (r"\bbuilding\s+licen[cs]e\b", 5, "phrase 'building license'"),
+    ],
+    C.FORM_D: [
+        (r"\bform\s+d\b", 4, "phrase 'Form D'"),
     ],
     C.STRUCTURAL_STABILITY_CERTIFICATE: [
         (r"\bstructural\s+stability\s+certificate\b", 5, "phrase 'structural stability certificate'"),

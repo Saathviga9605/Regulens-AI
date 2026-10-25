@@ -1,0 +1,1 @@
+"""Local rules-registry tooling."""

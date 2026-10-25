@@ -68,6 +68,17 @@ def _findings_html(findings: list[Finding], snapshot: list[dict], history: dict)
             parts.append(f"<p><i>Uncertainty:</i> {e(f.uncertainty)}</p>")
         if f.missing_evidence:
             parts.append(f"<p><i>Missing evidence:</i> {e(f.missing_evidence)}</p>")
+        citation = rule.get("citation") if rule else None
+        if citation:
+            page = citation.get("pdf_page_number")
+            printed = citation.get("printed_page_label")
+            location = f"PDF page {e(page)}" if page is not None else "PDF page unavailable"
+            if printed:
+                location += f" (printed page {e(printed)})"
+            parts.append(
+                f"<p class='small'>APH citation: {e(citation.get('clause_reference'))} · {location}</p>"
+                f"<div class='quote'>{e(citation.get('quote'))}</div>"
+            )
         for ev in f.evidence[:8]:
             where = e(ev.get("document_filename")) + (f", page {e(ev['page_number'])}" if ev.get("page_number") else "")
             quote = f"<div class='quote'>{e(ev['quote'])}</div>" if ev.get("quote") else ""
@@ -110,13 +121,19 @@ def build_report(session: Session, application: Application, run: ScrutinyRun) -
                 f"<td>{e(r.created_by)}</td><td>{e(', '.join(link.document_filename for link in r.documents) or '—')}</td></tr>"
                 for r in requests]
     inconclusive = [f for f in findings if f.outcome.value == "inconclusive" and f.kind == FindingKind.RULE_FINDING]
+    profile = next((item for item in run.rule_snapshot if item.get("ruleset_profile")), None)
+    profile_id = profile.get("ruleset_profile", "production") if profile else "production"
+    profile_version = profile.get("ruleset_version", "database") if profile else "database"
+    demo_notice = profile.get("demo_notice") if profile else None
 
     body = f"""
 <h1>ReguLens AI — Preliminary scrutiny report</h1>
 <p class='label'>{LABEL}</p>
 {"<p class='demo'>FICTIONAL DEMONSTRATION DATA — not a real institution or application.</p>" if demo else ""}
+{"<p class='demo'>" + e(demo_notice) + " · this profile does not represent formal rule approval.</p>" if demo_notice else ""}
 <p class='small'>Generated {e(generated)} · scrutiny run #{e(run.run_number)} ({e(run.id)}) · status {e(run.status.value)} ·
-scrutiny date {e(run.scrutiny_date)} · rule-set version {e(run.rule_set_version)}</p>
+scrutiny reference date {e(run.scrutiny_date or 'unavailable')} (source: {e(run.scrutiny_date_source)}) ·
+ruleset profile {e(profile_id)} v{e(profile_version)} · rule-set version {e(run.rule_set_version)}</p>
 <h2>Application</h2>
 <table><tr><th>Application</th><td>{e(application.application_code)} — {e(application.application_type.value)},
 academic year {e(application.academic_year)}, internal status {e(application.status.value)}</td></tr>

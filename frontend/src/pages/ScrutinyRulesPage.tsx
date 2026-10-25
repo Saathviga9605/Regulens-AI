@@ -31,7 +31,9 @@ export function ScrutinyRulesPage() {
     try {
       const updated = await apiClient.updateRule(rule.rule_id, change);
       rules.setData((rules.data ?? []).map((r) => (r.rule_id === updated.rule_id ? updated : r)));
-      const text = `${updated.rule_id} saved (now version ${updated.version}). New runs use it; past runs keep their snapshot.`;
+      const text = updated.registry_managed
+        ? `${updated.rule_id} enabled state saved; content remains version ${updated.version}. Change recorded in the audit trail.`
+        : `${updated.rule_id} saved (now version ${updated.version}). New runs use it; past runs keep their snapshot.`;
       setMessage({ tone: "success", text });
       toast(`${updated.rule_id} saved.`);
       setPending(null);
@@ -59,7 +61,9 @@ export function ScrutinyRulesPage() {
             {change?.severity && <p>Severity changes from <strong>{SEVERITY_LABELS[pending.rule.severity]}</strong> to <strong>{SEVERITY_LABELS[change.severity]}</strong>.</p>}
             {change?.enabled === false && <p>Future scrutiny runs will not evaluate this rule.</p>}
             {change?.enabled === true && <p>Future scrutiny runs will evaluate this rule again.</p>}
-            <p className="text-ink-muted">Past runs keep their rule snapshot. The change creates a new rule version and is recorded in the audit trail.</p>
+            {pending.rule.registry_managed
+              ? <p className="text-ink-muted">Registry rule content and version stay unchanged. The enabled-state change is recorded in the audit trail.</p>
+              : <p className="text-ink-muted">Past runs keep their rule snapshot. The change creates a new rule version and is recorded in the audit trail.</p>}
           </>
         )}
       </ConfirmDialog>
@@ -117,12 +121,18 @@ export function ScrutinyRulesPage() {
                     {r.source_reference && <div className="text-ink-subtle">{r.source_reference}</div>}
                   </td>
                   <td className={TABLE.td}>
-                    <label className="sr-only" htmlFor={`sev-${r.rule_id}`}>Severity for {r.rule_id}</label>
-                    <select id={`sev-${r.rule_id}`} value={r.severity} disabled={!isAdmin || busy === r.rule_id}
-                      onChange={(e) => setPending({ rule: r, change: { severity: e.target.value as Severity } })}
-                      className="rounded-control border border-line-strong bg-surface px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/25">
-                      {entries(SEVERITY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
+                    {r.registry_managed ? (
+                      <span className="text-xs text-ink-subtle">Registry-managed · content immutable</span>
+                    ) : (
+                      <>
+                        <label className="sr-only" htmlFor={`sev-${r.rule_id}`}>Severity for {r.rule_id}</label>
+                        <select id={`sev-${r.rule_id}`} value={r.severity} disabled={!isAdmin || busy === r.rule_id}
+                          onChange={(e) => setPending({ rule: r, change: { severity: e.target.value as Severity } })}
+                          className="rounded-control border border-line-strong bg-surface px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600/25">
+                          {entries(SEVERITY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                      </>
+                    )}
                   </td>
                   <td className={TABLE.td}>
                     <label className="inline-flex items-center gap-2 text-sm">

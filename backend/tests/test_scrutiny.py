@@ -3,18 +3,23 @@
 Uses the synthetic demo dataset (seed + demo PDFs) in a temporary database and storage directory.
 """
 
+import logging
 from datetime import date
+from types import SimpleNamespace
 
+import pymupdf
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from sqlalchemy import select
 
-from app.models import Application, ExtractedField, ScrutinyRun
-from app.models.enums import RunStatus
+from app.models import Application, AuditEvent, ExtractedField, ScrutinyRule, ScrutinyRun
+from app.models.enums import DocumentCategory, RuleType, RunStatus, Severity, SourceVerificationStatus
 from app.services import demo_documents, scrutiny
+from app.services import rule_catalog
 from app.services import seed as seed_service
 from app.services.pdf_text import TesseractOcr
-from tests.conftest import application_payload
+from tests.conftest import application_payload, institution_payload
 from tests.test_documents import upload
 
 SCRUTINY_DATE = "2026-10-23"
@@ -55,13 +60,332 @@ def outcomes(result: dict) -> dict:
 
 def test_default_rules_are_labelled_with_source_status(client) -> None:
     rules = {r["rule_id"]: r for r in client.get("/api/v1/scrutiny-rules").json()}
-    assert len(rules) == 18
+    assert len(rules) == 16
+    assert "EXP-003" not in rules and "FLD-002" not in rules
+    assert not any(rule_id.startswith("APH-") for rule_id in rules)
     for rule in rules.values():
         assert rule["source_verification_status"] != "verified"  # nothing claims official verification
         if rule["is_demo_only"]:
             assert rule["source_verification_status"] == "unverified"
             assert "Not verified" in rule["source_reference"]
     assert rules["EXP-001"]["is_demo_only"] and not rules["CON-003"]["is_demo_only"]
+
+
+def test_regulatory_rule_types_have_strict_schemas_and_evaluators() -> None:
+    cases = {
+        RuleType.VALIDITY_PERIOD: {"category": "structural_stability_certificate", "years": 5},
+        RuleType.CONDITIONAL_DOCUMENT: {
+            "required_category": "structural_stability_certificate",
+            "trigger_category": "completion_certificate",
+            "years_elapsed": 30,
+        },
+        RuleType.ISSUER_AUTHORITY: {
+            "category": "fire_safety_certificate",
+            "authority_directory": {"Maharashtra": ["Example Fire Authority"]},
+        },
+        RuleType.ALTERNATIVE_DOCUMENT_GROUP: {
+            "categories": ["occupancy_certificate", "completion_certificate", "building_license", "form_d"],
+            "application_types": ["eoa_no_change"],
+            "validity_reference": "operator_override",
+        },
+    }
+    for rule_type, parameters in cases.items():
+        validated = rule_catalog.validate_parameters(rule_type, parameters)
+        assert all(validated[key] == value for key, value in parameters.items())
+        assert callable(scrutiny.EVALUATORS[rule_type])
+        with pytest.raises(ValidationError):
+            rule_catalog.validate_parameters(rule_type, {**parameters, "python": "unsupported"})
+
+
+def test_aph_alternative_group_requires_explicit_application_types_and_validity_date() -> None:
+    params = {
+        "categories": ["occupancy_certificate", "completion_certificate", "building_license", "form_d"],
+        "application_types": ["eoa_no_change"],
+        "validity_reference": "operator_override",
+    }
+    validated = rule_catalog.validate_parameters(RuleType.ALTERNATIVE_DOCUMENT_GROUP, params)
+    assert validated["categories"] == params["categories"]
+    assert validated["application_types"] == params["application_types"]
+    with pytest.raises(ValidationError):
+        rule_catalog.validate_parameters(RuleType.ALTERNATIVE_DOCUMENT_GROUP, {
+            **params, "application_types": [],
+        })
+    with pytest.raises(ValidationError):
+        rule_catalog.validate_parameters(RuleType.ALTERNATIVE_DOCUMENT_GROUP, {
+            "categories": params["categories"], "validity_reference": "operator_override",
+        })
+    with pytest.raises(ValidationError):
+        rule_catalog.validate_parameters(RuleType.ALTERNATIVE_DOCUMENT_GROUP, {
+            **params, "categories": ["form_d", "form_d"],
+        })
+
+
+def test_aph_alternative_group_is_not_applicable_outside_configured_route() -> None:
+    params = rule_catalog.validate_parameters(RuleType.ALTERNATIVE_DOCUMENT_GROUP, {
+        "categories": ["occupancy_certificate", "completion_certificate"],
+        "application_types": ["eoa_no_change"],
+        "validity_reference": "operator_override",
+    })
+    rule = ScrutinyRule(
+        rule_id="APH-102",
+        title="APH building approval document alternative",
+        description="Test-only registry evaluator behavior.",
+        rule_type=RuleType.ALTERNATIVE_DOCUMENT_GROUP,
+        parameters=params,
+        severity=Severity.MEDIUM,
+        enabled=True,
+        source="test",
+        source_verification_status=SourceVerificationStatus.UNVERIFIED,
+        is_demo_only=True,
+    )
+    context = scrutiny.Ctx(
+        application=SimpleNamespace(application_type=SimpleNamespace(value="increase_in_intake")),
+        institution={},
+        documents=[],
+        scrutiny_date=None,
+        scrutiny_date_source="unavailable",
+        verifications={},
+    )
+    result = scrutiny.eval_alternative_document_group(rule, params, context)
+    assert len(result) == 1
+    assert result[0].outcome.value == "not_applicable"
+
+
+def test_aph_alternative_group_keeps_validity_unknown_until_operator_date(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    params = rule_catalog.validate_parameters(RuleType.ALTERNATIVE_DOCUMENT_GROUP, {
+        "categories": ["occupancy_certificate", "completion_certificate", "building_license", "form_d"],
+        "application_types": ["eoa_no_change"],
+        "validity_reference": "operator_override",
+    })
+    rule = ScrutinyRule(
+        rule_id="APH-102",
+        title="APH building approval document alternative",
+        description="Test-only registry evaluator behavior.",
+        rule_type=RuleType.ALTERNATIVE_DOCUMENT_GROUP,
+        parameters=params,
+        severity=Severity.MEDIUM,
+        enabled=True,
+        source="test",
+        source_verification_status=SourceVerificationStatus.UNVERIFIED,
+        is_demo_only=True,
+    )
+    documents = [
+        SimpleNamespace(
+            document=SimpleNamespace(id="valid-doc", category=DocumentCategory.FORM_D),
+            label="valid-form-d.pdf", is_copy=False, processed_ok=lambda: True,
+        ),
+        SimpleNamespace(
+            document=SimpleNamespace(id="expired-doc", category=DocumentCategory.BUILDING_LICENSE),
+            label="expired-license.pdf", is_copy=False, processed_ok=lambda: True,
+        ),
+    ]
+
+    def date_field(doc, _name):
+        valid_until = date(2027, 1, 1) if doc.document.id == "valid-doc" else date(2026, 1, 1)
+        raw = valid_until.isoformat()
+        return SimpleNamespace(
+            id=f"field-{doc.document.id}", field_name="valid_until", raw_value=raw, page_number=1,
+            evidence_quote=f"Valid Until: {raw}",
+        ), valid_until
+
+    monkeypatch.setattr(scrutiny, "_date_field", date_field)
+    context = scrutiny.Ctx(
+        application=SimpleNamespace(application_type=SimpleNamespace(value="eoa_no_change")),
+        institution={},
+        documents=documents,
+        scrutiny_date=date(2026, 10, 25),
+        scrutiny_date_source="submitted_at",
+        verifications={},
+    )
+    result = scrutiny.eval_alternative_document_group(rule, params, context)
+    assert result[0].outcome.value == "inconclusive"
+
+    context.scrutiny_date_source = "operator_override"
+    result = scrutiny.eval_alternative_document_group(rule, params, context)
+    assert result[0].outcome.value == "pass"
+    assert len(result) == 1  # one valid alternative satisfies the group despite an expired extra upload
+
+
+def test_aph_structural_certificate_threshold_is_strictly_more_than_thirty_years(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    params = rule_catalog.validate_parameters(RuleType.CONDITIONAL_DOCUMENT, {
+        "required_category": "structural_stability_certificate",
+        "trigger_category": "completion_certificate",
+        "years_elapsed": 30,
+        "comparison": "strictly_more_than",
+        "reference_date_source": "operator_override",
+    })
+    rule = ScrutinyRule(
+        rule_id="APH-103",
+        title="Conditional structural stability certificate",
+        description="Test-only APH conditional evaluator behavior.",
+        rule_type=RuleType.CONDITIONAL_DOCUMENT,
+        parameters=params,
+        severity=Severity.MEDIUM,
+        enabled=True,
+        source="test",
+        source_verification_status=SourceVerificationStatus.UNVERIFIED,
+        is_demo_only=True,
+    )
+    completion = SimpleNamespace(
+        document=SimpleNamespace(id="completion-doc", category=DocumentCategory.COMPLETION_CERTIFICATE),
+        label="completion.pdf",
+        is_copy=False,
+        processed_ok=lambda: True,
+    )
+    issue_field = SimpleNamespace(
+        id="issue-date", field_name="issue_date", raw_value="1996-10-25", page_number=1,
+        evidence_quote="Date of Issue: 25 October 1996",
+    )
+    monkeypatch.setattr(scrutiny, "_date_field", lambda _doc, _name: (issue_field, date(1996, 10, 25)))
+    context = scrutiny.Ctx(
+        application=SimpleNamespace(application_type=SimpleNamespace(value="eoa_no_change")),
+        institution={},
+        documents=[completion],
+        scrutiny_date=date(2026, 10, 25),
+        scrutiny_date_source="operator_override",
+        verifications={},
+    )
+    exact_threshold = scrutiny.eval_conditional_document(rule, params, context)
+    assert exact_threshold[0].outcome.value == "not_applicable"
+
+    context.scrutiny_date = date(2026, 10, 26)
+    over_threshold = scrutiny.eval_conditional_document(rule, params, context)
+    assert over_threshold[0].outcome.value == "issue"
+
+
+def test_validity_period_rule_uses_explicit_issue_date_and_reference_date(client, demo) -> None:
+    created = client.post("/api/v1/scrutiny-rules", json={
+        "rule_id": "APH-101",
+        "title": "Structural certificate duration",
+        "description": "Checks an explicitly configured duration from the stated issue date.",
+        "rule_type": "validity_period",
+        "parameters": {"category": "structural_stability_certificate", "years": 1},
+        "severity": "medium",
+        "source": "Local test candidate",
+    })
+    assert created.status_code == 201, created.text
+    result = run(client, demo["clean"], "2026-10-23")
+    evaluation = next(e for e in result["evaluations"] if e["rule_id"] == "APH-101")
+    assert evaluation["outcome"] == "issue"
+    assert any(value.get("date_source") == "operator_override" for value in evaluation["compared_values"])
+
+
+def test_conditional_and_issuer_authority_evaluators_run_conservatively(client, demo, app) -> None:
+    for body in (
+        {
+            "rule_id": "APH-102",
+            "title": "Conditional structural certificate",
+            "description": "Evaluates a configured time-based document condition.",
+            "rule_type": "conditional_document",
+            "parameters": {
+                "required_category": "structural_stability_certificate",
+                "trigger_category": "completion_certificate",
+                "years_elapsed": 30,
+            },
+            "severity": "medium",
+            "source": "Local test candidate",
+        },
+    ):
+        response = client.post("/api/v1/scrutiny-rules", json=body)
+        assert response.status_code == 201, response.text
+    with app.state.session_factory() as session:
+        application = session.execute(
+            select(Application).where(Application.application_code == demo["clean"])
+        ).scalar_one()
+        state = application.institution.state
+    response = client.post("/api/v1/scrutiny-rules", json={
+        "rule_id": "APH-103",
+        "title": "Fire certificate issuer authority",
+        "description": "Compares the stated issuer with configured authority data.",
+        "rule_type": "issuer_authority",
+        "parameters": {
+            "category": "fire_safety_certificate",
+            "authority_directory": {state: ["Synthetic Municipal Fire Services, Pune (Fictional)"]},
+        },
+        "severity": "medium",
+        "source": "Local test candidate",
+    })
+    assert response.status_code == 201, response.text
+
+    result = run(client, demo["unreadable"])
+    conditional = next(e for e in result["evaluations"] if e["rule_id"] == "APH-102")
+    assert conditional["outcome"] == "inconclusive"
+    result = run(client, demo["clean"])
+    issuer = next(e for e in result["evaluations"] if e["rule_id"] == "APH-103")
+    assert issuer["outcome"] == "pass"
+
+
+def test_registry_effective_period_outside_bounds_is_not_applicable(client, demo, app) -> None:
+    with app.state.session_factory() as session:
+        session.add(ScrutinyRule(
+            rule_id="APH-104",
+            title="Future effective rule",
+            description="Test rule for effective-period gating.",
+            rule_type=RuleType.VALIDITY_PERIOD,
+            parameters={"category": "structural_stability_certificate", "years": 5},
+            severity=Severity.MEDIUM,
+            source="Test source",
+            source_reference="Test clause",
+            source_verification_status=SourceVerificationStatus.VERIFIED,
+            is_demo_only=False,
+            provenance="regulatory",
+            registry_managed=True,
+            effective_from="2027-01-01",
+            version=1,
+        ))
+        session.commit()
+    result = run(client, demo["clean"], "2026-10-23")
+    evaluation = next(e for e in result["evaluations"] if e["rule_id"] == "APH-104")
+    assert evaluation["outcome"] == "not_applicable"
+    assert "outside the rule's effective period" in evaluation["explanation"]
+
+
+def test_registry_managed_rule_only_allows_audited_enabled_toggle(client, app) -> None:
+    with app.state.session_factory() as session:
+        session.add(ScrutinyRule(
+            rule_id="REG-101",
+            title="Immutable registry rule",
+            description="Test rule for the registry-managed API boundary.",
+            rule_type=RuleType.EXPECTED_DOCUMENT,
+            parameters={"category": "fire_safety_certificate"},
+            severity=Severity.MEDIUM,
+            source="Test registry source",
+            source_reference="Test clause",
+            source_verification_status=SourceVerificationStatus.VERIFIED,
+            is_demo_only=False,
+            provenance="regulatory",
+            registry_managed=True,
+            version=1,
+        ))
+        session.commit()
+
+    rejected = client.patch("/api/v1/scrutiny-rules/REG-101", json={"title": "Changed title"})
+    assert rejected.status_code == 409
+    assert rejected.json()["error"]["code"] == "registry_rule_immutable"
+    disabled = client.patch("/api/v1/scrutiny-rules/REG-101", json={"enabled": False})
+    assert disabled.status_code == 200
+    assert disabled.json()["enabled"] is False
+    assert disabled.json()["version"] == 1
+    with app.state.session_factory() as session:
+        events = session.execute(select(AuditEvent).where(
+            AuditEvent.action == "registry_rule.enabled_changed",
+            AuditEvent.resource_id == "REG-101",
+        )).scalars().all()
+    assert len(events) == 1
+
+
+def test_unsubmitted_application_does_not_fall_back_to_system_date(client, code) -> None:
+    response = client.post(f"/api/v1/applications/{code}/scrutiny-runs")
+    assert response.status_code == 201, response.text
+    result = response.json()
+    assert result["scrutiny_date"] is None
+    assert result["scrutiny_date_source"] == "unavailable"
+    expiry = next(e for e in result["evaluations"] if e["rule_id"] == "DAT-002")
+    assert expiry["outcome"] == "inconclusive"
 
 
 def test_rule_update_versioning_and_validation(client) -> None:
@@ -129,11 +453,11 @@ def test_known_conflicts_are_found_with_evidence(client, demo) -> None:
 
     area = items["rule:CON-005:across_documents"]
     assert "86,000 sq. ft" in area["explanation"] and "9,500 sq. m" in area["explanation"]
-    assert items["rule:EXP-003:application"]["finding_type"] == "missing_document"
-    assert items["rule:EXP-003:application"]["missing_evidence"]
     expired = items[f"rule:DAT-002:document:{names['fire-certificate-2023.pdf']['id']}"]
-    assert expired["compared_values"] == [{"source": "stated validity", "value": "2025-12-31"},
-                                          {"source": "scrutiny date", "value": SCRUTINY_DATE}]
+    assert {"source": "stated validity", "value": "2025-12-31"} in expired["compared_values"]
+    assert {"source": "scrutiny date", "value": SCRUTINY_DATE} in expired["compared_values"]
+    assert {"source": "scrutiny_reference_date", "value": SCRUTINY_DATE,
+            "date_source": "operator_override"} in expired["compared_values"]
     dup = items[f"anomaly:exact_duplicate:{names['building-plan-copy.pdf']['id']}"]
     assert dup["kind"] == "anomaly_indicator" and dup["outcome"] == "inconclusive"
     assert "not evidence of misconduct" in dup["uncertainty"]
@@ -237,9 +561,10 @@ def test_records_are_scoped_to_their_application(client, demo) -> None:
 def test_finding_detail_and_human_review(client, demo) -> None:
     code = demo["conflict"]
     result = run(client, code)
-    finding = next(f for f in findings(client, code, result["id"]) if f["rule_id"] == "EXP-003")
+    finding = next(f for f in findings(client, code, result["id"]) if f["rule_id"] == "CON-003")
     detail = client.get(f"/api/v1/applications/{code}/findings/{finding['id']}").json()
-    assert detail["rule"]["is_demo_only"] is True and detail["rule"]["source_verification_status"] == "unverified"
+    assert detail["rule"]["provenance"] == "integrity"
+    assert detail["rule"]["source_verification_status"] == "not_applicable"
     assert detail["run_number"] == 1 and detail["review_status"] == "not_reviewed"
     assert "confirm" in detail["allowed_actions"] and "resolve" not in detail["allowed_actions"]
     action = client.post(f"/api/v1/applications/{code}/findings/{finding['id']}/actions",
@@ -388,7 +713,9 @@ def test_reset_clears_scrutiny_data(client, demo, app, settings) -> None:
         removed = seed_service.reset_data(s, settings, confirm=True)
         assert removed == 12
         assert seed_service.summary(s)["scrutiny_runs"] == 0
-    assert len(client.get("/api/v1/scrutiny-rules").json()) == 18  # rules are configuration, kept
+    rules = client.get("/api/v1/scrutiny-rules").json()
+    assert len(rules) == 16  # active rules are configuration, kept
+    assert not any(rule["rule_id"] in {"EXP-003", "FLD-002"} for rule in rules)
 
 
 def test_scrutiny_on_application_without_documents(client, institution) -> None:
@@ -400,3 +727,98 @@ def test_scrutiny_on_application_without_documents(client, institution) -> None:
     assert got[("EXP-001", "application")] == "issue"
     assert got[("PRC-001", "application")] == "not_applicable"
     assert date.fromisoformat(result["scrutiny_date"])
+
+
+def test_aph_demo_profile_isolated_cited_and_disclaimed(client, demo, caplog) -> None:
+    import json
+
+    from app.core.logging import JsonFormatter
+    from app.services.aph_demo_ruleset import DEMO_NOTICE, PROFILE_ID, PROFILE_VERSION
+
+    caplog.set_level(logging.INFO, logger="regulens.scrutiny")
+    codes = {"A": demo["clean"], "B": demo["conflict"], "C": demo["unreadable"]}
+    expected_r02 = {"A": "inconclusive", "B": "inconclusive", "C": "inconclusive"}
+    for packet, code in codes.items():
+        response = client.post(f"/api/v1/applications/{code}/scrutiny-runs",
+                               json={"ruleset_profile": PROFILE_ID})
+        assert response.status_code == 201, response.text
+        run_result = response.json()
+        assert run_result["ruleset_profile"] == PROFILE_ID
+        assert run_result["ruleset_profile_version"] == PROFILE_VERSION
+        assert run_result["scrutiny_date"] is None  # the demo seed has no submitted_at date
+        assert DEMO_NOTICE in run_result["warnings"]
+
+        snapshot = {item["rule_id"]: item for item in run_result["rule_snapshot"]}
+        assert set(snapshot) == {"R01", "R02", "R08"}
+        assert snapshot["R02"]["alternatives"] and {
+            alternative["rule_id"] for alternative in snapshot["R02"]["alternatives"]
+        } == {"R04", "R05", "R06", "R07"}
+        assert "R03" not in snapshot  # other structural checks are deliberately skipped
+        for rule in snapshot.values():
+            assert rule["is_demo_only"] is True
+            assert rule["source_verification_status"] == "unverified"
+            assert rule["citation"]["pdf_page_number"] == 97
+
+        findings_for_run = findings(client, code, run_result["id"])
+        assert findings_for_run
+        assert all(item["explanation"].startswith(DEMO_NOTICE) for item in findings_for_run)
+        by_rule = {item["rule_id"]: item for item in findings_for_run if item["rule_id"]}
+        assert by_rule["R01"]["outcome"] == "inconclusive"
+        assert by_rule["R02"]["outcome"] == expected_r02[packet]
+        assert by_rule["R08"]["outcome"] == "inconclusive"
+
+        detail = client.get(
+            f"/api/v1/applications/{code}/findings/{by_rule['R02']['id']}"
+        ).json()
+        assert detail["rule"]["citation"]["clause_reference"] == "Annexure-2, section 2.1(iii)"
+        assert "Form D" in detail["rule"]["citation"]["quote"]
+
+        report_response = client.get(
+            f"/api/v1/applications/{code}/scrutiny-runs/{run_result['id']}/report.pdf"
+        )
+        assert report_response.status_code == 200
+        pdf = pymupdf.open(stream=report_response.content, filetype="pdf")
+        report_text = " ".join(page.get_text() for page in pdf)
+        assert DEMO_NOTICE in report_text
+        assert "Annexure-2, section 2.1(iii)" in report_text
+
+    selected = [record for record in caplog.records if record.getMessage() == "Scrutiny ruleset selected"]
+    demo_log = next(record for record in selected
+                    if getattr(record, "ruleset_profile", None) == PROFILE_ID)
+    formatted_log = json.loads(JsonFormatter().format(demo_log))
+    assert formatted_log["ruleset_profile"] == PROFILE_ID
+    assert formatted_log["ruleset_version"] == PROFILE_VERSION
+    assert formatted_log["rule_set_version"]
+
+    production = run(client, demo["clean"])
+    assert production["ruleset_profile"] == "production"
+    assert production["ruleset_profile_version"] == "database"
+    assert not any(item["rule_id"].startswith("R") for item in production["rule_snapshot"])
+
+
+def test_aph_demo_profile_rejects_operator_dates_and_out_of_scope_institutions(client, institution) -> None:
+    code = client.post(
+        "/api/v1/applications",
+        json=application_payload(institution["institution_code"]),
+    ).json()["application_code"]
+    override = client.post(
+        f"/api/v1/applications/{code}/scrutiny-runs",
+        json={"ruleset_profile": "aph_eoa_demo", "scrutiny_date": SCRUTINY_DATE},
+    )
+    assert override.status_code == 422
+    assert override.json()["error"]["code"] == "demo_ruleset_submission_date_required"
+
+    public_institution = client.post(
+        "/api/v1/institutions",
+        json=institution_payload(institution_type="government", name="Synthetic Public Technical Institute"),
+    ).json()
+    public_code = client.post(
+        "/api/v1/applications",
+        json=application_payload(public_institution["institution_code"]),
+    ).json()["application_code"]
+    out_of_scope = client.post(
+        f"/api/v1/applications/{public_code}/scrutiny-runs",
+        json={"ruleset_profile": "aph_eoa_demo"},
+    )
+    assert out_of_scope.status_code == 422
+    assert out_of_scope.json()["error"]["code"] == "demo_ruleset_not_applicable"

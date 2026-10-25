@@ -1,0 +1,197 @@
+# Traceability checkpoint for the revised Rules Registry plan.
+metadata:
+  generated: "2026-10-25"
+  source_plan: "docs/rules-registry-plan.md"
+  target_tasks: "Task Breakdown section in docs/rules-registry-plan.md"
+
+summary:
+  total_plan_items: 21
+  covered_plan_items: 21
+  missing_plan_items: 0
+  coverage_percentage: 100.0
+  total_tasks_generated: 25
+  orphan_tasks: 0
+
+phases:
+  - phase_id: "Phase-1"
+    phase_name: "Source handling and extraction"
+    items:
+      - item_id: "1.1"
+        description: "Establish source and Git boundaries"
+        tasks:
+          - task_id: "T001"
+            description: "Add registry README, source metadata template, and scoped ignore patterns"
+      - item_id: "1.2"
+        description: "Extract pages and tables with provenance"
+        tasks:
+          - task_id: "T002"
+            description: "Implement PDF extraction and fixture tests"
+      - item_id: "1.3"
+        description: "Build clause tree and verify quotes"
+        tasks:
+          - task_id: "T003"
+            description: "Implement clause tree and offset/coverage tests"
+          - task_id: "T004"
+            description: "Implement quote verification and tests"
+  - phase_id: "Phase-2"
+    phase_name: "Typed registry and approval controls"
+    items:
+      - item_id: "2.1"
+        description: "Define registry schemas and provenance validation"
+        tasks:
+          - task_id: "T005"
+            description: "Add schemas, explicit applicability modes, and safe prompts"
+      - item_id: "2.2"
+        description: "Enforce approval and evaluator-test gates"
+        tasks:
+          - task_id: "T006"
+            description: "Add approval and evaluator test-result models/schemas"
+          - task_id: "T007"
+            description: "Add migration and approval gate tests"
+      - item_id: "2.3"
+        description: "Validate registry builds and approved output"
+        tasks:
+          - task_id: "T008"
+            description: "Implement fail-closed registry validation"
+  - phase_id: "Phase-3"
+    phase_name: "Versioned backend integration"
+    items:
+      - item_id: "3.1"
+        description: "Add provenance and rule-version storage"
+        tasks:
+          - task_id: "T009"
+            description: "Add rule provenance/version ORM models"
+          - task_id: "T010"
+            description: "Migrate version, provenance, evaluator enum values, and legacy rows"
+      - item_id: "3.2"
+        description: "Import approved rules and protect managed rules"
+        tasks:
+          - task_id: "T017"
+            description: "Implement approved-only import with explicit applicability translation"
+      - item_id: "3.3"
+        description: "Bind scrutiny snapshots to exact rule content"
+        tasks:
+          - task_id: "T018"
+            description: "Link findings/evaluations to immutable versions and snapshot provenance"
+      - item_id: "3.4"
+        description: "Keep initial extraction independent of registry fields"
+        tasks:
+          - task_id: "T019"
+            description: "Keep extraction fixed and document future cache versioning"
+      - item_id: "3.5"
+        description: "Implement registry-backed regulatory evaluators"
+        tasks:
+          - task_id: "T010"
+            description: "Migrate new rule type enum constraints"
+          - task_id: "T012"
+            description: "Add strict parameter schemas for three rule types"
+          - task_id: "T013"
+            description: "Implement evaluator dispatch and four-outcome tests"
+      - item_id: "3.6"
+        description: "Retire unsupported demo expectations"
+        tasks:
+          - task_id: "T010"
+            description: "Disable and backfill existing unsupported demo rows"
+          - task_id: "T011"
+            description: "Remove retired expectations from enabled defaults"
+      - item_id: "3.7"
+        description: "Resolve reference dates and applicability explicitly"
+        tasks:
+          - task_id: "T010"
+            description: "Make reference date and source nullable/persisted"
+          - task_id: "T014"
+            description: "Implement submission/override date policy and evaluator behavior"
+          - task_id: "T017"
+            description: "Translate only explicit all applicability to backend None"
+      - item_id: "3.8"
+        description: "Enforce rule effective periods"
+        tasks:
+          - task_id: "T014"
+            description: "Implement date bounds and effective-period outcomes"
+      - item_id: "3.9"
+        description: "Version evaluator behavior"
+        tasks:
+          - task_id: "T015"
+            description: "Define evaluator version and reject stale test evidence"
+      - item_id: "3.10"
+        description: "Enforce audited registry-rule kill switch"
+        tasks:
+          - task_id: "T016"
+            description: "Allow only audited enabled-state PATCH"
+          - task_id: "T023"
+            description: "Add confirmed admin UI toggle"
+      - item_id: "3.11"
+        description: "Persist reference to exact rule version"
+        tasks:
+          - task_id: "T018"
+            description: "Link results and snapshots to exact rule version"
+  - phase_id: "Phase-4"
+    phase_name: "Lookup data, user-facing contract, and release"
+    items:
+      - item_id: "4.1"
+        description: "Add provenance-aware authority and norm lookups"
+        tasks:
+          - task_id: "T020"
+            description: "Add coverage-aware lookup semantics and inconclusive tests"
+      - item_id: "4.2"
+        description: "Update API, frontend types, findings, and PDF report"
+        tasks:
+          - task_id: "T021"
+            description: "Show verified rule provenance in findings UI"
+          - task_id: "T022"
+            description: "Print exact rule provenance in PDF report"
+          - task_id: "T023"
+            description: "Add admin enable/disable control"
+      - item_id: "4.3"
+        description: "Document rule lifecycle and source handling"
+        tasks:
+          - task_id: "T024"
+            description: "Update API/data/scrutiny/status documentation"
+      - item_id: "4.4"
+        description: "Run release gates"
+        tasks:
+          - task_id: "T025"
+            description: "Run focused and full validations"
+
+missing_plan_items: []
+orphan_tasks: []
+
+upstream_trace:
+  - plan_item: "3.5"
+    source_requirements: ["REQ-RR-009"]
+    tasks: ["T012", "T013"]
+    full_trace: "REQ-RR-009 → Phase-3.5 → T012,T013"
+  - plan_item: "3.6"
+    source_requirements: ["REQ-RR-010", "REQ-RR-013"]
+    tasks: ["T010", "T011"]
+    full_trace: "REQ-RR-010,REQ-RR-013 → Phase-3.6 → T010,T011"
+  - plan_item: "3.7"
+    source_requirements: ["REQ-RR-011", "REQ-RR-012"]
+    tasks: ["T014", "T017"]
+    full_trace: "REQ-RR-011,REQ-RR-012 → Phase-3.7 → T014,T017"
+  - plan_item: "3.8"
+    source_requirements: ["REQ-RR-016"]
+    tasks: ["T014"]
+    full_trace: "REQ-RR-016 → Phase-3.8 → T014"
+  - plan_item: "3.9"
+    source_requirements: ["REQ-RR-014"]
+    tasks: ["T015"]
+    full_trace: "REQ-RR-014 → Phase-3.9 → T015"
+  - plan_item: "3.10"
+    source_requirements: ["REQ-RR-017"]
+    tasks: ["T016", "T023"]
+    full_trace: "REQ-RR-017 → Phase-3.10 → T016,T023"
+  - plan_item: "3.11"
+    source_requirements: ["REQ-RR-005", "REQ-RR-015"]
+    tasks: ["T018"]
+    full_trace: "REQ-RR-005,REQ-RR-015 → Phase-3.11 → T018"
+  - plan_item: "4.2"
+    source_requirements: ["REQ-RR-008", "REQ-RR-011", "REQ-RR-015", "REQ-RR-017"]
+    tasks: ["T021", "T022", "T023"]
+    full_trace: "REQ-RR-008,REQ-RR-011,REQ-RR-015,REQ-RR-017 → Phase-4.2 → T021,T022,T023"
+
+validation:
+  passed: true
+  errors: []
+  warnings:
+    - "The APH PDF is present and Git-ignored; source identity and reuse terms remain pending verification."

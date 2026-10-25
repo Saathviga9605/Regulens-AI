@@ -32,6 +32,49 @@ class ExpectedDocumentParams(_Params):
     application_types: list[ApplicationType] | None = Field(default=None, description="None = all types")
 
 
+class ValidityPeriodParams(_Params):
+    category: DocumentCategory
+    start_field: Literal["issue_date"] = "issue_date"
+    years: int = Field(ge=1, le=100)
+
+
+class ConditionalDocumentParams(_Params):
+    required_category: DocumentCategory
+    trigger_category: DocumentCategory
+    trigger_field: Literal["issue_date"] = "issue_date"
+    years_elapsed: int = Field(ge=1, le=100)
+    comparison: Literal["at_least", "strictly_more_than"] = "at_least"
+    reference_date_source: Literal["application_marked_ready_internal", "operator_override"] = (
+        "application_marked_ready_internal"
+    )
+
+
+class AlternativeDocumentGroupParams(_Params):
+    categories: list[DocumentCategory] = Field(min_length=2)
+    application_types: list[ApplicationType] = Field(min_length=1)
+    validity_reference: Literal["operator_override"]
+
+    @model_validator(mode="after")
+    def _unique_categories_and_types(self):
+        if len(set(self.categories)) != len(self.categories):
+            raise ValueError("categories must not contain duplicates.")
+        if len(set(self.application_types)) != len(self.application_types):
+            raise ValueError("application_types must not contain duplicates.")
+        return self
+
+
+class IssuerAuthorityParams(_Params):
+    category: DocumentCategory
+    authority_directory: dict[str, list[str]]
+
+    @model_validator(mode="after")
+    def _nonempty_authorities(self):
+        if any(not state.strip() or not authorities or any(not authority.strip() for authority in authorities)
+               for state, authorities in self.authority_directory.items()):
+            raise ValueError("authority_directory must contain non-empty states and authorities.")
+        return self
+
+
 class RequiredFieldParams(_Params):
     category: DocumentCategory
     field_name: FieldName
@@ -90,6 +133,10 @@ class SimulatedIssuerParams(_Params):
 
 PARAM_SCHEMAS: dict[RuleType, type[_Params]] = {
     RuleType.EXPECTED_DOCUMENT: ExpectedDocumentParams,
+    RuleType.VALIDITY_PERIOD: ValidityPeriodParams,
+    RuleType.CONDITIONAL_DOCUMENT: ConditionalDocumentParams,
+    RuleType.ALTERNATIVE_DOCUMENT_GROUP: AlternativeDocumentGroupParams,
+    RuleType.ISSUER_AUTHORITY: IssuerAuthorityParams,
     RuleType.REQUIRED_FIELD: RequiredFieldParams,
     RuleType.PROCESSING_QUALITY: ProcessingQualityParams,
     RuleType.CLASSIFICATION_CONSISTENCY: ClassificationConsistencyParams,
@@ -110,13 +157,15 @@ def validate_parameters(rule_type: RuleType, parameters: dict) -> dict:
 def _demo(rule_id, title, description, rule_type, params, severity):
     return dict(rule_id=rule_id, title=title, description=description, rule_type=rule_type, parameters=params,
                 severity=severity, source=DEMO_SOURCE, source_reference=DEMO_REFERENCE,
-                source_verification_status=SourceVerificationStatus.UNVERIFIED, is_demo_only=True)
+                source_verification_status=SourceVerificationStatus.UNVERIFIED, is_demo_only=True,
+                provenance="demo")
 
 
 def _integrity(rule_id, title, description, rule_type, params, severity):
     return dict(rule_id=rule_id, title=title, description=description, rule_type=rule_type, parameters=params,
                 severity=severity, source=INTEGRITY_SOURCE, source_reference=None,
-                source_verification_status=SourceVerificationStatus.NOT_APPLICABLE, is_demo_only=False)
+                source_verification_status=SourceVerificationStatus.NOT_APPLICABLE, is_demo_only=False,
+                provenance="integrity")
 
 
 DC, RT, SV = DocumentCategory, RuleType, Severity
@@ -127,9 +176,6 @@ DEFAULT_RULES: list[dict] = [
     _demo("EXP-002", "Occupancy certificate expected (demo)",
           "Demo expectation: an occupancy certificate is expected for the institution's buildings.",
           RT.EXPECTED_DOCUMENT, {"category": DC.OCCUPANCY_CERTIFICATE}, SV.MEDIUM),
-    _demo("EXP-003", "Structural stability certificate expected (demo)",
-          "Demo expectation: a structural stability certificate is expected.",
-          RT.EXPECTED_DOCUMENT, {"category": DC.STRUCTURAL_STABILITY_CERTIFICATE}, SV.MEDIUM),
     _demo("EXP-004", "Building plan expected for intake/course changes (demo)",
           "Demo expectation that applies only to 'increase in intake' and 'introduction of new course' "
           "applications: a building plan is expected.",
@@ -138,10 +184,6 @@ DEFAULT_RULES: list[dict] = [
     _demo("FLD-001", "Fire safety certificate number present (demo)",
           "Demo expectation: a fire safety certificate states a certificate number.",
           RT.REQUIRED_FIELD, {"category": DC.FIRE_SAFETY_CERTIFICATE, "field_name": "certificate_number"}, SV.MEDIUM),
-    _demo("FLD-002", "Fire safety certificate validity date stated (demo)",
-          "Demo expectation: a fire safety certificate explicitly states a validity/expiry date. ReguLens never "
-          "infers a validity period when none is written.",
-          RT.REQUIRED_FIELD, {"category": DC.FIRE_SAFETY_CERTIFICATE, "field_name": "valid_until"}, SV.MEDIUM),
     _demo("FLD-003", "Structural stability certificate names its issuer (demo)",
           "Demo expectation: a structural stability certificate states the issuing authority or engineer.",
           RT.REQUIRED_FIELD, {"category": DC.STRUCTURAL_STABILITY_CERTIFICATE, "field_name": "issuing_authority"},
@@ -202,5 +244,19 @@ def ensure_default_rules(session: Session) -> int:
         session.add(ScrutinyRule(**{**definition, "parameters": params}))
         added += 1
     if added:
+        session.commit()
+    retired_rules = session.execute(
+        select(ScrutinyRule).where(
+            ScrutinyRule.rule_id.in_(("EXP-003", "FLD-002")),
+            ScrutinyRule.retired.is_(False),
+        )
+    ).scalars().all()
+    for rule in retired_rules:
+        rule.enabled = False
+        rule.retired = True
+        rule.provenance = "demo"
+        rule.source_verification_status = SourceVerificationStatus.UNVERIFIED
+        rule.version += 1
+    if retired_rules:
         session.commit()
     return added

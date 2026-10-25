@@ -24,6 +24,7 @@ import type {
   ReviewStatus,
   RuleOutcome,
   ScrutinyRun,
+  ScrutinyRulesetProfile,
   Severity,
 } from "../types/api";
 import { ReviewActions } from "./ReviewActions";
@@ -35,6 +36,15 @@ const RUN_STATUS_TEXT: Record<ScrutinyRun["status"], string> = {
   completed_with_warnings: "Completed with warnings",
   failed: "Failed",
 };
+
+function scrutinyDateSourceLabel(source: string | null | undefined): string {
+  if (!source) return "source unavailable";
+  if (source === "operator_override") return "operator override";
+  if (source === "application_marked_ready_internal") return "application submission date";
+  if (source === "unavailable") return "unavailable";
+  if (source === "system_date_legacy") return "legacy system date";
+  return source.replaceAll("_", " ");
+}
 
 function Tile({ label, value, className = "" }: { label: string; value: number; className?: string }) {
   return (
@@ -55,8 +65,13 @@ function RunSummary({ run }: { run: ScrutinyRun }) {
         <Pill className={run.status === "failed" ? OUTCOME_STYLES.issue : run.status === "completed" ? OUTCOME_STYLES.pass : OUTCOME_STYLES.inconclusive}>
           {RUN_STATUS_TEXT[run.status]}
         </Pill>
-        <span>Run #{run.run_number} · scrutiny date {run.scrutiny_date} · started {formatDateTime(run.started_at)}</span>
-        <span className="text-xs text-ink-subtle">rule set {run.rule_set_version}</span>
+        <span>Run #{run.run_number} · scrutiny reference date {run.scrutiny_date ?? "unavailable"} ({scrutinyDateSourceLabel(run.scrutiny_date_source)}) · started {formatDateTime(run.started_at)}</span>
+        <span className="text-xs text-ink-subtle">
+          {run.ruleset_profile === "aph_eoa_demo"
+            ? `ruleset ${run.ruleset_profile} v${run.ruleset_profile_version}`
+            : "production rules"}
+          {" · "}rule set {run.rule_set_version}
+        </span>
       </div>
       {run.failure_reason && <Alert tone="error">{run.failure_reason}</Alert>}
       {run.warnings.length > 0 && (
@@ -143,6 +158,11 @@ function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun
 
       <section aria-label="System-generated result" className="space-y-2">
         <h5 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">System-generated explanation</h5>
+        {f.explanation.startsWith("DEMO RULESET - formal approval pending") && (
+          <p className="rounded border border-warning-line bg-warning-bg p-2 text-sm font-semibold text-warning-800">
+            DEMO RULESET - formal approval pending
+          </p>
+        )}
         <p className="text-sm text-ink">{f.explanation}</p>
         {f.uncertainty && <p className="text-sm text-warning-800"><strong>Uncertainty:</strong> {f.uncertainty}</p>}
         {f.missing_evidence && <p className="text-sm text-ink"><strong>Missing evidence:</strong> {f.missing_evidence}</p>}
@@ -176,6 +196,18 @@ function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun
             </p>
             <p>Source: {f.rule.source}{f.rule.source_reference ? ` — ${f.rule.source_reference}` : ""}</p>
             <p>Source verification: {f.rule.source_verification_status.replace("_", " ")}</p>
+            {f.rule.citation && (
+              <div className="mt-2 border-t border-line pt-2">
+                <p className="font-semibold">Draft APH citation (not independently verified)</p>
+                <p>
+                  {f.rule.citation.clause_reference} · PDF page {f.rule.citation.pdf_page_number}
+                  {f.rule.citation.printed_page_label && ` (printed page ${f.rule.citation.printed_page_label})`}
+                </p>
+                <blockquote className="mt-1 border-l-2 border-info-line pl-2 font-mono [overflow-wrap:anywhere]">
+                  {f.rule.citation.quote}
+                </blockquote>
+              </div>
+            )}
             {f.rule.is_demo_only && (
               <p className="mt-1 font-semibold text-warning-800">DEMO-ONLY RULE — not a verified AICTE requirement.</p>
             )}
@@ -264,6 +296,7 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted, focus }: PanelP
   const [error, setError] = useState<string | null>(null);
   const [reportState, setReportState] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [rulesetProfile, setRulesetProfile] = useState<ScrutinyRulesetProfile>("production");
   const latestRunId = runs.data?.items[0]?.id ?? null;
 
   useEffect(() => {
@@ -291,7 +324,7 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted, focus }: PanelP
     setRunning(true);
     setError(null);
     try {
-      const created = await apiClient.startScrutinyRun(applicationCode);
+      const created = await apiClient.startScrutinyRun(applicationCode, rulesetProfile);
       setSelectedRunId(created.id);
       setSelectedFinding(null);
       setVersion((v) => v + 1);
@@ -323,6 +356,20 @@ export function ScrutinyPanel({ applicationCode, onRunCompleted, focus }: PanelP
           preliminary indicators for human review — nothing here approves or rejects the application or establishes
           misconduct.
         </p>
+        <SelectField
+          label="Ruleset profile for the next run"
+          value={rulesetProfile}
+          onChange={(e) => setRulesetProfile(e.target.value as ScrutinyRulesetProfile)}
+          options={[
+            ["production", "Production rules (current configured rules)"],
+            ["aph_eoa_demo", "APH EoA demo rules (formal approval pending)"],
+          ]}
+        />
+        {rulesetProfile === "aph_eoa_demo" && (
+          <p className="rounded border border-warning-line bg-warning-bg p-2 text-sm font-semibold text-warning-800">
+            DEMO RULESET - formal approval pending. This isolated profile does not alter production activation.
+          </p>
+        )}
         {running && <div role="status" className="text-sm text-ink">Processing documents and evaluating rules…</div>}
         {error && <Alert tone="error">{error}</Alert>}
 

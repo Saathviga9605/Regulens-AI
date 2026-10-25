@@ -5,6 +5,7 @@ are addressed under their application so records cannot be read through another 
 """
 
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, Query, Request
 from pydantic import ValidationError
@@ -184,6 +185,23 @@ def create_rule(body: RuleCreate, db: Session = Depends(get_db)) -> RuleRead:
 def update_rule(rule_id: str, body: RuleUpdate, db: Session = Depends(get_db)) -> RuleRead:
     rule = _get_rule(db, rule_id)
     changes = body.model_dump(exclude_unset=True)
+    if rule.registry_managed:
+        if set(changes) != {"enabled"}:
+            raise ConflictError(
+                "registry_rule_immutable",
+                "Registry-managed rule content is immutable; only its enabled state can be changed.",
+            )
+        if rule.enabled != changes["enabled"]:
+            previous_enabled = rule.enabled
+            rule.enabled = changes["enabled"]
+            rule.updated_at = utcnow()
+            audit.record(
+                db, "registry_rule.enabled_changed", "scrutiny_rule", rule.rule_id,
+                details={"enabled_from": previous_enabled, "enabled_to": rule.enabled,
+                         "version": rule.version},
+            )
+            db.commit()
+        return RuleRead.model_validate(rule)
     if "parameters" in changes:
         changes["parameters"] = _validated_params(rule.rule_type, changes["parameters"])
     changed = {k: v for k, v in changes.items() if getattr(rule, k) != v}
@@ -202,11 +220,16 @@ def update_rule(rule_id: str, body: RuleUpdate, db: Session = Depends(get_db)) -
 
 class RunRequest(StrictInputModel):
     scrutiny_date: date | None = None
+    ruleset_profile: Literal["production", "aph_eoa_demo"] = "production"
 
 
 def _run_summary(run, code: str) -> dict:
+    profile = next((item for item in run.rule_snapshot if item.get("ruleset_profile")), None)
     return dict(id=run.id, application_code=code, run_number=run.run_number, status=run.status,
-                scrutiny_date=run.scrutiny_date, rule_set_version=run.rule_set_version, summary=run.summary,
+                scrutiny_date=run.scrutiny_date, scrutiny_date_source=run.scrutiny_date_source,
+                rule_set_version=run.rule_set_version, summary=run.summary,
+                ruleset_profile=profile["ruleset_profile"] if profile else "production",
+                ruleset_profile_version=profile["ruleset_version"] if profile else "database",
                 warnings=run.warnings, failure_reason=run.failure_reason, started_at=run.started_at,
                 finished_at=run.finished_at)
 
@@ -223,9 +246,10 @@ def start_run(application_code: str, body: RunRequest | None = Body(None), db: S
               storage: DocumentStorage = Depends(get_storage), settings: Settings = Depends(get_app_settings),
               ocr=Depends(get_ocr)) -> RunRead:
     scrutiny_date = body.scrutiny_date if body else None
+    ruleset_profile = body.ruleset_profile if body else "production"
     if scrutiny_date and not date(2000, 1, 1) <= scrutiny_date <= date(2100, 12, 31):
         raise AppError(422, "validation_error", "scrutiny_date is out of range.")
-    run = scrutiny.start_run(db, storage, settings, ocr, application_code, scrutiny_date)
+    run = scrutiny.start_run(db, storage, settings, ocr, application_code, scrutiny_date, ruleset_profile)
     return RunRead(**_run_summary(run, application_code), rule_snapshot=run.rule_snapshot,
                    documents_considered=run.documents_considered,
                    evaluations=[EvaluationRead.model_validate(e) for e in run.evaluations])
@@ -292,4 +316,3 @@ def get_finding(application_code: str, finding_id: str, db: Session = Depends(ge
     finding = scrutiny.get_finding(db, finding_id)
     scrutiny.ensure_application_scope(finding, application.id)
     return _finding_detail(db, application, finding)
-

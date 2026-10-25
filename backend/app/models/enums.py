@@ -48,6 +48,8 @@ class DocumentCategory(StrEnum):
     FIRE_SAFETY_CERTIFICATE = "fire_safety_certificate"
     OCCUPANCY_CERTIFICATE = "occupancy_certificate"
     COMPLETION_CERTIFICATE = "completion_certificate"
+    BUILDING_LICENSE = "building_license"
+    FORM_D = "form_d"
     STRUCTURAL_STABILITY_CERTIFICATE = "structural_stability_certificate"
     BUILDING_PLAN = "building_plan"
     UNIVERSITY_NOC = "university_noc"
@@ -124,6 +126,10 @@ class RuleType(StrEnum):
     DATE_ORDER = "date_order"
     EXPIRY_BEFORE_SCRUTINY = "expiry_before_scrutiny"
     SIMULATED_ISSUER_OUTCOME = "simulated_issuer_outcome"
+    VALIDITY_PERIOD = "validity_period"
+    CONDITIONAL_DOCUMENT = "conditional_document"
+    ISSUER_AUTHORITY = "issuer_authority"
+    ALTERNATIVE_DOCUMENT_GROUP = "alternative_document_group"
 
 
 class Severity(StrEnum):

@@ -268,7 +268,8 @@ describe("Reports", () => {
 describe("Administration and roles", () => {
   const RULE: ScrutinyRule = { rule_id: "CON-003", title: "Survey numbers consistent", description: "d", rule_type: "field_consistency",
     parameters: {}, severity: "high", enabled: true, source: "Generic check", source_reference: null,
-    source_verification_status: "not_applicable", is_demo_only: false, version: 1, created_at: "x", updated_at: "x" };
+    source_verification_status: "not_applicable", is_demo_only: false, provenance: "integrity", registry_managed: false,
+    retired: false, effective_from: null, effective_to: null, version: 1, created_at: "x", updated_at: "x" };
 
   it("makes rules read-only for reviewers", async () => {
     mockApi({ "GET /scrutiny-rules": () => jsonResponse([RULE]) });

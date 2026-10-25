@@ -39,6 +39,7 @@ import type {
   ScrutinyRule,
   ScrutinyRun,
   ScrutinyRunSummary,
+  ScrutinyRulesetProfile,
   SystemInfoResponse,
   VerificationAttempt,
 } from "../types/api";
@@ -315,8 +316,10 @@ export const apiClient = {
   updateRule(ruleId: string, update: RuleUpdate): Promise<ScrutinyRule> {
     return request(`/scrutiny-rules/${enc(ruleId)}`, { method: "PATCH", body: update });
   },
-  startScrutinyRun(applicationCode: string): Promise<ScrutinyRun> {
-    return request(`/applications/${enc(applicationCode)}/scrutiny-runs`, { method: "POST", timeoutMs: LONG_TIMEOUT_MS });
+  startScrutinyRun(applicationCode: string, rulesetProfile: ScrutinyRulesetProfile = "production"): Promise<ScrutinyRun> {
+    return request(`/applications/${enc(applicationCode)}/scrutiny-runs`, {
+      method: "POST", body: { ruleset_profile: rulesetProfile }, timeoutMs: LONG_TIMEOUT_MS,
+    });
   },
   listScrutinyRuns(applicationCode: string): Promise<Page<ScrutinyRunSummary>> {
     return request(`/applications/${enc(applicationCode)}/scrutiny-runs`, { query: { page_size: 50 } });

@@ -117,6 +117,11 @@ class RuleRead(BaseModel):
     source_reference: str | None
     source_verification_status: SourceVerificationStatus
     is_demo_only: bool
+    provenance: str
+    registry_managed: bool
+    retired: bool
+    effective_from: str | None
+    effective_to: str | None
     version: int
     created_at: datetime
     updated_at: datetime
@@ -156,8 +161,11 @@ class RunSummaryRead(BaseModel):
     application_code: str
     run_number: int
     status: RunStatus
-    scrutiny_date: str
+    scrutiny_date: str | None
+    scrutiny_date_source: str
     rule_set_version: str
+    ruleset_profile: str
+    ruleset_profile_version: str
     summary: dict
     warnings: list[str]
     failure_reason: str | None
@@ -243,4 +251,3 @@ class VerificationAttemptRead(BaseModel):
     fields_compared: list[dict]
     reference_code: str | None
     created_at: datetime
-

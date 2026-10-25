@@ -53,6 +53,8 @@ FIELDS_BY_CATEGORY: dict[C, list[str]] = {
     C.FIRE_SAFETY_CERTIFICATE: COMMON + ["valid_until", "survey_number"],
     C.OCCUPANCY_CERTIFICATE: COMMON + ["survey_number", "built_up_area"],
     C.COMPLETION_CERTIFICATE: COMMON + ["survey_number", "built_up_area"],
+    C.BUILDING_LICENSE: COMMON + ["valid_until", "survey_number", "built_up_area"],
+    C.FORM_D: COMMON + ["valid_until", "survey_number", "built_up_area"],
     C.STRUCTURAL_STABILITY_CERTIFICATE: COMMON + ["structural_reference", "valid_until"],
     C.BUILDING_PLAN: ["institution_name", "issuing_authority", "issue_date", "address", "survey_number",
                       "plot_number", "built_up_area"],

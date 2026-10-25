@@ -183,6 +183,8 @@ export type DocumentCategory =
   | "fire_safety_certificate"
   | "occupancy_certificate"
   | "completion_certificate"
+  | "building_license"
+  | "form_d"
   | "structural_stability_certificate"
   | "building_plan"
   | "university_noc"
@@ -325,6 +327,18 @@ export type FindingKind = "rule_finding" | "anomaly_indicator";
 export type ReviewStatus = "not_reviewed" | "confirmed" | "dismissed" | "escalated" | "awaiting_evidence" | "resolved";
 export type RunStatus = "running" | "completed" | "completed_with_warnings" | "failed";
 export type SourceVerificationStatus = "verified" | "unverified" | "not_applicable";
+export type RuleProvenance = "regulatory" | "checklist" | "integrity" | "demo";
+export type ScrutinyRulesetProfile = "production" | "aph_eoa_demo";
+
+export interface RuleCitation {
+  source_sha256: string;
+  pdf_page_number: number | null;
+  printed_page_label: string | null;
+  clause_reference: string;
+  quote: string;
+  quote_sha256: string;
+  ocr_derived: boolean;
+}
 
 export interface ScrutinyRule {
   rule_id: string;
@@ -338,6 +352,11 @@ export interface ScrutinyRule {
   source_reference: string | null;
   source_verification_status: SourceVerificationStatus;
   is_demo_only: boolean;
+  provenance: RuleProvenance;
+  registry_managed: boolean;
+  retired: boolean;
+  effective_from: string | null;
+  effective_to: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -375,8 +394,11 @@ export interface ScrutinyRunSummary {
   application_code: string;
   run_number: number;
   status: RunStatus;
-  scrutiny_date: string;
+  scrutiny_date: string | null;
+  scrutiny_date_source: string;
   rule_set_version: string;
+  ruleset_profile: ScrutinyRulesetProfile;
+  ruleset_profile_version: string;
   summary: Partial<RunSummaryCounts>;
   warnings: string[];
   failure_reason: string | null;
@@ -410,6 +432,12 @@ export interface RuleSnapshot {
   source_reference: string | null;
   source_verification_status: SourceVerificationStatus;
   is_demo_only: boolean;
+  candidate_id?: string;
+  ruleset_profile?: ScrutinyRulesetProfile;
+  ruleset_version?: string;
+  demo_notice?: string;
+  citation?: RuleCitation;
+  alternatives?: Array<{ rule_id: string; candidate_id: string; category: string; citation: RuleCitation }>;
 }
 
 export interface ScrutinyRun extends ScrutinyRunSummary {

@@ -1,0 +1,222 @@
+# Traceability checkpoint for the revised Rules Registry plan.
+metadata:
+  generated: "2026-10-25"
+  source_spec: "Pasted text #1.txt plus user-approved decisions and gap corrections in chat"
+  target_plan: "docs/rules-registry-plan.md"
+
+summary:
+  total_requirements: 17
+  covered_requirements: 17
+  missing_requirements: 0
+  coverage_percentage: 100.0
+
+requirements:
+  - req_id: "REQ-RR-001"
+    req_description: "Source lock, provenance, reuse assessment, and Git boundary"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 1"
+      phase_name: "Source handling and extraction"
+      items:
+        - item_id: "1.1"
+          description: "Establish source and Git boundaries"
+        - item_id: "4.4"
+          description: "Run release gates"
+    notes: "PDF is present and Git-ignored; edition, amendments, hash, and reuse terms remain unverified."
+  - req_id: "REQ-RR-002"
+    req_description: "Verbatim extraction, provenance, offsets, and quote verification"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 1"
+      phase_name: "Source handling and extraction"
+      items:
+        - item_id: "1.2"
+          description: "Extract pages and tables with provenance"
+        - item_id: "1.3"
+          description: "Build clause tree and verify quotes"
+    notes: ""
+  - req_id: "REQ-RR-003"
+    req_description: "Typed registry schemas and explicit provenance classes"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 2"
+      phase_name: "Typed registry and approval controls"
+      items:
+        - item_id: "2.1"
+          description: "Define registry schemas and provenance validation"
+        - item_id: "2.3"
+          description: "Validate registry builds and approved output"
+        - item_id: "3.1"
+          description: "Add provenance and rule-version storage"
+    notes: "Also covered by Phase 3, item 3.1."
+  - req_id: "REQ-RR-004"
+    req_description: "Hash-bound approvals and evaluator-test gates"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 2"
+      phase_name: "Typed registry and approval controls"
+      items:
+        - item_id: "2.2"
+          description: "Enforce approval and evaluator-test gates"
+        - item_id: "2.3"
+          description: "Validate registry builds and approved output"
+    notes: ""
+  - req_id: "REQ-RR-005"
+    req_description: "Approved-only import, append-only versions, PATCH protection, reproducible snapshots"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.1"
+          description: "Add provenance and rule-version storage"
+        - item_id: "3.2"
+          description: "Import approved rules and protect managed rules"
+        - item_id: "3.3"
+          description: "Bind scrutiny snapshots to exact rule content"
+        - item_id: "3.11"
+          description: "Persist reference to the exact rule version"
+    notes: ""
+  - req_id: "REQ-RR-006"
+    req_description: "Preserve safe extraction cache semantics"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.4"
+          description: "Keep initial extraction independent of registry fields"
+    notes: ""
+  - req_id: "REQ-RR-007"
+    req_description: "Verified lookup tables and inconclusive unknown coverage"
+    priority: "P2"
+    plan_mapping:
+      phase: "Phase 4"
+      phase_name: "Lookup data, user-facing contract, and release"
+      items:
+        - item_id: "4.1"
+          description: "Add provenance-aware authority and norm lookups"
+    notes: ""
+  - req_id: "REQ-RR-008"
+    req_description: "Consistent API/frontend/docs/tests and release verification"
+    priority: "P2"
+    plan_mapping:
+      phase: "Phase 4"
+      phase_name: "Lookup data, user-facing contract, and release"
+      items:
+        - item_id: "4.2"
+          description: "Update API, frontend types, and documentation"
+        - item_id: "4.3"
+          description: "Document lifecycle and source handling"
+        - item_id: "4.4"
+          description: "Run release gates"
+    notes: ""
+  - req_id: "REQ-RR-009"
+    req_description: "Implement three regulatory evaluator types with schemas, migrations, and tests"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.5"
+          description: "Implement registry-backed regulatory evaluators"
+    notes: ""
+  - req_id: "REQ-RR-010"
+    req_description: "Retire unsupported EXP-003 and FLD-002 demo expectations"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.6"
+          description: "Retire unsupported demo expectations"
+    notes: "Replacement regulatory rules require source verification and approval; legacy provenance backfill is included in Plan 3.6."
+  - req_id: "REQ-RR-011"
+    req_description: "Use submitted_at or labelled operator reference date, never implicit system date"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.7"
+          description: "Resolve reference dates and applicability explicitly"
+        - item_id: "3.11"
+          description: "Persist reference to the exact rule version"
+        - item_id: "4.2"
+          description: "Update user-facing provenance"
+    notes: ""
+  - req_id: "REQ-RR-012"
+    req_description: "Distinguish explicit all, selected, and unknown applicability"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 2"
+      phase_name: "Typed registry and approval controls"
+      items:
+        - item_id: "2.1"
+          description: "Define registry schemas and provenance validation"
+        - item_id: "3.7"
+          description: "Resolve reference dates and applicability explicitly"
+    notes: "Only explicit all maps to backend application_types=None."
+  - req_id: "REQ-RR-013"
+    req_description: "Backfill legacy rule rows to conservative provenance classes"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.6"
+          description: "Retire unsupported demo expectations and backfill provenance"
+    notes: ""
+  - req_id: "REQ-RR-014"
+    req_description: "Version evaluator behavior and require matching evidence"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.9"
+          description: "Version evaluator behavior"
+    notes: ""
+  - req_id: "REQ-RR-015"
+    req_description: "Show exact immutable rule citation and registry version in findings and PDF reports"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.11"
+          description: "Persist reference to the exact rule version"
+        - item_id: "4.2"
+          description: "Update API, findings UI, and PDF report"
+    notes: ""
+  - req_id: "REQ-RR-016"
+    req_description: "Enforce effective-period semantics"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.8"
+          description: "Enforce rule effective periods"
+    notes: ""
+  - req_id: "REQ-RR-017"
+    req_description: "Permit only an audited enabled toggle for registry-managed rules"
+    priority: "P1"
+    plan_mapping:
+      phase: "Phase 3"
+      phase_name: "Versioned backend integration"
+      items:
+        - item_id: "3.10"
+          description: "Enforce an audited registry-rule kill switch"
+        - item_id: "4.2"
+          description: "Add admin enable toggle"
+    notes: ""
+
+missing_requirements: []
+orphan_plan_items: []
+
+validation:
+  passed: true
+  errors: []
+  warnings:
+    - "The APH PDF is present and Git-ignored; source identity and reuse terms remain pending verification."

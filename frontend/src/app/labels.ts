@@ -85,6 +85,8 @@ export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
   fire_safety_certificate: "Fire Safety Certificate",
   occupancy_certificate: "Occupancy Certificate",
   completion_certificate: "Completion Certificate",
+  building_license: "Building License",
+  form_d: "Form D",
   structural_stability_certificate: "Structural Stability Certificate",
   building_plan: "Building Plan",
   university_noc: "University NOC",

@@ -42,6 +42,11 @@ class ScrutinyRule(Base):
         str_enum(SourceVerificationStatus, "source_verification_status"), nullable=False
     )
     is_demo_only: Mapped[bool] = mapped_column(nullable=False, default=True)
+    provenance: Mapped[str] = mapped_column(String(20), nullable=False, default="demo")
+    registry_managed: Mapped[bool] = mapped_column(nullable=False, default=False)
+    retired: Mapped[bool] = mapped_column(nullable=False, default=False)
+    effective_from: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    effective_to: Mapped[str | None] = mapped_column(String(10), nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
@@ -56,7 +61,8 @@ class ScrutinyRun(Base):
     )
     run_number: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[RunStatus] = mapped_column(str_enum(RunStatus, "run_status"), nullable=False)
-    scrutiny_date: Mapped[str] = mapped_column(String(10), nullable=False)  # ISO date used for expiry checks
+    scrutiny_date: Mapped[str | None] = mapped_column(String(10), nullable=True)  # ISO reference date
+    scrutiny_date_source: Mapped[str] = mapped_column(String(40), nullable=False, default="system_date_legacy")
     rule_set_version: Mapped[str] = mapped_column(String(20), nullable=False)
     rule_snapshot: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     documents_considered: Mapped[list] = mapped_column(JSON, nullable=False, default=list)

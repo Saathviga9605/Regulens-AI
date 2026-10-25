@@ -71,20 +71,22 @@ const INDICATOR: Finding = {
 };
 
 const EXPECTED_DOC: Finding = {
-  ...FINDING, id: "fd3", finding_key: "rule:EXP-003:application", rule_id: "EXP-003", finding_type: "missing_document",
-  title: "Expected document not found: structural stability certificate", severity: "medium", evidence: [],
+  ...FINDING, id: "fd3", finding_key: "rule:EXP-001:application", rule_id: "EXP-001", finding_type: "missing_document",
+  title: "Expected document not found: fire safety certificate", severity: "medium", evidence: [],
   missing_evidence: "A document uploaded with the category 'structural stability certificate'.",
 };
 
 function run(n: number, id: string): ScrutinyRun {
   return {
     id, application_code: "REG-EoA-2026-0001", run_number: n, status: "completed", scrutiny_date: "2026-10-23",
-    rule_set_version: "abc123", warnings: [], failure_reason: null, started_at: `2026-10-23T1${n}:00:00Z`,
+    scrutiny_date_source: "operator_override",
+    rule_set_version: "abc123", ruleset_profile: "production", ruleset_profile_version: "database",
+    warnings: [], failure_reason: null, started_at: `2026-10-23T1${n}:00:00Z`,
     finished_at: `2026-10-23T1${n}:00:05Z`,
     summary: {
       evaluation_outcomes: { pass: 26, issue: 2, inconclusive: 1, not_applicable: 3 },
       finding_severities: { high: 1, medium: 1, low: 1, info: 0 }, rule_findings: 2, anomaly_indicators: 1,
-      documents_considered: 4, documents_processed_ok: 4, rules_evaluated: 18,
+      documents_considered: 4, documents_processed_ok: 4, rules_evaluated: 16,
     },
     rule_snapshot: [], documents_considered: [],
     evaluations: [
@@ -100,7 +102,7 @@ function run(n: number, id: string): ScrutinyRun {
 
 const DETAIL: FindingDetail = {
   ...EXPECTED_DOC, application_code: "REG-EoA-2026-0001", run_number: 2,
-  rule: { rule_id: "EXP-003", version: 1, title: "Structural stability certificate expected (demo)", rule_type: "expected_document",
+  rule: { rule_id: "EXP-001", version: 1, title: "Fire safety certificate expected (demo)", rule_type: "expected_document",
     severity: "medium", source: "ReguLens prototype demonstration configuration",
     source_reference: "Not verified against the AICTE Approval Process Handbook or any official source",
     source_verification_status: "unverified", is_demo_only: true },
@@ -251,7 +253,7 @@ describe("Preliminary scrutiny", () => {
     await userEvent.click(screen.getByRole("button", { name: "Run preliminary scrutiny" }));
 
     const findings = await screen.findByRole("region", { name: "Findings" });
-    expect(screen.getByText(/Run #1 · scrutiny date 2026-10-23/)).toBeInTheDocument();
+    expect(screen.getByText(/Run #1 · scrutiny reference date 2026-10-23 \(operator override\)/)).toBeInTheDocument();
     for (const [label, n] of [["Pass", "26"], ["Issue", "2"], ["Inconclusive", "1"], ["Not applicable", "3"]] as const) {
       expect(screen.getByText(label, { selector: "dt" }).nextSibling).toHaveTextContent(n);
     }
@@ -260,6 +262,17 @@ describe("Preliminary scrutiny", () => {
     expect(within(findings).getByText("Prompts for attention, not conclusions.")).toBeInTheDocument();
     expect(api.callsTo("POST", RUNS)).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Rerun preliminary scrutiny" })).toBeInTheDocument();
+  });
+
+  it("explicitly selects the isolated APH demo profile for the next run", async () => {
+    const api = scrutinyApi();
+    renderApp(APP);
+    const profile = await screen.findByLabelText("Ruleset profile for the next run");
+    await userEvent.selectOptions(profile, "aph_eoa_demo");
+    expect(screen.getByText("DEMO RULESET - formal approval pending. This isolated profile does not alter production activation.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Run preliminary scrutiny" }));
+    await waitFor(() => expect(api.callsTo("POST", RUNS)).toHaveLength(1));
+    expect(api.callsTo("POST", RUNS)[0]?.body).toEqual({ ruleset_profile: "aph_eoa_demo" });
   });
 
   it("opens a finding with its evidence, demo-only rule label and saves a human review", async () => {
@@ -335,12 +348,12 @@ describe("Preliminary scrutiny", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Run preliminary scrutiny" }));
     await screen.findByRole("region", { name: "Findings" });
     await userEvent.click(screen.getByRole("button", { name: "Rerun preliminary scrutiny" }));
-    await waitFor(() => expect(screen.getByText(/Run #2 · scrutiny date/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Run #2 · scrutiny reference date/)).toBeInTheDocument());
 
     const select = screen.getByRole("combobox", { name: "Scrutiny run" });
     expect(within(select).getAllByRole("option")).toHaveLength(2);
     await userEvent.selectOptions(select, "run1");
-    expect(await screen.findByText(/Run #1 · scrutiny date/)).toBeInTheDocument();
+    expect(await screen.findByText(/Run #1 · scrutiny reference date/)).toBeInTheDocument();
     expect(api.callsTo("GET", `${RUNS}/run1`).length).toBeGreaterThan(0);
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Severity" }), "high");
@@ -373,11 +386,18 @@ describe("Scrutiny rules administration", () => {
     { rule_id: "EXP-001", title: "Fire safety certificate expected (demo)", description: "Demo expectation.",
       rule_type: "expected_document", parameters: { category: "fire_safety_certificate" }, severity: "high", enabled: true,
       source: "ReguLens prototype demonstration configuration", source_reference: "Not verified against the AICTE Approval Process Handbook",
-      source_verification_status: "unverified", is_demo_only: true, version: 1, created_at: "2026-10-23T10:00:00Z", updated_at: "2026-10-23T10:00:00Z" },
+      source_verification_status: "unverified", is_demo_only: true, provenance: "demo", registry_managed: false,
+      retired: false, effective_from: null, effective_to: null, version: 1, created_at: "2026-10-23T10:00:00Z", updated_at: "2026-10-23T10:00:00Z" },
     { rule_id: "CON-003", title: "Survey numbers consistent across documents", description: "Generic check.",
       rule_type: "field_consistency", parameters: {}, severity: "high", enabled: true,
       source: "Generic document-consistency check (not a regulatory requirement)", source_reference: null,
-      source_verification_status: "not_applicable", is_demo_only: false, version: 1, created_at: "2026-10-23T10:00:00Z", updated_at: "2026-10-23T10:00:00Z" },
+      source_verification_status: "not_applicable", is_demo_only: false, provenance: "integrity", registry_managed: false,
+      retired: false, effective_from: null, effective_to: null, version: 1, created_at: "2026-10-23T10:00:00Z", updated_at: "2026-10-23T10:00:00Z" },
+    { rule_id: "REG-101", title: "Registry rule", description: "Immutable imported rule.",
+      rule_type: "expected_document", parameters: { category: "fire_safety_certificate" }, severity: "medium", enabled: true,
+      source: "Test registry", source_reference: "Test clause", source_verification_status: "verified", is_demo_only: false,
+      provenance: "regulatory", registry_managed: true, retired: false, effective_from: "2026-01-01", effective_to: null,
+      version: 1, created_at: "2026-10-23T10:00:00Z", updated_at: "2026-10-23T10:00:00Z" },
   ];
 
   it("shows source labels and disables a rule", async () => {
@@ -415,5 +435,22 @@ describe("Scrutiny rules administration", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Change severity" }));
     // The dialog stays open with the server's reason so the admin can retry or cancel.
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Rule parameters are invalid");
+  });
+
+  it("restricts registry-managed rules to audited enable toggles", async () => {
+    mockApi({
+      "GET /scrutiny-rules": () => jsonResponse(RULES),
+      "PATCH /scrutiny-rules/REG-101": () => jsonResponse({ ...RULES[2]!, enabled: false }),
+    });
+    renderApp("/scrutiny-rules");
+    const table = await screen.findByRole("table", { name: "Scrutiny rules" });
+    const row = within(table).getByRole("row", { name: /REG-101/ });
+    expect(row).toHaveTextContent("Registry-managed · content immutable");
+    expect(within(row).queryByRole("combobox", { name: "Severity for REG-101" })).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("checkbox", { name: "Enable REG-101" }));
+    const dialog = screen.getByRole("dialog", { name: "Disable rule?" });
+    expect(dialog).toHaveTextContent("Registry rule content and version stay unchanged.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disable rule" }));
+    expect(await screen.findByText(/REG-101 enabled state saved; content remains version 1/)).toBeInTheDocument();
   });
 });

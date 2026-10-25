@@ -77,7 +77,10 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Evidence-grounded extraction; grounding check; not found / ambiguous; no inferred validity | Implemented and tested | extraction tests |
 | Date and area normalisation | Implemented and tested | parametrised tests |
 | Rules as validated data; enable/disable; versioning; create; snapshot per run | Implemented and tested | rule tests; rules page in browser |
+| Isolated APH EoA demo ruleset profile (R01/R02/R08 evaluators; R04–R07 grouped as alternatives; R03 skipped); finding/report citations and demo notice | Implemented but not fully tested | `test_aph_demo_profile_isolated_cited_and_disclaimed`; production activation unchanged |
 | Rule families: expected document, required field, processing quality, classification, name/identifier/address/area consistency, date order, explicit expiry, simulated issuer outcome | Implemented and tested | `test_scrutiny.py` on the demo dataset |
+| Registry execution foundation: typed evaluator schemas/evaluators, effective periods, explicit reference-date source, and retirement of `EXP-003`/`FLD-002` | Implemented but not fully tested | migrations `0005`-`0006`; added APH alternative-document evaluator and document categories; evaluator behavior matrix and immutable versions still pending |
+| Registry source intake: local PDF identity record, page text extraction, and exact candidate-quote verification | Implemented but not fully tested | APH extraction (231 pages, 5 with no text layer); 6 source/candidate tests pass; eight local draft records verify against the extraction; official source, amendment, accuracy, applicability, and reuse checks remain pending |
 | Inconclusive instead of conflict for ambiguous/ungrounded values | Implemented and tested | `test_ambiguous_or_ungrounded_values_…` |
 | Anomaly indicators (duplicate, cross-application content, certificate-number reuse, mixed signals, incremental saves) | Implemented and tested (duplicate, certificate reuse); others implemented but not directly asserted | tests + browser |
 | Runs: history, determinism, stable finding keys, failure recording, concurrent-run guard | Implemented and tested | run tests; browser rerun |
@@ -85,7 +88,7 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 | Application scoping of runs/findings | Implemented and tested | `test_records_are_scoped_to_their_application` |
 | Simulated issuer adapter: all outcomes, labels, no fabricated match, no reference leakage | Implemented and tested | `test_simulated_issuer_…`, `test_no_match_…`; browser |
 | Demo seed (12 fictional PDFs, 4 synthetic references), idempotent, user data preserved | Implemented and tested | seed tests; CLI run twice |
-| Frontend: processing controls, fields/evidence, page text, simulated checks, scrutiny panel, findings filters/detail/review, run history, rules page | Implemented and tested | `scrutiny.test.tsx` (13); browser |
+| Frontend: processing controls, fields/evidence, page text, simulated checks, scrutiny panel, findings filters/detail/review, run history, rules page | Implemented and tested | `scrutiny.test.tsx` (14); browser |
 
 ## Deliverable 5 — Reviewer workspace, decisions, audit, alerts, report, copilot
 
@@ -124,7 +127,8 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 
 | Feature | Status |
 |---------|--------|
-| Verified regulatory sources for rules (replacing demo-only expectations) | Planned |
+| Rules Registry typed provenance/approvals, approved-only import, append-only rule versions, and finding/report citations | Planned — local source extraction, draft quote verification, and evaluator primitives exist; candidate import remains blocked by unresolved applicability/reference date, source/reuse review, and absent second reviewer approval |
+| Verified regulatory sources for rules (replacing demo-only expectations) | Planned — handbook source identity, edition, amendments, and reuse terms remain unverified |
 | Background processing worker | Planned (only if needed) |
 | Real issuer integrations | Not planned without official authorisation |
 
@@ -199,6 +203,8 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
   Accuracy has only been checked on synthetic documents and says nothing about real certificates.
 - Classification confidence is a keyword heuristic, not a calibrated probability.
 - All default expectation rules are demo-only and unverified against official sources; no regulatory citation exists.
+- The new evaluator types are infrastructure only; no APH-based rule has been sourced or approved. The issuer-authority
+  parameter mapping is not a verified authority directory.
 - Issuer verification is simulated against synthetic records only; there is no real integration.
 - Processing and scrutiny run synchronously in the HTTP request; very large or many scanned documents will be slow.
 - Authentication is a local prototype scheme (no SSO/MFA/password reset); every reviewer can access every
@@ -208,4 +214,16 @@ Statuses: **Implemented and tested** · **Implemented but not fully tested** · 
 - Alerts are visible to all staff; there are no email/SMS notifications.
 - The browser smoke script (`frontend/e2e/smoke.mjs`) is manual: it needs running servers and is not part of `npm test`.
 - Local demo credentials are public defaults; they must be changed before sharing (see security.md).
-- Ports 8000 and 5173 were in use on the verification machine; browser checks used scratch servers on 8030/5195.
+
+## Verification log — Rules Registry foundation (2026-10-25)
+
+| Check | Result |
+|-------|--------|
+| Focused backend suites (`test_scrutiny.py`, `test_review_workspace.py`, `test_seed_and_migrations.py`) | **60 passed** |
+| Registry-managed API boundary regression (content PATCH conflict, audited enabled toggle) | **1 passed** after the full suite |
+| Scrutiny UI tests | **15 passed** |
+| Frontend typecheck | Passed |
+| Full frontend test suite | **81 passed** (Vitest emitted a worker-termination timeout after tests passed) |
+| Frontend production build | Passed |
+| Backend compileall | Passed |
+| Full backend suite | **216 passed** (before the added API-boundary regression; one Starlette/httpx deprecation warning) |
