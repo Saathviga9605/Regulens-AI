@@ -345,6 +345,58 @@ export type RunStatus = "running" | "completed" | "completed_with_warnings" | "f
 export type SourceVerificationStatus = "verified" | "unverified" | "not_applicable";
 export type RuleProvenance = "regulatory" | "checklist" | "integrity" | "demo";
 export type ScrutinyRulesetProfile = "production" | "aph_eoa_demo";
+export type RuleClassification =
+  | "SOURCE_VERIFIED" | "PARTIALLY_VERIFIED" | "UNRESOLVED" | "DEMO_ONLY" | "RETIRED" | "INTEGRITY_CHECK";
+
+export interface RegulatorySourceManifest {
+  source_id: string;
+  source_version: number;
+  title: string;
+  title_as_printed: string;
+  publisher: string;
+  edition: string;
+  effective_academic_years: string[];
+  canonical_url: string;
+  retrieved_on: string;
+  bytes: number;
+  sha256: string;
+  pdf_page_count: number;
+  verification: { status: string; method: string; verified_on: string; text_layer: string };
+  unresolved_references: Array<{ reference: string; cited_from: string; status: string; detail: string }>;
+  version_policy: string;
+}
+
+export interface RegulatoryAphRule {
+  rule_id: string;
+  title: string;
+  version: number;
+  classification: RuleClassification;
+  clause: string;
+  pdf_page: number;
+  printed_page: string | null;
+  quote: string;
+  interpretation: string;
+  applicability: string;
+  required_evidence: string;
+  alternatives: string[];
+}
+
+export interface RegulatoryProductionRule {
+  rule_id: string;
+  title: string;
+  version: number;
+  enabled: boolean;
+  classification: RuleClassification;
+  source: string;
+  source_reference: string | null;
+  is_demo_only: boolean;
+}
+
+export interface RegulatorySource {
+  source: RegulatorySourceManifest;
+  aph_profile: { profile_id: string; version: string; default: boolean; rules: RegulatoryAphRule[] };
+  production_rules: RegulatoryProductionRule[];
+}
 
 export interface RuleCitation {
   source_sha256: string;
@@ -354,6 +406,10 @@ export interface RuleCitation {
   quote: string;
   quote_sha256: string;
   ocr_derived: boolean;
+  /** Present on APH profile version 2+ (pinned handbook); absent on older run snapshots. */
+  source_id?: string;
+  source_version?: number;
+  source_title?: string;
 }
 
 export interface ScrutinyRule {
@@ -452,6 +508,8 @@ export interface RuleSnapshot {
   ruleset_profile?: ScrutinyRulesetProfile;
   ruleset_version?: string;
   demo_notice?: string;
+  classification?: RuleClassification;
+  interpretation?: string;
   citation?: RuleCitation;
   alternatives?: Array<{ rule_id: string; candidate_id: string; category: string; citation: RuleCitation }>;
 }
@@ -527,7 +585,17 @@ export interface VerificationAttempt {
   source_status: "verified" | "mismatch_detected" | "expired" | "verification_pending" | "source_unavailable" | "manual_review_required";
   source_status_label: string;
   source_type: "LIVE" | "SIMULATED" | "NOT_CONNECTED";
+  recorded_by?: string | null;
   created_at: string;
+}
+
+export interface IntegrityChecks {
+  version: string;
+  qr: { found: number; note: string; codes: { page: number; payload: string; comparison: "consistent" | "inconsistent" | "no_reference" }[] };
+  reference_format: { status: "plausible" | "implausible" | "not_available"; value?: string; problems?: string[]; note?: string; detail?: string };
+  certificate_number_page: number | null;
+  pdf_signature: { signature_fields: number; signed_flag: boolean; validated: boolean; source_type: string; detail: string };
+  disclaimer: string;
 }
 
 // --- Auth, review workspace, audit, alerts, copilot (Deliverable 5) ----------------------------

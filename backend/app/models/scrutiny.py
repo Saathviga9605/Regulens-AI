@@ -199,6 +199,8 @@ class VerificationAttempt(Base):
     source_status: Mapped[IssuerSourceStatus] = mapped_column(
         str_enum(IssuerSourceStatus, "issuer_source_status"), nullable=False)
     source_type: Mapped[SourceType] = mapped_column(str_enum(SourceType, "source_type"), nullable=False)
+    # Set only for manual records: the reviewer who recorded the result of their own check (migration 0010).
+    recorded_by: Mapped[str | None] = mapped_column(String(60), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
     __table_args__ = (Index("ix_verification_attempts_application", "application_id", "created_at"),)

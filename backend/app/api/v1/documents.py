@@ -26,8 +26,8 @@ router = APIRouter(tags=["documents"])
 def intake_policy(settings: Settings = Depends(get_app_settings)) -> IntakePolicy:
     return IntakePolicy(
         max_upload_bytes=settings.max_upload_bytes,
-        accepted_content_types=[service.PDF_MIME],
-        accepted_extensions=[".pdf"],
+        accepted_content_types=list(service.ACCEPTED_MIME),
+        accepted_extensions=list(service.EXTENSIONS),
         categories=list(DocumentCategory),
         intake_open_statuses=list(service.INTAKE_OPEN_STATUSES),
     )
@@ -36,7 +36,7 @@ def intake_policy(settings: Settings = Depends(get_app_settings)) -> IntakePolic
 @router.post("/applications/{application_code}/documents", response_model=DocumentRead, status_code=201)
 async def upload_document(
     application_code: str,
-    file: UploadFile = File(..., description="PDF file"),
+    file: UploadFile = File(..., description="PDF, PNG or JPEG file"),
     category: DocumentCategory = Form(...),
     description: str | None = Form(None, max_length=500),
     evidence_request_id: str | None = Form(None, max_length=36,
@@ -56,7 +56,7 @@ async def upload_document(
             raise ConflictError("evidence_request_closed", "The selected evidence request is not open.")
     filename = service.sanitize_filename(file.filename)
     service.check_declared_type(file.content_type)
-    received = await service.receive_upload(storage, file, settings.max_upload_bytes)
+    received = await service.receive_upload(storage, file, settings.max_upload_bytes, filename)
     document = await run_in_threadpool(
         lambda: service.store_document(
             db, storage, application_code=application_code, received=received, filename=filename,
@@ -108,7 +108,7 @@ def get_document_content(
     document, path = service.content_path(db, storage, document_id)
     return FileResponse(
         path,
-        media_type=service.PDF_MIME,
+        media_type=document.mime_type if document.mime_type in service.ACCEPTED_MIME else service.PDF_MIME,
         headers={
             "Content-Disposition": _content_disposition(disposition, document.original_filename),
             "X-Content-Type-Options": "nosniff",

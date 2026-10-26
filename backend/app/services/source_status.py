@@ -43,7 +43,11 @@ _MAP: dict[V, S] = {
     V.SIMULATED_UNAVAILABLE: S.SOURCE_UNAVAILABLE,
     V.MANUAL_REVIEW: S.MANUAL_REVIEW_REQUIRED,
     V.UNSUPPORTED: S.MANUAL_REVIEW_REQUIRED,
+    V.REVIEWER_RECORDED: S.MANUAL_REVIEW_REQUIRED,  # status for manual records is chosen by the reviewer instead
 }
+
+# Statuses a reviewer may record after checking with the issuer themselves (pending is the absence of a record).
+MANUAL_STATUSES = (S.VERIFIED, S.MISMATCH_DETECTED, S.EXPIRED, S.SOURCE_UNAVAILABLE, S.MANUAL_REVIEW_REQUIRED)
 
 
 def map_outcome(outcome: V, simulated: bool) -> tuple[S, SourceType]:

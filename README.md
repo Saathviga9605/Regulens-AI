@@ -10,7 +10,7 @@ different applications, and records every reviewer decision in an audit trail.
 > [!IMPORTANT]
 > ReguLens AI is **decision support, not decision making**. It never approves or rejects an application, never
 > establishes that a document is authentic, and never treats an anomaly or a similarity as proof of misconduct.
-> Every finding requires human review. ReguLens AI is an independent prototype and is not an AICTE service.
+> Every finding requires human review. ReguLens AI is independent software and is not an AICTE service.
 
 ---
 
@@ -21,6 +21,7 @@ different applications, and records every reviewer decision in an audit trail.
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Running the application](#running-the-application)
+- [Regulatory source (AICTE APH)](#regulatory-source-aicte-aph)
 - [Accounts and roles](#accounts-and-roles)
 - [Configuration](#configuration)
 - [Command-line reference](#command-line-reference)
@@ -39,10 +40,10 @@ different applications, and records every reviewer decision in an audit trail.
 | Area | What ReguLens AI does |
 |---|---|
 | **Case management** | Institutions and EoA applications with declared programmes, internal workflow states and an institution snapshot captured when an application is marked ready. |
-| **Secure document intake** | PDF-only uploads with signature checks, size limits, SHA-256 integrity, duplicate detection and private storage. Files are never served statically. |
+| **Secure document intake** | PDF, PNG and JPEG uploads with signature and end-marker checks, size limits, SHA-256 integrity, duplicate detection and private storage. Files are never served statically. |
 | **Document understanding** | Text-layer extraction; local OCR for scanned and photographed pages with per-line confidence and coordinates; document-type classification; extraction of critical fields (institution, certificate number, issuing authority, dates, survey and property identifiers, address, area), each with a quoted source line, page number and location. |
 | **Preliminary scrutiny** | Configurable, versioned, deterministic rules and anomaly detectors. Each finding carries its explanation, evidence and rule provenance. Production rules are the default; demonstration rule sets must be selected explicitly. |
-| **Source verification** | A replaceable issuer-verification interface. The only adapter included is a **simulated** registry; results are always labelled with their source type (`SIMULATED` or `NOT_CONNECTED`). |
+| **Source verification** | A replaceable issuer-verification interface. The only adapter included is a **simulated** registry; results are always labelled with their source type (`SIMULATED` or `NOT_CONNECTED`). Reviewers can record a manual check, shown as reviewer-recorded. QR, reference-format and signature-field indicators are reported without claiming issuer confirmation. |
 | **Cross-case reuse detection** | A multi-stage cascade (exact hash, text similarity, perceptual page hashing, geometric verification with difference regions, critical-field comparison, evidence fusion) that surfaces pairs of documents from different applications that may share underlying content, with a traceable explanation. |
 | **Reviewer workspace** | Review queue, finding actions with mandatory reasons, evidence requests, in-app alerts, preliminary scrutiny reports (PDF) and an append-only audit trail. |
 | **Access control** | Reviewer and administrator roles enforced server-side, plus a separate, explicitly granted permission for cross-case evidence. |
@@ -181,6 +182,35 @@ Open **http://127.0.0.1:5173** and sign in.
 
 ---
 
+## Regulatory source (AICTE APH)
+
+ReguLens pins **one exact copy** of the AICTE *Approval Process Handbook 2024–25 to 2026–27*:
+
+| Field | Value |
+|---|---|
+| Official URL | https://cdnbbsr.s3waas.gov.in/s35938b4d054136e5d59ada6ec9c295d7a/uploads/2025/03/2025031399.pdf |
+| SHA-256 | `153d54816f2cf11489218e239113544e8d49b73680009688baa7dc4880636051` |
+| Size / pages | 4,155,819 bytes · 231 PDF pages |
+| Manifest | `backend/app/regulatory/aph_2024_27.json` (page map, verified quotations, unresolved references) |
+
+**Policy.** A rule may cite the handbook only with a clause, PDF page, printed page and a quotation verified in
+that exact file. Where applying the quotation needs interpretation (dates, applicability, cross-references) the rule
+is classified *partially verified* and the interpretation is stated. A changed file or newer handbook becomes a new
+source version and requires rule review; past runs keep the rule versions and source hash they used. The PDF is not
+committed (reuse terms not assessed). Verify a local copy with `python -m app.cli aph-source --verify <pdf>`.
+
+| Rule | Clause (PDF p. 97, printed p. 81) | Classification | Profile |
+|---|---|---|---|
+| R01 Fire Safety Certificate | Annexure-2 §2.1(v) | Partially verified — "valid" read as a Valid Until date | `aph_eoa_demo` v2 |
+| R02 Building document (one of OC / CC / Building License / Form D) | Annexure-2 §2.1(iii) | Partially verified — cites Clause 7.17, which could not be located (unresolved) | `aph_eoa_demo` v2 |
+| R08 Structural Stability Certificate (> 30 years) | Annexure-2 §2.1(iv) | Partially verified — reference date not given by the handbook | `aph_eoa_demo` v2 |
+
+The handbook-cited rules run only when the `aph_eoa_demo` profile is selected; it is not the default. The default
+profile's rules do **not** cite the handbook and are classified *demo-only* or *integrity check*. Not every enabled
+rule is handbook-backed. The in-app **Regulatory source** page shows all of this from the backend registry, offline.
+
+---
+
 ## Accounts and roles
 
 Outside production, `seed` creates two local demonstration accounts from `.env`:
@@ -247,6 +277,7 @@ Run from `backend/` with the virtual environment active: `python -m app.cli <com
 | `reuse-fixtures --reset --confirm-reset` | Remove only those demonstration cases (development/test only). |
 | `reuse-scan --application CODE` | Run a cross-case reuse scan for one application. |
 | `reuse-eval [--no-ocr] --out DIR` | Run the A0/A1/A4 evaluation; writes `metrics.json`, `metrics.csv` and `summary.md`. |
+| `aph-source --verify PDF \| --fetch DIR` | Check a local handbook copy against the pinned manifest (or download it, then check). |
 | `capture-kit --out DIR` | Export printable sources and a manifest template for real photographed evaluation pairs. |
 | `reset-data --confirm-reset` | **Delete all** institution, application and document data (development/test only). |
 
@@ -349,8 +380,8 @@ See [docs/security.md](docs/security.md).
 
 ## Limitations
 
-- Scrutiny rules marked **demo-only** are prototype expectations and have not been verified against official AICTE
-  sources.
+- Default-profile rules are **demo-only** or integrity checks; only three rules (APH profile) cite the pinned
+  handbook, and all three involve stated interpretation.
 - Issuer verification is **simulated**; no issuing authority is contacted.
 - Field extraction is rule-based and covers explicitly labelled values in English; unusual layouts may be missed.
 - Every reviewer can open every application; there is no per-application assignment.
@@ -396,4 +427,5 @@ regulens-ai/
 | Security, roles and audit | [docs/security.md](docs/security.md) |
 | Design system | [docs/design-system.md](docs/design-system.md) |
 | Acceptance checklist and status mapping | [docs/d9-acceptance.md](docs/d9-acceptance.md) |
+| Regulatory source and rule audit | [docs/d11-regulatory-source.md](docs/d11-regulatory-source.md) |
 | Implementation status | [docs/implementation-status.md](docs/implementation-status.md) |

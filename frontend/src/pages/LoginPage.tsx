@@ -2,18 +2,16 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 
 import { useAuth } from "../app/AuthContext";
-import { TRUST_NOTICE } from "../app/navigation";
-import { useApiQuery } from "../app/useApiQuery";
+import { IDENTITY_STATEMENT } from "../app/navigation";
 import { Wordmark } from "../components/BrandMark";
 import { Alert, PasswordField, TextField, buttonStyles } from "../components/ui";
-import { ApiError, apiClient } from "../services/apiClient";
+import { ApiError } from "../services/apiClient";
 
 export function LoginPage() {
   const { user, login, notice } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
-  const info = useApiQuery(() => apiClient.getSystemInfo(), "login-info");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
@@ -64,16 +62,10 @@ export function LoginPage() {
               <li>• Uncertain results are shown as inconclusive, never as passes.</li>
               <li>• Decisions always remain with authorised human reviewers.</li>
             </ul>
-            <p className="mt-6 rounded-control border border-warning-line bg-warning-bg p-3 text-xs text-warning-800">{TRUST_NOTICE}</p>
           </section>
           <section aria-labelledby="signin-heading" className="p-6 sm:p-8">
             <h1 id="signin-heading" className="text-xl font-semibold text-brand-900">Sign in to ReguLens AI</h1>
             <p className="mt-1 text-sm text-ink-muted">Use your reviewer or administrator account.</p>
-            {info.data?.demo_mode && (
-              <p data-testid="demo-indicator" className="mt-3 inline-block rounded-full border border-saffron-500 bg-saffron-100 px-2.5 py-0.5 text-xs font-semibold text-warning-800">
-                Local demo environment — demo accounts are configured in .env (see README)
-              </p>
-            )}
             <div className="mt-4 space-y-3">
               {notice && <Alert tone="info">{notice}</Alert>}
               {error && <Alert tone="error" title={error.title}>{error.text}</Alert>}
@@ -91,7 +83,7 @@ export function LoginPage() {
         </div>
       </main>
       <footer className="px-4 py-4 text-center text-xs text-ink-subtle">
-        ReguLens AI is an independent prototype. It is not an AICTE service and is not endorsed by any government body.
+        {IDENTITY_STATEMENT}
       </footer>
     </div>
   );

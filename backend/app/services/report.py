@@ -75,8 +75,16 @@ def _findings_html(findings: list[Finding], snapshot: list[dict], history: dict)
             location = f"PDF page {e(page)}" if page is not None else "PDF page unavailable"
             if printed:
                 location += f" (printed page {e(printed)})"
+            # provenance from the run's rule snapshot; version-1 snapshots predate the pinned source and lack it
+            source = citation.get("source_title") or "AICTE Approval Process Handbook (source not pinned)"
+            if rule.get("source_sha256"):
+                source += f", SHA-256 {rule['source_sha256'][:12]}…"
+            provenance = f"Rule {e(rule.get('rule_id'))} v{e(rule.get('version'))}"
+            if rule.get("classification"):
+                provenance += f" · {e(rule['classification'].replace('_', ' ').lower())}"
             parts.append(
                 f"<p class='small'>APH citation: {e(citation.get('clause_reference'))} · {location}</p>"
+                f"<p class='small'>Source: {e(source)} · {provenance}</p>"
                 f"<div class='quote'>{e(citation.get('quote'))}</div>"
             )
         for ev in f.evidence[:8]:
@@ -157,8 +165,10 @@ low: {e(severities.get('low', 0))}, info: {e(severities.get('info', 0))}
 <table><tr><th>Requested evidence</th><th>Status</th><th>Due</th><th>Requested by</th><th>Linked documents</th></tr>{''.join(req_rows) or '<tr><td colspan="5">None.</td></tr>'}</table>
 <h2>Limitations and inconclusive results</h2>
 <p>{e(len(inconclusive))} rule result(s) were inconclusive (unreadable, ambiguous or missing evidence) and need manual
-review. {" ".join(e(w) for w in run.warnings)} Extraction reads only explicitly labelled text; OCR depends on a local
-Tesseract installation; classification confidence is a heuristic. Results on synthetic data say nothing about
+review. {" ".join(e(w) for w in run.warnings)} Extraction reads only explicitly labelled text; scanned pages are read only when a
+local OCR engine (Tesseract or RapidOCR) is configured, and OCR scores are not calibrated probabilities; classification
+confidence is a heuristic. Source-verification results marked SIMULATED or NOT_CONNECTED did not come from a live
+issuer connection. Results on synthetic data say nothing about
 real-world accuracy.</p>
 <h2>Disclaimer</h2>
 <p>{e(DISCLAIMER)}</p>

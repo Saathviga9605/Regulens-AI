@@ -235,6 +235,61 @@ describe("Document processing and evidence", () => {
     expect(section).not.toHaveTextContent(/Verified/);
   });
 
+  it("records a manual verification as reviewer-recorded and NOT CONNECTED", async () => {
+    const recorded: VerificationAttempt = {
+      id: "m1", document_id: DOC.id, document_filename: DOC.original_filename, adapter: "reviewer_manual_record",
+      method: "manual_reviewer_record", simulated: false, simulation_label: null, outcome: "reviewer_recorded" as VerificationAttempt["outcome"],
+      explanation: "Recorded by demo.reviewer after checking with: Issuing office.", fields_compared: [], reference_code: null,
+      source_status: "verified", source_status_label: "Verified", source_type: "NOT_CONNECTED", recorded_by: "demo.reviewer",
+      created_at: "2026-10-26T10:00:00Z",
+    };
+    const api = mockApi({
+      [`GET ${APP}`]: () => jsonResponse(DRAFT),
+      [`GET ${DOCS}`]: () => jsonResponse(page([DOC])),
+      [`GET /documents/${DOC.id}/processing`]: () => jsonResponse(PROCESSED),
+      [`GET /documents/${DOC.id}/issuer-verifications`]: () => jsonResponse([]),
+      [`POST /documents/${DOC.id}/issuer-verifications/manual`]: () => jsonResponse(recorded, 201),
+    });
+    renderApp(APP);
+    await openDetails();
+    const form = await screen.findByRole("form", { name: "Manual verification" });
+    await userEvent.click(within(form).getByRole("button", { name: "Save manual result" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("Name the source");
+    expect(api.callsTo("POST", `/documents/${DOC.id}/issuer-verifications/manual`)).toHaveLength(0);
+    await userEvent.selectOptions(within(form).getByRole("combobox", { name: "Result" }), "verified");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Source checked with" }), "Issuing office");
+    await userEvent.type(within(form).getByRole("textbox", { name: "What you checked" }), "Read back the certificate number.");
+    await userEvent.click(within(form).getByRole("button", { name: "Save manual result" }));
+    expect(await screen.findByText(/Reviewer-recorded by demo.reviewer/)).toBeInTheDocument();
+    expect(api.callsTo("POST", `/documents/${DOC.id}/issuer-verifications/manual`)[0]!.body).toEqual({
+      status: "verified", source_description: "Issuing office", note: "Read back the certificate number." });
+    expect(screen.getByRole("region", { name: "Simulated issuer verification" })).toHaveTextContent("NOT CONNECTED");
+  }, 20000);
+
+  it("shows integrity indicators without claiming authenticity", async () => {
+    mockApi({
+      [`GET ${APP}`]: () => jsonResponse(DRAFT),
+      [`GET ${DOCS}`]: () => jsonResponse(page([DOC])),
+      [`GET /documents/${DOC.id}/processing`]: () => jsonResponse(PROCESSED),
+      [`GET /documents/${DOC.id}/issuer-verifications`]: () => jsonResponse([]),
+      [`GET /documents/${DOC.id}/integrity-checks`]: () => jsonResponse({
+        version: "integrity_indicators_v1",
+        qr: { found: 1, note: "A QR code does not establish authenticity.", codes: [{ page: 1, payload: "x", comparison: "inconsistent" }] },
+        reference_format: { status: "plausible", value: "SYN-1/2026" }, certificate_number_page: 1,
+        pdf_signature: { signature_fields: 0, signed_flag: false, validated: false, source_type: "NOT_CONNECTED", detail: "" },
+        disclaimer: "Integrity indicators for human review." }),
+    });
+    renderApp(APP);
+    await openDetails();
+    const section = await screen.findByRole("region", { name: "Integrity indicators" });
+    await userEvent.click(within(section).getByRole("button", { name: /Check QR code/ }));
+    const res = await within(section).findByTestId("integrity-result");
+    expect(res).toHaveTextContent("page 1: does not match the extracted certificate number");
+    expect(res).toHaveTextContent("plausible (SYN-1/2026)");
+    expect(res).toHaveTextContent("0 signature field(s); not validated");
+    expect(res).toHaveTextContent("does not establish authenticity");
+  });
+
   it("process all only processes documents without current results", async () => {
     const done: ApplicationDocument = { ...DOC, id: "done", original_filename: "done.pdf", processing: {
       status: "completed", pipeline_version: "p1", is_current: true, predicted_category: null,

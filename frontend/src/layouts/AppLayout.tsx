@@ -1,10 +1,10 @@
-import { Bell, ChevronDown, LogOut, Menu, ShieldAlert, UserCircle2, X } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, UserCircle2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
 import { useAuth } from "../app/AuthContext";
 import { useBackendHealth } from "../app/BackendHealthContext";
-import { NAV_GROUPS, TRUST_NOTICE } from "../app/navigation";
+import { IDENTITY_STATEMENT, NAV_GROUPS } from "../app/navigation";
 import { useApiQuery } from "../app/useApiQuery";
 import { Wordmark } from "../components/BrandMark";
 import { ConnectionIndicator } from "../components/ConnectionIndicator";
@@ -96,10 +96,13 @@ function Sidebar({ onNavigate, unread }: { onNavigate: () => void; unread: numbe
           );
         })}
       </nav>
-      <div className="border-t border-brand-800 px-5 py-3">
-        <p className="mb-1 text-[11px] uppercase tracking-wider text-brand-100/70">Backend</p>
-        <ConnectionIndicator state={state} />
-      </div>
+      {/* shown only when something is wrong; a healthy connection needs no permanent label */}
+      {state.kind !== "connected" && (
+        <div className="border-t border-brand-800 px-5 py-3">
+          <p className="mb-1 text-[11px] uppercase tracking-wider text-brand-100/70">Backend</p>
+          <ConnectionIndicator state={state} />
+        </div>
+      )}
     </div>
   );
 }
@@ -107,7 +110,6 @@ function Sidebar({ onNavigate, unread }: { onNavigate: () => void; unread: numbe
 export function AppLayout() {
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const info = useApiQuery(() => apiClient.getSystemInfo(), "system-info");
   // Unread count refreshes on navigation (no background polling).
   const alerts = useApiQuery(() => apiClient.listAlerts({ page_size: 1 }), location.pathname);
   const unread = alerts.error ? null : alerts.data?.unread_count ?? null;
@@ -124,7 +126,6 @@ export function AppLayout() {
     return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", onKey); };
   }, [drawerOpen]);
 
-  const environment = info.data?.environment;
   return (
     <div className="min-h-screen bg-canvas">
       <a href="#main-content"
@@ -139,12 +140,6 @@ export function AppLayout() {
           {drawerOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
         </button>
         <Link to="/" className="min-w-0 rounded-control" aria-label="ReguLens AI — overview"><Wordmark inverse /></Link>
-        {environment && environment !== "production" && (
-          <span data-testid="environment-badge" title="Local development/demo environment — not a production service"
-            className="hidden rounded-full border border-saffron-500 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-saffron-100 md:inline">
-            {info.data?.demo_mode ? "Local demo" : environment}
-          </span>
-        )}
         <div className="ml-auto flex items-center gap-1">
           <Link to="/alerts" className="relative rounded-control p-2 text-white hover:bg-brand-800"
             aria-label={unread ? `Alerts, ${unread} unread` : "Alerts"}>
@@ -158,11 +153,6 @@ export function AppLayout() {
           <AccountMenu />
         </div>
       </header>
-
-      <div role="note" className="flex items-center gap-2 border-b border-warning-line bg-warning-bg px-4 py-1.5 text-xs text-warning-800">
-        <ShieldAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
-        <span>{TRUST_NOTICE}</span>
-      </div>
 
       <div className="lg:flex">
         <aside aria-label="Sidebar" className="hidden bg-brand-900 lg:sticky lg:top-[var(--layout-header)] lg:block lg:h-[calc(100vh-var(--layout-header))] lg:w-[var(--layout-sidebar)] lg:shrink-0">
@@ -189,6 +179,9 @@ export function AppLayout() {
           <div className="mx-auto max-w-[var(--layout-content-max)]">
             <Outlet />
           </div>
+          <footer className="mx-auto mt-10 max-w-[var(--layout-content-max)] border-t border-line pt-3 text-xs text-ink-subtle">
+            {IDENTITY_STATEMENT}
+          </footer>
         </main>
       </div>
     </div>

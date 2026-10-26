@@ -193,7 +193,7 @@ function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun
             <p>Source verification: {f.rule.source_verification_status.replace("_", " ")}</p>
             {f.rule.citation && (
               <div className="mt-2 border-t border-line pt-2">
-                <p className="font-semibold">APH citation</p>
+                <p className="font-semibold">Draft APH citation (not independently verified)</p>
                 <p>
                   {f.rule.citation.clause_reference} · PDF page {f.rule.citation.pdf_page_number}
                   {f.rule.citation.printed_page_label && ` (printed page ${f.rule.citation.printed_page_label})`}

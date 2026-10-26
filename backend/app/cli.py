@@ -63,10 +63,33 @@ def main(argv: list[str] | None = None) -> int:
     re_ = sub.add_parser("reuse-eval", help="Run the A0/A1/A4 evaluation on synthetic fixtures")
     re_.add_argument("--out", default=None, help="Directory for metrics.json, metrics.csv and summary.md")
     re_.add_argument("--no-ocr", action="store_true", help="Evaluate without OCR (to measure its contribution)")
+    ap = sub.add_parser("aph-source", help="Fetch or verify the pinned AICTE Approval Process Handbook PDF")
+    ap_mode = ap.add_mutually_exclusive_group(required=True)
+    ap_mode.add_argument("--verify", metavar="PDF", help="Check a local copy against the pinned manifest")
+    ap_mode.add_argument("--fetch", metavar="DIR", help="Download from the canonical URL (network) and verify")
     ck = sub.add_parser("capture-kit", help="Export printable sources + manifest template for real photo captures")
     ck.add_argument("--out", required=True)
     args = parser.parse_args(argv)
 
+    if args.command == "aph-source":
+        from pathlib import Path
+
+        from app.services import regulatory_source
+
+        target = Path(args.verify) if args.verify else None
+        if args.fetch:
+            import urllib.request
+
+            out = Path(args.fetch)
+            out.mkdir(parents=True, exist_ok=True)
+            target = out / "aicte-aph-2024-27.pdf"
+            if target.exists():
+                print(f"{target} already exists; verifying it instead of downloading.")
+            else:
+                urllib.request.urlretrieve(regulatory_source.manifest()["canonical_url"], target)  # noqa: S310
+        report = regulatory_source.verify_pdf(target)
+        print(json.dumps(report, indent=2))
+        return 0 if report["status"] == "verified" else 2
     if args.command == "capture-kit":
         from pathlib import Path
 

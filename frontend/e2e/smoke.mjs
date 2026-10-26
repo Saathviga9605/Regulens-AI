@@ -71,7 +71,8 @@ async function findingAction(titleRe, action, reason) {
 try {
   // 1. login page: demo indicator, no credentials, show/hide, bad password
   await page.goto(`${BASE}/`);
-  await page.getByTestId("demo-indicator").waitFor();
+  await page.getByText(/It is not an AICTE service/).waitFor();
+  if (await page.getByTestId("demo-indicator").count()) throw new Error("demo banner should be gone");
   const body = await page.locator("body").innerText();
   if (/Reviewer@Demo|Admin@Demo/.test(body)) fail("credentials rendered on login page");
   await page.getByLabel(/^Password/).fill("x");
@@ -89,8 +90,8 @@ try {
   const nav = page.getByRole("navigation", { name: "Primary" });
   log("Reviewer nav:", (await nav.getByRole("link").allInnerTexts()).map((t) => t.trim()).join(" | "));
   if (await nav.getByRole("link", { name: "Users" }).count()) fail("reviewer sees Users");
-  log("Trust notice:", await page.getByRole("note").first().innerText());
-  log("Env badge:", await page.getByTestId("environment-badge").innerText());
+  if (await page.getByRole("note").count() || await page.getByTestId("environment-badge").count()) throw new Error("repeated prototype banners should be gone");
+  log("Identity footer:", await page.getByText(/independent decision-support software/).innerText());
   log("Overview metrics:", (await page.getByLabel("Review summary").innerText()).replace(/\s+/g, " "));
   await shot(page, "02-overview");
 
@@ -110,9 +111,9 @@ try {
   await shot(page, "04-workspace-finding");
 
   // 5. upload with progress + selected vs detected; delete via dialog
-  await page.getByRole("button", { name: "Upload PDF" }).click();
+  await page.getByRole("button", { name: "Upload document" }).click();
   await page.getByRole("combobox", { name: "Document category" }).selectOption("structural_stability_certificate");
-  await page.getByLabel("PDF file").setInputFiles(process.env.SMOKE_PDF ?? join(DIR, "fixtures", "structural-stability.pdf"));
+  await page.getByLabel("Document file").setInputFiles(process.env.SMOKE_PDF ?? join(DIR, "fixtures", "structural-stability.pdf"));
   await page.getByRole("button", { name: "Upload", exact: true }).click();
   await page.getByText("Uploaded “structural-stability.pdf”.").first().waitFor();
   log("Uploaded structural-stability.pdf");

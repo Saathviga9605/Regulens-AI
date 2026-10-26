@@ -7,6 +7,7 @@ import {
   Layers,
   LayoutDashboard,
   LifeBuoy,
+  ScrollText,
   SlidersHorizontal,
   Users,
   type LucideIcon,
@@ -51,8 +52,13 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Support",
-    items: [{ path: "/help", label: "Help & About", icon: LifeBuoy }],
+    items: [
+      { path: "/regulatory-source", label: "Regulatory source", icon: ScrollText },
+      { path: "/help", label: "Help & About", icon: LifeBuoy },
+    ],
   },
 ];
 
-export const TRUST_NOTICE = "Decision-support prototype. Findings require human review. Not an official AICTE decision.";
+/** The single product-identity statement, shown in the app footer and on the sign-in page. */
+export const IDENTITY_STATEMENT =
+  "ReguLens AI is independent decision-support software. It is not an AICTE service; findings require human review and it never approves or rejects applications.";

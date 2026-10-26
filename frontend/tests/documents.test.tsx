@@ -125,20 +125,20 @@ describe("Documents panel", () => {
     });
     const user = userEvent.setup({ applyAccept: false });
     renderApp(APP_PATH);
-    await user.click(await screen.findByRole("button", { name: "Upload PDF" }));
-    expect(screen.getByText(/PDF only, up to 2.0 KB/)).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Upload document" }));
+    expect(screen.getByText(/PDF, PNG or JPEG, up to 2.0 KB/)).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Building License" })).toHaveValue("building_license");
     expect(screen.getByRole("option", { name: "Form D" })).toHaveValue("form_d");
 
     await user.click(screen.getByRole("button", { name: "Upload" }));
     expect(screen.getByText("Select a document category.")).toBeInTheDocument();
-    expect(screen.getByText("Choose a PDF file.")).toBeInTheDocument();
+    expect(screen.getByText("Choose a PDF, PNG or JPEG file.")).toBeInTheDocument();
 
-    await user.upload(screen.getByLabelText("PDF file"), new File(["hello"], "notes.txt", { type: "text/plain" }));
+    await user.upload(screen.getByLabelText("Document file"), new File(["hello"], "notes.txt", { type: "text/plain" }));
     await user.click(screen.getByRole("button", { name: "Upload" }));
-    expect(screen.getByText("Only .pdf files are accepted.")).toBeInTheDocument();
+    expect(screen.getByText("Only .pdf, .png, .jpg, .jpeg files are accepted.")).toBeInTheDocument();
 
-    await user.upload(screen.getByLabelText("PDF file"), pdf("big.pdf", 5000));
+    await user.upload(screen.getByLabelText("Document file"), pdf("big.pdf", 5000));
     await user.click(screen.getByRole("button", { name: "Upload" }));
     expect(screen.getByText("File is 4.9 KB; the limit is 2.0 KB.")).toBeInTheDocument();
     expect(api.callsTo("POST", DOCS_PATH)).toHaveLength(0);
@@ -157,9 +157,9 @@ describe("Documents panel", () => {
     });
     renderApp(APP_PATH);
     await screen.findByText("No documents have been uploaded for this application.");
-    await userEvent.click(screen.getByRole("button", { name: "Upload PDF" }));
+    await userEvent.click(screen.getByRole("button", { name: "Upload document" }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Document category" }), "occupancy_certificate");
-    await userEvent.upload(screen.getByLabelText("PDF file"), pdf());
+    await userEvent.upload(screen.getByLabelText("Document file"), pdf());
     await userEvent.type(screen.getByRole("textbox", { name: "Description (optional)" }), "Block A");
     await userEvent.click(screen.getByRole("button", { name: "Upload" }));
 
@@ -178,9 +178,9 @@ describe("Documents panel", () => {
       [`POST ${DOCS_PATH}`]: () => jsonResponse(DUPLICATE, 201),
     });
     renderApp(APP_PATH);
-    await userEvent.click(await screen.findByRole("button", { name: "Upload PDF" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Upload document" }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Document category" }), "other");
-    await userEvent.upload(screen.getByLabelText("PDF file"), pdf("fire-safety-copy.pdf"));
+    await userEvent.upload(screen.getByLabelText("Document file"), pdf("fire-safety-copy.pdf"));
     await userEvent.click(screen.getByRole("button", { name: "Upload" }));
     expect(await screen.findByText(/identical to “fire-safety.pdf”, so it is marked as a duplicate. The original was not changed./))
       .toBeInTheDocument();
@@ -194,13 +194,13 @@ describe("Documents panel", () => {
           request_id: "r", details: [{ loc: ["body", "file"], msg: "File content is not a PDF (missing %PDF- signature)." }] } }, 415),
     });
     renderApp(APP_PATH);
-    await userEvent.click(await screen.findByRole("button", { name: "Upload PDF" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Upload document" }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Document category" }), "building_plan");
-    await userEvent.upload(screen.getByLabelText("PDF file"), pdf("fake.pdf"));
+    await userEvent.upload(screen.getByLabelText("Document file"), pdf("fake.pdf"));
     await userEvent.click(screen.getByRole("button", { name: "Upload" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("File content is not a PDF");
-    expect(screen.getByLabelText("PDF file")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Document file")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("form", { name: "Upload document" })).toBeInTheDocument();
   });
 
@@ -254,8 +254,22 @@ describe("Documents panel", () => {
     renderApp(APP_PATH);
     expect(await docsTable()).toHaveTextContent("fire-safety.pdf");
     expect(screen.getByText(/documents can be added or removed only while/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Upload PDF" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload document" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open fire-safety.pdf" })).toBeInTheDocument();
+  });
+
+  it("accepts a PNG image on the client and uploads it", async () => {
+    const api = mockApi({
+      [`GET ${APP_PATH}`]: () => jsonResponse(DRAFT),
+      [`POST ${DOCS_PATH}`]: () => jsonResponse({ ...DOC, id: "img", original_filename: "photo.png", mime_type: "image/png" }, 201),
+    });
+    renderApp(APP_PATH);
+    await userEvent.click(await screen.findByRole("button", { name: "Upload document" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Document category" }), "fire_safety_certificate");
+    await userEvent.upload(screen.getByLabelText("Document file"), new File([new Uint8Array([137, 80, 78, 71])], "photo.png", { type: "image/png" }));
+    await userEvent.click(screen.getByRole("button", { name: "Upload" }));
+    await screen.findByText("Uploaded “photo.png”.", {}, { timeout: 4000 }).catch(() => undefined);
+    expect(api.callsTo("POST", DOCS_PATH)).toHaveLength(1);
   });
 });

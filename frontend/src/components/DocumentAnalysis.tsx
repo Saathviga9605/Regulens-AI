@@ -1,5 +1,5 @@
 import { FileSearch, Loader2, RefreshCw, ShieldQuestion } from "lucide-react";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 import {
   DOCUMENT_CATEGORY_LABELS,
@@ -15,7 +15,7 @@ import {
 } from "../app/labels";
 import { useApiQuery } from "../app/useApiQuery";
 import { ApiError, apiClient } from "../services/apiClient";
-import type { ApplicationDocument, DocumentPageText, ExtractedField, ProcessingResult, VerificationAttempt } from "../types/api";
+import type { ApplicationDocument, DocumentPageText, ExtractedField, IntegrityChecks, ProcessingResult, VerificationAttempt } from "../types/api";
 import { Alert, ErrorState, LoadingState, Pill, TABLE, buttonStyles } from "./ui";
 
 /** Loads the stored processing result; a 404 "not_processed" is a normal state, not an error. */
@@ -148,6 +148,105 @@ function PageTexts({ documentId }: { documentId: string }) {
   );
 }
 
+const MANUAL_STATUSES: [string, string][] = [["verified", "Verified"], ["mismatch_detected", "Mismatch detected"],
+  ["expired", "Expired"], ["source_unavailable", "Source unavailable"], ["manual_review_required", "Manual review required"]];
+
+function ManualVerificationForm({ documentId, onRecorded }: { documentId: string; onRecorded: (a: VerificationAttempt) => void }) {
+  const [status, setStatus] = useState("manual_review_required");
+  const [source, setSource] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    if (source.trim().length < 3 || note.trim().length < 10) {
+      setError("Name the source you checked with and describe what you checked (at least 10 characters).");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      onRecorded(await apiClient.recordManualVerification(documentId, { status, source_description: source, note }));
+      setSource("");
+      setNote("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not record the result.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details className="rounded-control border border-line bg-surface p-3 text-sm">
+      <summary className="cursor-pointer font-medium text-ink">Record a manual verification</summary>
+      <form noValidate onSubmit={submit} aria-label="Manual verification" className="mt-2 space-y-2">
+        <p className="text-xs text-ink-muted">Use this when you have checked the document with the issuer yourself (for example by
+          telephone or e-mail). ReguLens does not contact any source; the record names you and is marked NOT CONNECTED.</p>
+        <label className="block text-sm">Result
+          <select value={status} onChange={(e) => setStatus(e.target.value)}
+            className="mt-1 block w-full rounded-control border border-line-strong bg-surface px-2 py-1 text-sm">
+            {MANUAL_STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+        <label className="block text-sm">Source checked with
+          <input value={source} maxLength={200} onChange={(e) => setSource(e.target.value)}
+            className="mt-1 block w-full rounded-control border border-line-strong bg-surface px-2 py-1 text-sm" />
+        </label>
+        <label className="block text-sm">What you checked
+          <textarea value={note} maxLength={2000} rows={3} onChange={(e) => setNote(e.target.value)}
+            className="mt-1 block w-full rounded-control border border-line-strong bg-surface px-2 py-1 text-sm" />
+        </label>
+        {error && <p role="alert" className="text-sm text-danger-700">{error}</p>}
+        <button type="submit" className={buttonStyles.secondary} disabled={busy}>{busy ? "Saving…" : "Save manual result"}</button>
+      </form>
+    </details>
+  );
+}
+
+const QR_LABELS = { consistent: "matches the extracted certificate number", inconsistent: "does not match the extracted certificate number",
+  no_reference: "no extracted certificate number to compare" };
+
+function IntegrityIndicators({ documentId }: { documentId: string }) {
+  const [data, setData] = useState<IntegrityChecks | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      setData(await apiClient.integrityChecks(documentId));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not run the checks.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-label="Integrity indicators" className="space-y-2">
+      <h4 className="text-sm font-semibold text-ink">Integrity indicators (not authentication)</h4>
+      <button type="button" className={buttonStyles.secondary} onClick={run} disabled={busy}>
+        {busy ? "Checking…" : "Check QR code, reference format and signatures"}</button>
+      {error && <p role="alert" className="text-sm text-danger-700">{error}</p>}
+      {data && (
+        <div className="space-y-1 rounded-control border border-line bg-surface p-3 text-sm" data-testid="integrity-result">
+          <p><strong>QR codes:</strong> {data.qr.found === 0 ? "none found" : data.qr.codes.map((c) =>
+            `page ${c.page}: ${QR_LABELS[c.comparison]}`).join("; ")}</p>
+          <p><strong>Certificate number format:</strong> {data.reference_format.status === "not_available"
+            ? "not available (no grounded certificate number)" : data.reference_format.status === "plausible"
+              ? `plausible (${data.reference_format.value})` : `implausible — ${(data.reference_format.problems ?? []).join("; ")}`}</p>
+          <p><strong>PDF signatures:</strong> {data.pdf_signature.signature_fields} signature field(s); not validated
+            <Pill className="ml-1 bg-warning-bg text-warning-800 ring-warning-line">{data.pdf_signature.source_type.replace("_", " ")}</Pill></p>
+          <p className="text-xs text-ink-subtle">{data.qr.note} {data.disclaimer}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SimulatedIssuerChecks({ documentId, enabled }: { documentId: string; enabled: boolean }) {
   const attempts = useApiQuery(() => apiClient.listIssuerChecks(documentId), documentId);
   const [running, setRunning] = useState(false);
@@ -196,7 +295,8 @@ function SimulatedIssuerChecks({ documentId, enabled }: { documentId: string; en
             <span className="text-xs text-ink-subtle">{formatDateTime(a.created_at)}</span>
           </div>
           <p className="mt-1 text-xs text-ink-subtle">
-            Adapter result: {VERIFICATION_OUTCOME_LABELS[a.outcome]} · {a.simulation_label ?? "Not simulated"}
+            {a.recorded_by ? `Reviewer-recorded by ${a.recorded_by} (no system connection)`
+              : `Adapter result: ${VERIFICATION_OUTCOME_LABELS[a.outcome]} · ${a.simulation_label ?? "Not simulated"}`}
           </p>
           <p className="mt-1 text-ink">{a.explanation}</p>
           {a.fields_compared.length > 0 && (
@@ -211,6 +311,8 @@ function SimulatedIssuerChecks({ documentId, enabled }: { documentId: string; en
           {a.reference_code && <p className="mt-1 text-xs text-ink-subtle">Synthetic reference: {a.reference_code}</p>}
         </div>
       ))}
+      <ManualVerificationForm documentId={documentId}
+        onRecorded={(rec) => attempts.setData([rec, ...(attempts.data ?? [])])} />
     </section>
   );
 }
@@ -291,6 +393,7 @@ export function DocumentAnalysis({ doc, onProcessed }: { doc: ApplicationDocumen
         </>
       )}
       <SimulatedIssuerChecks documentId={doc.id} enabled={!!r && r.status !== "failed" && r.is_current} />
+      <IntegrityIndicators documentId={doc.id} />
     </section>
   );
 }

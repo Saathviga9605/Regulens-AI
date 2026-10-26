@@ -47,7 +47,7 @@ from app.models.enums import (
     ReuseOutcome,
     ReuseScanStatus,
 )
-from app.services import alerts, audit, processing
+from app.services import alerts, audit, pdf_text, processing
 from app.services import reuse_engine as engine
 from app.services import reuse_visual as visual
 from app.services.storage import DocumentStorage
@@ -101,7 +101,7 @@ def _input_for(session: Session, storage: DocumentStorage, settings: Settings, o
     path = storage.open_path(doc.storage_key)
     if path is None:
         return None
-    pdf = path.read_bytes()
+    pdf = pdf_text.as_pdf_bytes(path.read_bytes())  # standalone images: in-memory PDF wrapper
     proc = _ensure_processed(session, storage, settings, ocr, doc)
     pages: list[engine.PageText] = []
     fields: list[engine.FieldEvidence] = []
@@ -350,7 +350,7 @@ def pair_page_png(session: Session, storage: DocumentStorage, pair: CasePair, si
     if path is None:
         raise AppError(410, "document_unavailable", "This document is no longer stored; only the recorded evidence remains.")
     try:
-        return visual.render_png(path.read_bytes(), page_number)
+        return visual.render_png(pdf_text.as_pdf_bytes(path.read_bytes()), page_number)
     except IndexError:
         raise NotFoundError("That page does not exist in this document.") from None
 

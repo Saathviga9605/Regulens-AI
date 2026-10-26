@@ -30,6 +30,19 @@ DEFAULT_WINDOWS_TESSERACT = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 _WS = re.compile(r"\s+")
 
 
+IMAGE_SIGNATURES = ((b"\x89PNG\r\n\x1a\n", "png"), (b"\xff\xd8\xff", "jpeg"))
+
+
+def as_pdf_bytes(raw: bytes) -> bytes:
+    """PDF bytes for a stored document. Standalone images are wrapped in a one-page PDF *in memory* (the stored
+    original is never modified); PDFs are returned unchanged."""
+    for signature, filetype in IMAGE_SIGNATURES:
+        if raw.startswith(signature):
+            with pymupdf.open(stream=raw, filetype=filetype) as img:
+                return img.convert_to_pdf()
+    return raw
+
+
 def non_ws_len(text: str) -> int:
     return len(_WS.sub("", text))
 
@@ -153,7 +166,7 @@ def extract_text(path: Path, ocr: OcrEngine | None, *, min_chars: int, max_pages
     except OSError:
         return _failed("content_unavailable", "The stored file could not be read.", ocr_available)
     try:
-        doc = pymupdf.open(stream=raw, filetype="pdf")
+        doc = pymupdf.open(stream=as_pdf_bytes(raw), filetype="pdf")
     except Exception:  # PyMuPDF raises several types for malformed input
         return _failed("unreadable_pdf", "The file could not be parsed as a PDF.", ocr_available)
 

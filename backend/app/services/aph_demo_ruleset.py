@@ -1,4 +1,4 @@
-"""Formally approved mapping from APH candidates to scrutiny rule IDs."""
+"""Explicit, demo-only mapping from drafted APH candidates to scrutiny rule IDs."""
 
 from dataclasses import dataclass
 
@@ -6,8 +6,9 @@ from app.models.enums import DocumentCategory, RuleType, Severity, SourceVerific
 
 PROFILE_ID = "aph_eoa_demo"
 PROFILE_VERSION = "1"
+DEMO_NOTICE = "DEMO RULESET - formal approval pending"
 SOURCE_SHA256 = "153d54816f2cf11489218e239113544e8d49b73680009688baa7dc4880636051"
-SOURCE_NAME = "AICTE Approval Process Handbook"
+SOURCE_NAME = "AICTE Approval Process Handbook (local source; not independently verified)"
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,10 @@ class DemoRule:
     effective_to: str | None
     citation: dict
     alternatives: list[dict] | None = None
+    classification: str = "PARTIALLY_VERIFIED"
+    interpretation: str = ""
+    applicability: str = ""
+    required_evidence: str = ""
 
 
 def _citation(clause: str, quote: str, quote_hash: str) -> dict:
@@ -40,6 +45,9 @@ def _citation(clause: str, quote: str, quote_hash: str) -> dict:
         "quote": quote,
         "quote_sha256": quote_hash,
         "ocr_derived": False,
+        "source_id": SOURCE_ID,
+        "source_version": SOURCE_VERSION,
+        "source_title": SOURCE_NAME,
     }
 
 
@@ -60,6 +68,10 @@ _ALT_CITATION = _citation(
 DEMO_RULES = (
     DemoRule(
         rule_id="R01",
+        classification="PARTIALLY_VERIFIED",
+        interpretation='Annexure-2 §2.1(v) requires "a valid Fire Safety Certificate". The handbook does not define a validity period; ReguLens reads "valid" as a stated Valid Until date that is not before the reference date, and is inconclusive when no date is stated.',
+        applicability='Extension of Approval of an existing institution (Annexure-2 §2.1: documents for EoA based on self-disclosure, after a break, or restoration of intake).',
+        required_evidence='Fire Safety Certificate with a grounded Valid Until date.',
         candidate_id="APH-101",
         title="Fire safety certificate validity requires review",
         description="Checks the presence and stated validity of fire safety evidence against the packet submission date.",
@@ -68,10 +80,10 @@ DEMO_RULES = (
         severity=Severity.MEDIUM,
         source=SOURCE_NAME,
         source_reference="Annexure-2, section 2.1(v)",
-        source_verification_status=SourceVerificationStatus.VERIFIED,
-        is_demo_only=False,
+        source_verification_status=SourceVerificationStatus.UNVERIFIED,
+        is_demo_only=True,
         provenance="regulatory",
-        version=1,
+        version=2,
         effective_from=None,
         effective_to=None,
         citation=_citation(
@@ -82,6 +94,10 @@ DEMO_RULES = (
     ),
     DemoRule(
         rule_id="R02",
+        classification="PARTIALLY_VERIFIED",
+        interpretation='Annexure-2 §2.1(iii) accepts any one of Occupancy Certificate, Completion Certificate, Building License or Form D. It refers to "Clause 7.17", which could not be located in the text layer of the pinned PDF (unresolved); the application types in scope are ReguLens\' reading of §2.1.',
+        applicability='Extension of Approval of an existing institution (Annexure-2 §2.1: documents for EoA based on self-disclosure, after a break, or restoration of intake).',
+        required_evidence='One of: Occupancy Certificate, Completion Certificate, Building License, Form D.',
         candidate_id="APH-102",
         title="One valid building-document alternative requires review",
         description="Treats Occupancy Certificate, Completion Certificate, Building License and Form D as alternatives.",
@@ -105,10 +121,10 @@ DEMO_RULES = (
         severity=Severity.MEDIUM,
         source=SOURCE_NAME,
         source_reference="Annexure-2, section 2.1(iii)",
-        source_verification_status=SourceVerificationStatus.VERIFIED,
-        is_demo_only=False,
+        source_verification_status=SourceVerificationStatus.UNVERIFIED,
+        is_demo_only=True,
         provenance="regulatory",
-        version=1,
+        version=2,
         effective_from=None,
         effective_to=None,
         citation=_ALT_CITATION,
@@ -125,6 +141,10 @@ DEMO_RULES = (
     ),
     DemoRule(
         rule_id="R08",
+        classification="PARTIALLY_VERIFIED",
+        interpretation='Annexure-2 §2.1(iv) requires a Structural Stability Certificate if the building is "more than thirty years from the issue of Completion Certificate". The handbook gives no reference date for this item; ReguLens uses the internal marked-ready date and leaves the outcome unresolved without it.',
+        applicability='Extension of Approval of an existing institution (Annexure-2 §2.1: documents for EoA based on self-disclosure, after a break, or restoration of intake).',
+        required_evidence='Completion Certificate issue date; Structural Stability Certificate when the threshold is met.',
         candidate_id="APH-108",
         title="Building age may require structural-stability evidence",
         description="Checks whether a completion certificate date is more than 30 years before application submission.",
@@ -140,10 +160,10 @@ DEMO_RULES = (
         severity=Severity.HIGH,
         source=SOURCE_NAME,
         source_reference="Annexure-2, section 2.1(iv)",
-        source_verification_status=SourceVerificationStatus.VERIFIED,
-        is_demo_only=False,
+        source_verification_status=SourceVerificationStatus.UNVERIFIED,
+        is_demo_only=True,
         provenance="regulatory",
-        version=1,
+        version=2,
         effective_from=None,
         effective_to=None,
         citation=_citation(
@@ -176,4 +196,11 @@ def snapshot_rule(rule: DemoRule, evaluator_version: str) -> dict:
         "ruleset_version": PROFILE_VERSION,
         "citation": rule.citation,
         "alternatives": rule.alternatives,
+        "classification": rule.classification,
+        "interpretation": rule.interpretation,
+        "applicability": rule.applicability,
+        "required_evidence": rule.required_evidence,
+        "source_id": SOURCE_ID,
+        "source_version": SOURCE_VERSION,
+        "source_sha256": SOURCE_SHA256,
     }

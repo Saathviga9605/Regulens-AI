@@ -157,6 +157,41 @@ def verify_document(session: Session, document: Document, today: date,
     return attempt
 
 
+def record_manual(session: Session, document: Document, actor, status, note: str, source_description: str
+                  ) -> VerificationAttempt:
+    """A reviewer records the result of a check they made themselves (for example by contacting the issuer).
+
+    ReguLens did not contact any source: the source type is NOT_CONNECTED and the record names the reviewer, the
+    source they describe and their note. It is shown as reviewer-recorded, never as a system verification.
+    """
+    from app.models.enums import IssuerSourceStatus, SourceType
+
+    status = IssuerSourceStatus(status)
+    if status not in source_status.MANUAL_STATUSES:
+        raise AppError(422, "invalid_status", "Choose Verified, Mismatch detected, Expired, Source unavailable or "
+                       "Manual review required.")
+    note, source_description = (note or "").strip(), (source_description or "").strip()
+    if len(note) < 10:
+        raise AppError(422, "reason_required", "Describe what you checked (at least 10 characters).",
+                       [{"loc": ["body", "note"], "msg": "Required."}])
+    if len(source_description) < 3:
+        raise AppError(422, "source_required", "Name the source you checked with.",
+                       [{"loc": ["body", "source_description"], "msg": "Required."}])
+    attempt = VerificationAttempt(
+        application_id=document.application_id, document_id=document.id, document_filename=document.original_filename,
+        adapter="reviewer_manual_record", method="manual_reviewer_record", simulated=False, outcome=V.REVIEWER_RECORDED,
+        explanation=f"Recorded by {actor.username} after checking with: {source_description}. Note: {note}"[:2000],
+        fields_compared=[], reference_code=None, source_status=status, source_type=SourceType.NOT_CONNECTED,
+        recorded_by=actor.username)
+    session.add(attempt)
+    session.flush()
+    audit.record(session, "issuer_verification.manual_recorded", "verification_attempt", attempt.id,
+                 application_id=document.application_id,
+                 details={"document_id": document.id, "source_status": status.value, "source_type": "NOT_CONNECTED"})
+    session.commit()
+    return attempt
+
+
 def latest_attempts(session: Session, application_id: str) -> dict[str, VerificationAttempt]:
     rows = session.execute(
         select(VerificationAttempt).where(VerificationAttempt.application_id == application_id)

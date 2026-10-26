@@ -446,7 +446,7 @@ def test_migration_0007_upgrades_existing_database_and_round_trips(tmp_path):
         session.commit()
     run_migrations(engine_, "head")
     with sqlite3.connect(db) as conn:
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == ("0009",)
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == ("0010",)
         assert conn.execute("SELECT username, cross_case_reviewer FROM users").fetchall() == [("old.reviewer", 0)]
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"case_pairs", "match_evidence", "case_pair_review_actions", "reuse_scan_runs",

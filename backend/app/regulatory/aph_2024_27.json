@@ -1,0 +1,59 @@
+{
+  "source_id": "aicte-aph-2024-27",
+  "source_version": 1,
+  "title": "Approval Process Handbook 2024–25 to 2026–27",
+  "title_as_printed": "Approval Process Handbook 2024-2027",
+  "publisher": "All India Council for Technical Education (AICTE)",
+  "edition": "2024–25 to 2026–27",
+  "effective_academic_years": ["2024-25", "2025-26", "2026-27"],
+  "canonical_url": "https://cdnbbsr.s3waas.gov.in/s35938b4d054136e5d59ada6ec9c295d7a/uploads/2025/03/2025031399.pdf",
+  "retrieved_on": "2026-10-25",
+  "bytes": 4155819,
+  "sha256": "153d54816f2cf11489218e239113544e8d49b73680009688baa7dc4880636051",
+  "pdf_page_count": 231,
+  "verification": {
+    "status": "verified",
+    "method": "Downloaded from the canonical URL; SHA-256 of the exact bytes recorded; identical to the hash of the copy the rule registry was drafted from; every cited quotation re-checked against the text layer of the downloaded PDF with `python -m app.cli aph-source --verify <pdf>`.",
+    "verified_on": "2026-10-25",
+    "text_layer": "231 pages; 5 pages have no extractable text; OCR not used for citations"
+  },
+  "page_map": [
+    {"pdf_page": 97, "printed_page": "81", "evidence": "printed page number appears in the page header text"}
+  ],
+  "passages": [
+    {
+      "passage_id": "ANX2-2.1-HEADING",
+      "pdf_page": 97, "printed_page": "81", "chapter": "Annexure-2", "clause": "2.1",
+      "quote": "Documents to be uploaded for the issuance of EoA based on Self-Disclosure/after a break in the",
+      "use": "Applicability: documents required for Extension of Approval of existing institutions."
+    },
+    {
+      "passage_id": "ANX2-2.1-iii",
+      "pdf_page": 97, "printed_page": "81", "chapter": "Annexure-2", "clause": "2.1(iii)",
+      "quote": "valid Occupancy/ Completion Certificate/\nBuilding License/ Form D issued by the Competent Authority.",
+      "quote_sha256": "fc33794c0694ae433af110faadbabf8a1a36ff28b8fc138ac5ad4f3e6128b98a"
+    },
+    {
+      "passage_id": "ANX2-2.1-iv",
+      "pdf_page": 97, "printed_page": "81", "chapter": "Annexure-2", "clause": "2.1(iv)",
+      "quote": "Valid Structural Stability Certificate from the registered Structural Engineer, if the Building is more than thirty \nyears from the issue of Completion Certificate that the Building is fit for human habitation.",
+      "quote_sha256": "38866bc466d2d60c1bf36f8502cddfd1eb82f188238049e46f9f5a3c11a924c4"
+    },
+    {
+      "passage_id": "ANX2-2.1-v",
+      "pdf_page": 97, "printed_page": "81", "chapter": "Annexure-2", "clause": "2.1(v)",
+      "quote": "A valid Fire Safety Certificate issued by the Competent Authority.",
+      "quote_sha256": "0a2e48102638d542723a96d8a923df923c04588faab6d9e02904672b3841dd55"
+    }
+  ],
+  "unresolved_references": [
+    {
+      "reference": "Clause 7.17",
+      "cited_from": "Annexure-2, 2.1(iii)",
+      "status": "not located",
+      "detail": "The text layer contains no other occurrence of \"7.17\"; the clause may be on one of the 5 pages without extractable text or numbered differently. Building-document requirements are therefore taken only from 2.1(iii)."
+    }
+  ],
+  "version_policy": "This manifest pins one exact PDF. A newer handbook or a changed file at the URL becomes a new source version (new manifest and hash) and requires rule review; existing rules and past evaluations keep this version.",
+  "reuse_terms": "Not assessed. The PDF is not committed to the repository; short quotations are used for citation."
+}

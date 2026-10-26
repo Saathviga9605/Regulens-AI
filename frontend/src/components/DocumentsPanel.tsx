@@ -68,8 +68,9 @@ function UploadForm({
   function validate(): Record<string, string> {
     const found: Record<string, string> = {};
     if (!category) found.category = "Select a document category.";
-    if (!file) found.file = "Choose a PDF file.";
-    else if (!file.name.toLowerCase().endsWith(".pdf")) found.file = "Only .pdf files are accepted.";
+    if (!file) found.file = "Choose a PDF, PNG or JPEG file.";
+    else if (!policy.accepted_extensions.some((ext) => file.name.toLowerCase().endsWith(ext)))
+      found.file = `Only ${policy.accepted_extensions.join(", ")} files are accepted.`;
     else if (file.size === 0) found.file = "The selected file is empty.";
     else if (file.size > policy.max_upload_bytes) found.file = `File is ${formatBytes(file.size)}; the limit is ${limit}.`;
     return found;
@@ -118,7 +119,7 @@ function UploadForm({
         />
         <div>
           <label htmlFor={fileId} className="block text-sm font-medium text-ink">
-            PDF file
+            Document file
           </label>
           <input
             id={fileId}
@@ -130,7 +131,7 @@ function UploadForm({
             className="mt-1 block w-full rounded-control border border-line-strong bg-surface text-sm text-ink file:mr-3 file:border-0 file:bg-surface-muted file:px-3 file:py-2 file:text-sm file:font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-500"
           />
           <p id={`${fileId}-help`} className={`mt-1 text-xs ${errors.file ? "text-danger-700" : "text-ink-subtle"}`}>
-            {errors.file ?? `PDF only, up to ${limit}. The file is checked on the server.`}
+            {errors.file ?? `PDF, PNG or JPEG, up to ${limit}. The file is checked on the server; images are read by OCR.`}
           </p>
         </div>
         <div className="md:col-span-2">
@@ -301,7 +302,7 @@ export function DocumentsPanel({ applicationCode, intakeOpen, refreshKey = 0, on
           )}
           {intakeOpen && !uploading && policy.data && (
             <button type="button" className={buttonStyles.primary} onClick={() => { setFlash(null); setUploading(true); }}>
-              <Upload aria-hidden="true" className="h-4 w-4" /> Upload PDF
+              <Upload aria-hidden="true" className="h-4 w-4" /> Upload document
             </button>
           )}
         </div>

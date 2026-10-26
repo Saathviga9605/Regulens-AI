@@ -33,6 +33,7 @@ from app.schemas.scrutiny import (
     RuleUpdate,
     RunRead,
     RunSummaryRead,
+    ManualVerificationRequest,
     VerificationAttemptRead,
 )
 from app.services import source_status
@@ -40,6 +41,9 @@ from app.services import documents as document_service
 from app.services import audit, issuer_verification, processing as processing_service, review, rule_catalog, scrutiny
 from app.services.applications import get_application
 from app.services.storage import DocumentStorage
+
+from app.api.deps import get_current_actor
+from app.core.context import Actor
 
 router = APIRouter(tags=["scrutiny"])
 
@@ -114,7 +118,7 @@ def _attempt_read(a: VerificationAttempt) -> VerificationAttemptRead:
         simulation_label=issuer_verification.SIMULATION_LABEL if a.simulated else None, outcome=a.outcome,
         explanation=a.explanation, fields_compared=a.fields_compared, reference_code=a.reference_code,
         source_status=a.source_status.value, source_status_label=source_status.LABELS[a.source_status],
-        source_type=a.source_type.value, created_at=a.created_at)
+        source_type=a.source_type.value, recorded_by=a.recorded_by, created_at=a.created_at)
 
 
 @router.post("/documents/{document_id}/issuer-verifications", response_model=VerificationAttemptRead,
@@ -122,6 +126,33 @@ def _attempt_read(a: VerificationAttempt) -> VerificationAttemptRead:
 def run_issuer_verification(document_id: str, db: Session = Depends(get_db)) -> VerificationAttemptRead:
     document = document_service.get_document(db, document_id)
     return _attempt_read(issuer_verification.verify_document(db, document, date.today()))
+
+
+@router.post("/documents/{document_id}/issuer-verifications/manual", response_model=VerificationAttemptRead,
+             status_code=201)
+def record_manual_verification(document_id: str, body: ManualVerificationRequest,
+                               actor: Actor = Depends(get_current_actor), db: Session = Depends(get_db)
+                               ) -> VerificationAttemptRead:
+    document = document_service.get_document(db, document_id)
+    return _attempt_read(issuer_verification.record_manual(db, document, actor, body.status, body.note,
+                                                           body.source_description))
+
+
+@router.get("/documents/{document_id}/integrity-checks")
+def document_integrity_checks(document_id: str, db: Session = Depends(get_db),
+                              storage: DocumentStorage = Depends(get_storage)) -> dict:
+    """QR payloads, reference-number plausibility and PDF signature presence. Indicators only; never authentication."""
+    from app.services import document_checks, processing as processing_service
+
+    document, path = document_service.content_path(db, storage, document_id)
+    proc = processing_service.get_processing(db, document.id)
+    cert = next((f for f in (proc.fields if proc else []) if f.field_name == "certificate_number"
+                 and f.status.value == "extracted"), None)
+    result = document_checks.run_checks(path.read_bytes(), cert.raw_value if cert else None, cert.page_number if cert else None)
+    audit.record(db, "document.integrity_checked", "document", document.id, application_id=document.application_id,
+                 details={"qr_found": result["qr"]["found"], "signature_fields": result["pdf_signature"]["signature_fields"]})
+    db.commit()
+    return result
 
 
 @router.get("/documents/{document_id}/issuer-verifications", response_model=list[VerificationAttemptRead])
@@ -156,6 +187,41 @@ def _validated_params(rule_type, parameters: dict) -> dict:
 @router.get("/scrutiny-rules", response_model=list[RuleRead])
 def list_rules(db: Session = Depends(get_db)) -> list[RuleRead]:
     return [RuleRead.model_validate(r) for r in db.execute(select(ScrutinyRule).order_by(ScrutinyRule.rule_id)).scalars()]
+
+
+@router.get("/regulatory-source")
+def regulatory_source(db: Session = Depends(get_db)) -> dict:
+    """Pinned handbook manifest plus every rule with its classification and citation, from the real registry."""
+    from app.services import aph_demo_ruleset, regulatory_source as source
+
+    m = source.manifest()
+    production = []
+    for r in db.execute(select(ScrutinyRule).order_by(ScrutinyRule.rule_id)).scalars():
+        production.append({
+            "rule_id": r.rule_id, "title": r.title, "version": r.version, "enabled": r.enabled and not r.retired,
+            "classification": source.classify(r), "profile": "production",
+            "source": r.source, "source_reference": r.source_reference,
+            "source_verification_status": r.source_verification_status.value, "is_demo_only": r.is_demo_only,
+            "effective_from": r.effective_from, "effective_to": r.effective_to, "updated_at": r.updated_at,
+        })
+    aph = []
+    for r in aph_demo_ruleset.DEMO_RULES:
+        c = r.citation
+        aph.append({
+            "rule_id": r.rule_id, "title": r.title, "version": r.version, "enabled": True,
+            "classification": r.classification, "profile": aph_demo_ruleset.PROFILE_ID,
+            "profile_version": aph_demo_ruleset.PROFILE_VERSION, "lifecycle": "demo profile — formal approval pending",
+            "clause": c["clause_reference"], "pdf_page": c["pdf_page_number"], "printed_page": c["printed_page_label"],
+            "quote": c["quote"], "interpretation": r.interpretation, "applicability": r.applicability,
+            "required_evidence": r.required_evidence, "alternatives": [a["category"] for a in (r.alternatives or [])],
+        })
+    return {"source": {k: m[k] for k in ("source_id", "source_version", "title", "title_as_printed", "publisher",
+                                         "edition", "effective_academic_years", "canonical_url", "retrieved_on",
+                                         "bytes", "sha256", "pdf_page_count", "verification",
+                                         "unresolved_references", "version_policy")},
+            "aph_profile": {"profile_id": aph_demo_ruleset.PROFILE_ID, "version": aph_demo_ruleset.PROFILE_VERSION,
+                            "default": False, "rules": aph},
+            "production_rules": production}
 
 
 def _get_rule(db: Session, rule_id: str) -> ScrutinyRule:

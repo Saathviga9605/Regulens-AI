@@ -137,9 +137,9 @@ describe("Evidence requests", () => {
       [`POST ${APP}/documents`]: () => jsonResponse(DOC, 201),
     });
     renderApp(APP, { user: REVIEWER });
-    await userEvent.click(await screen.findByRole("button", { name: "Upload PDF" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Upload document" }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Document category" }), "structural_stability_certificate");
-    await userEvent.upload(screen.getByLabelText("PDF file"), new File([new Uint8Array(100)], "ssc.pdf", { type: "application/pdf" }));
+    await userEvent.upload(screen.getByLabelText("Document file"), new File([new Uint8Array(100)], "ssc.pdf", { type: "application/pdf" }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Link to evidence request (optional)" }), "er1");
     await userEvent.click(screen.getByRole("button", { name: "Upload" }));
     await waitFor(() => expect(api.callsTo("POST", `${APP}/documents`)).toHaveLength(1));

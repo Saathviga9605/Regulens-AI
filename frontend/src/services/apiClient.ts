@@ -36,6 +36,7 @@ import type {
   User,
   UserCreateInput,
   UserUpdateInput,
+  IntegrityChecks,
   CaseAlertList,
   EvaluationDetail,
   EvaluationSummary,
@@ -46,6 +47,7 @@ import type {
   PairSummary,
   ReuseOutcome,
   ScanRun,
+  RegulatorySource,
   ScrutinyRule,
   ScrutinyRun,
   ScrutinyRunSummary,
@@ -317,6 +319,15 @@ export const apiClient = {
   },
   runSimulatedIssuerCheck(id: string): Promise<VerificationAttempt> {
     return request(`/documents/${enc(id)}/issuer-verifications`, { method: "POST" });
+  },
+  recordManualVerification(id: string, body: { status: string; source_description: string; note: string }): Promise<VerificationAttempt> {
+    return request(`/documents/${enc(id)}/issuer-verifications/manual`, { method: "POST", body });
+  },
+  regulatorySource(): Promise<RegulatorySource> {
+    return request("/regulatory-source");
+  },
+  integrityChecks(id: string): Promise<IntegrityChecks> {
+    return request(`/documents/${enc(id)}/integrity-checks`, { timeoutMs: LONG_TIMEOUT_MS });
   },
   listIssuerChecks(id: string): Promise<VerificationAttempt[]> {
     return request(`/documents/${enc(id)}/issuer-verifications`);

@@ -8,6 +8,7 @@ import { ApplicationDetailPage } from "../pages/applications/ApplicationDetailPa
 import { ApplicationsListPage } from "../pages/applications/ApplicationsListPage";
 import { AuditTrailPage } from "../pages/AuditTrailPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { RegulatorySourcePage } from "../pages/RegulatorySourcePage";
 import { CasePairPage } from "../pages/CasePairPage";
 import { CrossCasePage } from "../pages/CrossCasePage";
 import { HelpPage } from "../pages/HelpPage";
@@ -46,6 +47,7 @@ export function App() {
               <Route path="scrutiny-rules" element={<ScrutinyRulesPage />} />
               <Route path="audit-trail" element={<RequireAdmin><AuditTrailPage /></RequireAdmin>} />
               <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+              <Route path="regulatory-source" element={<RegulatorySourcePage />} />
               <Route path="help" element={<HelpPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

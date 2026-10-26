@@ -2,10 +2,8 @@ import { ArrowRight, Bell, ClipboardList, FilePlus2, FileText } from "lucide-rea
 import { Link } from "react-router";
 
 import { useAuth } from "../app/AuthContext";
-import { useBackendHealth } from "../app/BackendHealthContext";
 import { ALERT_EVENT_LABELS, formatDateTime } from "../app/labels";
 import { useApiQuery } from "../app/useApiQuery";
-import { SystemStatusPanel } from "../components/SystemStatusPanel";
 import { Badge, Card, EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge, buttonStyles } from "../components/ui";
 import { apiClient } from "../services/apiClient";
 
@@ -22,7 +20,6 @@ function Metric({ label, value, to, tone }: { label: string; value: number | und
 }
 
 export function DashboardPage() {
-  const { state, refresh } = useBackendHealth();
   const { user } = useAuth();
   const queue = useApiQuery(() => apiClient.reviewQueue({ page_size: 5 }), "overview-queue");
   const alerts = useApiQuery(() => apiClient.listAlerts({ page_size: 5 }), "overview-alerts");
@@ -37,15 +34,6 @@ export function DashboardPage() {
           <Link to="/review-queue" className={buttonStyles.primary}><ClipboardList aria-hidden="true" className="h-4 w-4" /> Open review queue</Link>
           <Link to="/applications/new" className={buttonStyles.secondary}><FilePlus2 aria-hidden="true" className="h-4 w-4" /> New application</Link>
         </>} />
-
-      <section aria-labelledby="purpose-heading" className="rounded-panel border border-info-line bg-info-bg p-4 text-sm text-ink">
-        <h2 id="purpose-heading" className="font-semibold text-brand-900">Decision support, not decision making</h2>
-        <p className="mt-1">
-          ReguLens organises evidence, checks applications against configurable rules and highlights items that may need
-          attention. It never approves or rejects an application; a flagged anomaly is a prompt for human review, not a
-          finding of misconduct.
-        </p>
-      </section>
 
       {queue.error ? <ErrorState message={queue.error} onRetry={queue.reload} /> : (
         <dl aria-label="Review summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -102,8 +90,8 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div>
+        <div>
           <Card title="Recently created applications" actions={<Link to="/applications" className={`${buttonStyles.link} text-sm`}>All applications</Link>}>
             {recent.loading && !recent.data ? <LoadingState label="Loading applications…" /> : recent.error ? (
               <ErrorState message={recent.error} onRetry={recent.reload} />
@@ -123,7 +111,6 @@ export function DashboardPage() {
             )}
           </Card>
         </div>
-        <SystemStatusPanel state={state} onRetry={refresh} />
       </div>
     </div>
   );

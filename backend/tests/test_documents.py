@@ -74,7 +74,7 @@ def test_upload_to_nonexistent_application(client: TestClient, storage: Document
     ("content", "name", "content_type", "status", "error_code"),
     [
         (b"", "empty.pdf", "application/pdf", 422, "empty_file"),
-        (PNG, "photo.png", "image/png", 415, "unsupported_file_type"),
+        (PNG, "photo.png", "image/png", 415, "invalid_image"),  # PNG accepted since D10; this one has no IEND
         (PNG, "photo.pdf", "application/pdf", 415, "invalid_pdf_signature"),  # misleading MIME + extension
         (make_pdf(), "page.pdf", "text/html", 415, "unsupported_file_type"),  # valid PDF, hostile declared type
         (b"<html><script>alert(1)</script>%%EOF", "page.pdf", "application/pdf", 415, "invalid_pdf_signature"),
@@ -365,7 +365,7 @@ def test_intake_closed_outside_draft_and_awaiting_evidence(client, code) -> None
 def test_intake_policy(client, settings) -> None:
     body = client.get("/api/v1/documents/intake-policy").json()
     assert body["max_upload_bytes"] == settings.max_upload_bytes
-    assert body["accepted_content_types"] == ["application/pdf"]
+    assert body["accepted_content_types"] == ["application/pdf", "image/png", "image/jpeg"]
     assert len(body["categories"]) == 10 and "other" in body["categories"]
     assert {"building_license", "form_d"} <= set(body["categories"])
     assert body["intake_open_statuses"] == ["draft", "awaiting_additional_evidence"]

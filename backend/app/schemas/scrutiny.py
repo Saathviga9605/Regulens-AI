@@ -260,4 +260,11 @@ class VerificationAttemptRead(BaseModel):
     source_status: str
     source_status_label: str
     source_type: str
+    recorded_by: str | None = None  # set for reviewer-recorded (manual) results
     created_at: datetime
+
+
+class ManualVerificationRequest(StrictInputModel):
+    status: str = Field(max_length=40)
+    source_description: str = Field(max_length=200)
+    note: str = Field(max_length=2000)

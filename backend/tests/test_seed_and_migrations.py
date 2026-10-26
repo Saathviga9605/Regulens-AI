@@ -120,4 +120,4 @@ def test_migrations_preserve_existing_data_and_are_repeatable(tmp_path: Path) ->
 
     with sqlite3.connect(db) as conn:
         assert conn.execute("SELECT text FROM local_notes").fetchall() == [("keep me",)]
-        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0009",)]
+        assert conn.execute("SELECT version_num FROM alembic_version").fetchall() == [("0010",)]

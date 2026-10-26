@@ -36,8 +36,15 @@ logger = logging.getLogger("regulens.documents")
 
 CHUNK_SIZE = 64 * 1024
 PDF_MIME = "application/pdf"
+PNG_MIME = "image/png"
+JPEG_MIME = "image/jpeg"
+# Supported formats: the file signature decides the type, and the extension must agree with it.
+EXTENSIONS = {".pdf": PDF_MIME, ".png": PNG_MIME, ".jpg": JPEG_MIME, ".jpeg": JPEG_MIME}
+ACCEPTED_MIME = (PDF_MIME, PNG_MIME, JPEG_MIME)
 # Declared (client-supplied) types we tolerate. This is only one signal; the file signature decides.
-ACCEPTED_DECLARED_TYPES = {"application/pdf", "application/x-pdf", "application/octet-stream", ""}
+ACCEPTED_DECLARED_TYPES = {"application/pdf", "application/x-pdf", "application/octet-stream", "",
+                           "image/png", "image/jpeg", "image/jpg", "image/pjpeg"}
+MAX_IMAGE_PIXELS = 40_000_000  # decompression-bomb guard for standalone images
 INTAKE_OPEN_STATUSES = workflow.DOCUMENT_INTAKE_STATUSES
 _FORBIDDEN_FILENAME_CHARS = re.compile(r'[\x00-\x1f\x7f<>:"|?*]')
 
@@ -56,15 +63,16 @@ def sanitize_filename(raw: str | None) -> str:
     if not name or name in {".", ".."} or len(name) > 255 or _FORBIDDEN_FILENAME_CHARS.search(name):
         raise AppError(422, "invalid_filename", "The file name is empty or contains invalid characters.",
                        [{"loc": ["body", "file"], "msg": "Invalid file name."}])
-    if not name.lower().endswith(".pdf") or name.lower() == ".pdf":
-        raise _unsupported("unsupported_file_type", "Only PDF files with a .pdf extension are accepted.")
+    ext = Path(name.lower()).suffix
+    if ext not in EXTENSIONS or name.lower() == ext:
+        raise _unsupported("unsupported_file_type", "Only PDF, PNG or JPEG files (.pdf, .png, .jpg, .jpeg) are accepted.")
     return name
 
 
 def check_declared_type(content_type: str | None) -> None:
     declared = (content_type or "").split(";")[0].strip().lower()
     if declared not in ACCEPTED_DECLARED_TYPES:
-        raise _unsupported("unsupported_file_type", f"Declared content type '{declared[:60]}' is not a PDF.")
+        raise _unsupported("unsupported_file_type", f"Declared content type '{declared[:60]}' is not a supported type.")
 
 
 @dataclass
@@ -72,9 +80,35 @@ class ReceivedFile:
     temp_path: Path
     size: int
     sha256: str
+    mime_type: str = PDF_MIME
 
 
-async def receive_upload(storage: DocumentStorage, upload: UploadFile, max_bytes: int) -> ReceivedFile:
+def detect_type(head: bytes) -> str | None:
+    if head.startswith(b"%PDF-"):
+        return PDF_MIME
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return PNG_MIME
+    if head.startswith(b"\xff\xd8\xff"):
+        return JPEG_MIME
+    return None
+
+
+def _validate_image(path: Path, mime: str) -> None:
+    """Decode once to reject malformed or oversized images. The stored bytes are never modified."""
+    import cv2
+    import numpy as np
+
+    data = np.frombuffer(path.read_bytes(), np.uint8)
+    header = cv2.imdecode(data, cv2.IMREAD_REDUCED_GRAYSCALE_8)
+    if header is None:
+        raise _unsupported("invalid_image", "The image could not be decoded (corrupt or unsupported encoding).")
+    h, w = header.shape[:2]
+    if h * w * 64 > MAX_IMAGE_PIXELS:
+        raise _unsupported("image_too_large", "The image has too many pixels to process safely.")
+
+
+async def receive_upload(storage: DocumentStorage, upload: UploadFile, max_bytes: int,
+                         filename: str | None = None) -> ReceivedFile:
     """Stream the upload to a private temp file in chunks, hashing and validating as it goes."""
     temp = storage.new_temp_path()
     digest = hashlib.sha256()
@@ -95,14 +129,26 @@ async def receive_upload(storage: DocumentStorage, upload: UploadFile, max_bytes
         if size == 0:
             raise AppError(422, "empty_file", "The uploaded file is empty.",
                            [{"loc": ["body", "file"], "msg": "File is empty."}])
-        if not head.startswith(b"%PDF-"):
+        mime = detect_type(head)
+        expected = EXTENSIONS.get(Path((filename or "x.pdf").lower()).suffix, PDF_MIME)
+        if expected == PDF_MIME and mime != PDF_MIME:
             raise _unsupported("invalid_pdf_signature", "File content is not a PDF (missing %PDF- signature).")
-        if b"%%EOF" not in tail:
+        if mime is None:
+            raise _unsupported("unsupported_file_type", "File content is not a supported PDF, PNG or JPEG file.")
+        if mime != expected:
+            raise _unsupported("file_type_mismatch", "The file extension does not match the file content.")
+        if mime == PDF_MIME and b"%%EOF" not in tail:
             raise _unsupported("invalid_pdf_structure", "The PDF appears truncated or incomplete (no %%EOF marker).")
+        if mime == PNG_MIME and b"IEND" not in tail:
+            raise _unsupported("invalid_image", "The PNG appears truncated or incomplete (no IEND chunk).")
+        if mime == JPEG_MIME and b"\xff\xd9" not in tail:
+            raise _unsupported("invalid_image", "The JPEG appears truncated or incomplete (no end marker).")
+        if mime != PDF_MIME:
+            _validate_image(temp, mime)
     except BaseException:
         DocumentStorage.discard(temp)
         raise
-    return ReceivedFile(temp, size, digest.hexdigest())
+    return ReceivedFile(temp, size, digest.hexdigest(), mime)
 
 
 def _application_for_intake(session: Session, application_code: str) -> Application:
@@ -151,7 +197,7 @@ def store_document(
             original_filename=filename,
             storage_key=storage.new_key(),
             category=category,
-            mime_type=PDF_MIME,
+            mime_type=received.mime_type,
             size_bytes=received.size,
             sha256=received.sha256,
             status=DocumentStatus.DUPLICATE_DETECTED if original else DocumentStatus.UPLOADED,
@@ -189,7 +235,7 @@ def _record_intake_failure(session: Session, application_id: str, received: Rece
                            category: DocumentCategory, description: str | None) -> Document:
     now = utcnow()
     failed = Document(application_id=application_id, original_filename=filename, storage_key=None,
-                      category=category, mime_type=PDF_MIME, size_bytes=received.size, sha256=received.sha256,
+                      category=category, mime_type=received.mime_type, size_bytes=received.size, sha256=received.sha256,
                       status=DocumentStatus.INTAKE_FAILED, description=description,
                       uploaded_at=now, created_at=now, updated_at=now)
     session.add(failed)

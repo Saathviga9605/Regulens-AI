@@ -212,6 +212,7 @@ class VerificationOutcome(StrEnum):
     SIMULATED_EXPIRED = "simulated_expired"
     SIMULATED_UNAVAILABLE = "simulated_unavailable"
     MANUAL_REVIEW = "manual_review"
+    REVIEWER_RECORDED = "reviewer_recorded"  # a reviewer recorded the result of their own check with the issuer
     UNSUPPORTED = "unsupported"
 
 

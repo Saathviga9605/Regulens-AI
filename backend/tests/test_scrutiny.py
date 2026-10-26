@@ -757,8 +757,8 @@ def test_aph_eoa_profile_is_cited_and_verified(client, demo, caplog) -> None:
         } == {"R04", "R05", "R06", "R07"}
         assert "R03" not in snapshot  # other structural checks are deliberately skipped
         for rule in snapshot.values():
-            assert rule["is_demo_only"] is False
-            assert rule["source_verification_status"] == "verified"
+            assert rule["is_demo_only"] is True
+            assert rule["source_verification_status"] == "unverified"
             assert rule["citation"]["pdf_page_number"] == 97
 
         findings_for_run = findings(client, code, run_result["id"])
