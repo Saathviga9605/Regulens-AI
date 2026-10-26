@@ -130,6 +130,9 @@ describe("Document processing and evidence", () => {
     await openDetails();
     expect(await screen.findByText("This document has not been processed yet.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run simulated issuer check" })).toBeDisabled();
+    // the documented 404 `not_processed` is a normal state: shown as "not processed", requested once, never retried
+    expect(api.callsTo("GET", `/documents/${DOC.id}/processing`)).toHaveLength(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: `Process ${DOC.original_filename}` }));
     const fields = await screen.findByRole("table", { name: "Extracted fields with evidence" });
@@ -345,12 +348,12 @@ describe("Preliminary scrutiny", () => {
     expect(screen.getByRole("button", { name: "Rerun preliminary scrutiny" })).toBeInTheDocument();
   });
 
-  it("explicitly selects the isolated APH demo profile for the next run", async () => {
+  it("explicitly selects the APH profile for the next run", async () => {
     const api = scrutinyApi();
     renderApp(APP);
     const profile = await screen.findByLabelText("Ruleset profile for the next run");
     await userEvent.selectOptions(profile, "aph_eoa_demo");
-    expect(screen.getByText("DEMO RULESET - formal approval pending. This isolated profile does not alter production activation.")).toBeInTheDocument();
+    // the selector banner was removed in commit accf8c5; per-finding demo-only labels remain (see the next test)
     await userEvent.click(screen.getByRole("button", { name: "Run preliminary scrutiny" }));
     await waitFor(() => expect(api.callsTo("POST", RUNS)).toHaveLength(1));
     expect(api.callsTo("POST", RUNS)[0]?.body).toEqual({ ruleset_profile: "aph_eoa_demo" });

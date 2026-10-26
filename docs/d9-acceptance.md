@@ -151,3 +151,118 @@ python -m app.cli capture-kit --out ..\capture-kit   # printable sources for rea
 * Campus experiment is synthetic; real photographs of buildings may differ (perspective, season, occlusion).
 * The working database still needs the backed-up migration above.
 * The Project Bible documents should be added to the repository so future scope checks can cite them directly.
+
+---
+
+## Release check — 2026-10-26 (HEAD `5cd6f71` plus uncommitted release fixes)
+
+### Working database
+* Active database: `data/regulens.db` (`REGULENS_DATABASE_URL` in the repo-root `.env`, resolved against the repo root).
+  Journal mode `delete` (no WAL); no API, Vite or Python process was running when the backup was taken.
+* Revision **0010** (applied automatically by the reload server during D10; no backup existed before that).
+* Backup: `data/regulens.pre-release-20261026-190434.backup.db` (573,440 bytes), taken with SQLite's online backup API.
+  `PRAGMA integrity_check` = `ok` on both files; same revision (0010), same 29 tables and row counts:
+  2 users, 8 institutions, 12 applications, 12 documents, 27 audit events, 1 scrutiny run, 3 findings.
+
+### Fixes made in this check
+| Severity | Problem at HEAD | Fix |
+|---|---|---|
+| BLOCKER | `aph_demo_ruleset.py` referenced `SOURCE_ID`/`SOURCE_VERSION` without defining them (lost when merging D11 over commit `accf8c5`), so the API could not start and every backend test failed at import | Restored the two constants, the profile version `"2"` and the edition title; status/demo flags left exactly as committed |
+| BLOCKER | `npm run build` failed (`tsc`: unused `Pill` import after `accf8c5` removed the demo-only pill) | Restored the per-rule **Demo-only** pill and the per-finding **DEMO-ONLY RULE** label (rules are still `is_demo_only=true` in the data) |
+| IMPORTANT | `GET /regulatory-source` hard-coded `default: false`; Help, README and the D11 doc said the APH profile is not the default, but commit `58112ed` made `aph_eoa_demo` the default for new runs | Flag now derived from the run request default; copy corrected. The default itself was **not** changed |
+| IMPORTANT | `aph-demo-ruleset-status.md` and `implementation-status.md` say "formally approved"; code and tests say formal approval pending | Dated correction note / status corrected |
+| MINOR | `design-system.md` still described the removed trust bar | Updated |
+
+Test expectations changed only where a committed functional change requires it: the APH profile-selector banner
+(removed in `accf8c5`), the endpoint `default` flag, and the smoke script, which now selects the production profile
+for its survey-conflict step.
+
+### Processing-status 404s
+`GET /documents/{id}/processing` returns `404 not_processed` for an uploaded but unprocessed document. This is
+documented in `api-contracts.md` and handled in `DocumentAnalysis.loadProcessing` as a normal "not processed yet"
+state: one request, no error shown, no retry. The browser logs any non-2xx response, which is where the console
+lines came from. **Correct by design; not changed.** Regression tests: processed → 200, unprocessed → 404
+`not_processed`, unknown id → 404 `not_found`, unauthenticated → 401 (`test_processing.py`), and the UI makes
+exactly one request with no alert (`scrutiny.test.tsx`).
+
+### Regulatory source
+`python -m app.cli aph-source --verify <pdf>` against the copy downloaded on 2026-10-25: `status: verified`
+(SHA-256 matches, 231 pages, page label "81" found, all 4 quotations found, quote hashes OK), exit 0. The
+manifest is unchanged; R01, R02 and R08 remain `PARTIALLY_VERIFIED`; Clause 7.17 remains unresolved; no rule is
+`SOURCE_VERIFIED`. The PDF is not in the repository: without a local copy only the manifest and quote hashes can
+be checked.
+
+### Test results
+| Check | Result |
+|---|---|
+| Backend `pytest` (with `APH_PDF` set) | 313 tests: 312 passed, 1 skipped (Tesseract not installed), 0 failed; exit 0 |
+| Frontend `vitest run` | 9 files, 102 passed; exit 0 |
+| `tsc -b --noEmit` / `npm run build` | exit 0 / exit 0 |
+| `npm audit` | 0 vulnerabilities |
+| `pip-audit -r requirements.lock.txt` | first run: 1 advisory, pytest 8.4.2 (PYSEC-2026-1845 / CVE-2025-71176, UNIX `/tmp` only, dev extra). Resolved in the final cleanup (below) |
+| `pip check` | rapidocr-onnxruntime declares `opencv-python`; `opencv-python-headless` is installed instead (intentional `--no-deps` install) |
+| `reuse-eval` (OCR on) | identical to `docs/evaluation/reuse-d10/metrics.csv` (80 rows, 0 differences, latency ignored) |
+
+### Browser acceptance (Edge, disposable DB, API :8090, web :5210)
+All 19 steps passed: sign in; existing applications; native PDF (text layer); scanned PDF (RapidOCR, page score
+0.91); PNG (OCR, 6 fields); `.txt`, truncated PNG and fake PDF rejected and not stored; fields with OCR score
+and evidence box; APH citation with handbook edition, clause and quote; Regulatory source page (hash,
+3 × partially verified, Clause 7.17 unresolved); issuer checks SIMULATED and NOT_CONNECTED; transformed copy →
+MATCH_CONFIRMED_FOR_REVIEW with traceable explanation; same-template → NOT_MATCHED; altered and altered scan →
+CANDIDATE; poor scan produced no pair; reviewer gets restricted alerts and 403 on pair endpoints, cross-case reviewer
+sees 40 pairs; escalation persists after reload; report PDF downloaded; evaluation run in the browser (276 s) and CSV
+exported; audit entries for every action; no horizontal overflow at 360–1920 px. The smoke script also passed.
+Only console errors: the deliberate bad-password 401 and the two deliberate 415 upload rejections.
+
+### Open items
+* **IMPORTANT (team decision A, open):** see "Team decisions" below.
+* **IMPORTANT (team decision B, open):** see "Team decisions" below.
+* ~~MINOR: `/system/info` capability text~~ and ~~MINOR: pytest advisory~~: resolved in the final cleanup.
+* **EXTERNAL:** Tesseract not installed (RapidOCR used); real photographed captures need a physical device;
+  live issuer verification needs an authorised service; amendments/corrigenda to the handbook not checked.
+
+### Reproduce
+```powershell
+cd backend; $env:APH_PDF="<path to handbook PDF>"; .\.venv\Scripts\python.exe -m pytest -q -rs
+.\.venv\Scripts\python.exe -m app.cli aph-source --verify "<path to handbook PDF>"
+.\.venv\Scripts\python.exe -m app.cli reuse-eval --out <new folder>   # compare with docs\evaluation\reuse-d10
+cd ..\frontend; npx vitest run; npx tsc -b --noEmit; npm run build; npm audit
+# browser: disposable DB → migrate, seed, reuse-fixtures --load, create-user senior.reviewer, grant-cross-case;
+# start the API and web app on spare ports, then:
+$env:SMOKE_ALLOW_WRITES="1"; $env:SMOKE_BASE_URL="http://127.0.0.1:<web>"; $env:SMOKE_API_URL="http://127.0.0.1:<api>/api/v1"; npm run smoke
+```
+
+## Final cleanup — 2026-10-26
+
+* `/system/info` `implemented_capabilities` / `planned_capabilities` rewritten to match the code: features built in
+  D2–D11 are listed as implemented; "planned" now holds only what is not done (live issuer verification, evaluation
+  on real photographs, a formal approval record for the APH rules). Field names unchanged. The lists are not shown
+  in the UI. Test: `test_capability_text_matches_implementation`.
+* pytest 8.4.2 → **9.0.3** (dev extra `pytest>=9.0.3,<10`, lockfile pin). Advisory PYSEC-2026-1845 /
+  CVE-2025-71176 concerns predictable `/tmp/pytest-of-{user}` directories on UNIX; this project runs on Windows and
+  pytest is test-only, so exposure was low, but the update was compatible: the full suite passed under 9.0.3 in an
+  isolated venv built from the lockfile before the pin was changed. `pip-audit` on `requirements.lock.txt` and
+  `requirements-ocr.txt` now reports no known vulnerabilities.
+
+### Team decisions (not made on the team's behalf)
+
+**A. Default ruleset for new runs.** Code default: `aph_eoa_demo` (commit `58112ed`), consistent in the API
+(`RunRequest`), the service and the UI selector; `/regulatory-source` reports `default: true`. Practical effect:
+on the seeded applications (no submission dates) APH runs give inconclusive "submission date unavailable"
+findings; the survey-number conflict and other consistency findings appear only when **production** is chosen in
+"Ruleset profile for the next run". To decide: which profile a fresh run should use in the demonstration. Changing
+it is a one-line default in three places plus test and copy updates.
+
+**B. Formal approval of the APH rules.** Commit `accf8c5`'s message and docs say "formally approved"; the code
+(`5cd6f71` and this cleanup) keeps `source_verification_status=unverified`, `is_demo_only=true`, classification
+`PARTIALLY_VERIFIED` and "formal approval pending". A commit message is not an approval record. To resolve, the
+team needs: the approving person/body and date; the approved rule IDs and versions (R01/R02/R08 v2, profile v2);
+sign-off on each documented interpretation (validity date for R01, application types and the unresolved
+Clause 7.17 for R02, reference date for R08); and where the record is kept. Only then change the flags, with a
+new rule version and tests. Even then the classification stays `PARTIALLY_VERIFIED` while interpretations remain;
+`SOURCE_VERIFIED` needs a rule whose logic restates the quotation without interpretation.
+
+**What the handbook check proves.** `aph-source --verify` matching the pinned SHA-256 and finding the expected
+quotations and page label shows that the local file is the exact artifact pinned on 2026-10-25 and that the cited
+text is in it. It does not show that no later amendment or corrigendum exists, that ReguLens' interpretations are
+correct, or that any rule is approved.

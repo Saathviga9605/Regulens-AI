@@ -5,10 +5,12 @@ from dataclasses import dataclass
 from app.models.enums import DocumentCategory, RuleType, Severity, SourceVerificationStatus
 
 PROFILE_ID = "aph_eoa_demo"
-PROFILE_VERSION = "1"
+PROFILE_VERSION = "2"
 DEMO_NOTICE = "DEMO RULESET - formal approval pending"
 SOURCE_SHA256 = "153d54816f2cf11489218e239113544e8d49b73680009688baa7dc4880636051"
-SOURCE_NAME = "AICTE Approval Process Handbook (local source; not independently verified)"
+SOURCE_NAME = "AICTE Approval Process Handbook 2024–25 to 2026–27"
+SOURCE_ID = "aicte-aph-2024-27"  # matches app/regulatory/aph_2024_27.json
+SOURCE_VERSION = 1
 
 
 @dataclass(frozen=True)

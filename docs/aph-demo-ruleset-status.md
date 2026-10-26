@@ -1,5 +1,12 @@
 # APH EoA Ruleset Status
 
+> **Release check (2026-10-26) — current code differs from parts of this page.** At the release-check revision
+> the rules in `aph_demo_ruleset.py` carry `source_verification_status=unverified`, `is_demo_only=true`,
+> classification `PARTIALLY_VERIFIED` and the notice `DEMO RULESET - formal approval pending`, and
+> `test_aph_eoa_profile_is_cited_and_verified` asserts exactly that. No record of a formal approval exists in the
+> repository, so treat "formally approved" below as not yet reflected in the code. The profile **is** the default
+> for new runs (commit 58112ed). See `docs/d11-regulatory-source.md` for the source audit.
+
 ## Executive status
 
 The eight APH candidates (APH-101 through APH-108) are wired into scrutiny through

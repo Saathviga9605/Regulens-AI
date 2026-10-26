@@ -3,9 +3,9 @@
 ReguLens AI uses a restrained public-sector visual language: deep navy and indigo structure, warm off-white
 canvas, slate text, muted saffron and teal accents, and semantic red / amber / green / blue for status. It is an
 original design. It does not copy any government website, uses no national or government emblem, and must never
-imply an official AICTE affiliation. Every screen carries the trust notice:
-
-> Decision-support prototype. Findings require human review. Not an official AICTE decision.
+imply an official AICTE affiliation. One identity statement (`IDENTITY_STATEMENT` in `src/app/navigation.ts`) appears
+in the app footer, on the sign-in page and in Help → About; result-specific labels (SIMULATED, NOT CONNECTED,
+demo-only) appear next to the results they qualify.
 
 ## Tokens (`frontend/src/index.css`)
 

@@ -24,7 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.2,<9",
+  "pytest>=9.0.3,<10",  # 9.0.3 fixes CVE-2025-71176 (UNIX /tmp/pytest-of-{user})
   "httpx>=0.27,<1.0",
 ]
 

@@ -103,6 +103,8 @@ try {
   // 4. workspace: scrutiny, actions (double-click guarded)
   await page.goto(`${BASE}/applications/${CODE}`);
   await page.getByRole("navigation", { name: "Workspace sections" }).waitFor();
+  // the survey-number conflict is a production-rule finding; new runs default to the APH profile (commit 58112ed)
+  await page.getByLabel("Ruleset profile for the next run").selectOption("production");
   await page.getByRole("button", { name: "Run preliminary scrutiny" }).click();
   await page.getByRole("region", { name: "Findings" }).waitFor({ timeout: 120000 });
   await findingAction(/Conflicting survey number/, "Confirm finding", "Survey 312 vs 318 genuinely differ on page 1 of both documents.");

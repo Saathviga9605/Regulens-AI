@@ -39,7 +39,9 @@ def test_every_aph_rule_cites_a_manifest_passage_with_provenance() -> None:
 def test_regulatory_source_endpoint(client) -> None:
     body = client.get("/api/v1/regulatory-source").json()
     assert body["source"]["sha256"] == PINNED_SHA256
-    assert body["aph_profile"]["default"] is False
+    # reports the profile a run uses when none is chosen (set to aph_eoa_demo in commit 58112ed)
+    from app.api.v1.scrutiny import RunRequest
+    assert body["aph_profile"]["default"] is (RunRequest.model_fields["ruleset_profile"].default == "aph_eoa_demo")
     assert {r["rule_id"] for r in body["aph_profile"]["rules"]} == {"R01", "R02", "R08"}
     assert all(r["quote"] and r["pdf_page"] == 97 for r in body["aph_profile"]["rules"])
     production = body["production_rules"]

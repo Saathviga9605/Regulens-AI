@@ -3,22 +3,27 @@
 from app.core.config import Settings
 from app.schemas.system import SystemInfoResponse
 
+# Keep in step with the README "Capabilities" table; statements must match what the code actually does.
 IMPLEMENTED = [
-    "API health check with live database probe",
-    "System metadata endpoint",
-    "Dashboard shell with live backend connection status",
+    "Institution and EoA application records with internal workflow states",
+    "PDF, PNG and JPEG upload with signature, integrity and duplicate checks",
+    "Local OCR for scanned and photographed pages when an OCR engine is installed",
+    "Evidence-linked field extraction with quoted source lines and page references",
+    "Configurable, versioned scrutiny rules: production profile and APH EoA profile (default for new runs)",
+    "APH EoA rules cited to the pinned AICTE Approval Process Handbook 2024–25 to 2026–27; "
+    "classified partially verified, formal approval pending",
+    "Cross-document consistency checks and anomaly indicators for human review",
+    "Cross-case document reuse detection with traceable explanations",
+    "Issuer verification: simulated registry (SIMULATED) or reviewer-recorded manual checks (NOT_CONNECTED)",
+    "QR, reference-format and signature-field integrity indicators (not issuer confirmation)",
+    "Review queue, finding actions, evidence requests, alerts and preliminary scrutiny reports",
+    "Role-based access, cross-case permission and an application-level append-only audit log",
 ]
 
 PLANNED = [
-    "Application and institutional record management",
-    "PDF document upload and OCR",
-    "Evidence-linked structured extraction",
-    "Configurable regulatory validation rules",
-    "Cross-document consistency checks",
-    "Preliminary anomaly detection",
-    "Simulated issuer verification",
-    "Reviewer queue, audit trail and preliminary scrutiny reports",
-    "Authentication and role-based access",
+    "Live issuer verification (no issuing-authority integration is connected)",
+    "Evaluation on real photographed documents (current reuse evaluation uses synthetic data only)",
+    "Formal approval record for the APH EoA rules",
 ]
 
 

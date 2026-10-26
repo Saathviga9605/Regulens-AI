@@ -59,7 +59,7 @@ export function HelpPage() {
             <ul className="list-disc space-y-2 pl-5">
               <li>The pinned regulatory source is the AICTE <em>Approval Process Handbook 2024–25 to 2026–27</em>, identified by its official URL and SHA-256. See <Link to="/regulatory-source" className={buttonStyles.link}>Regulatory source</Link> for the clauses, pages and quotations each rule relies on.</li>
               <li>Each rule shows a classification: <strong>source verified</strong>, <strong>partially verified</strong> (the quote is verified but applying it involves interpretation), <strong>unresolved</strong>, <strong>demo-only</strong> (no handbook citation), <strong>integrity check</strong> or <strong>retired</strong>.</li>
-              <li>The handbook-cited rules run only in the separately selected APH profile. The default profile is unchanged and its rules are not handbook-backed.</li>
+              <li>The handbook-cited rules belong to the APH profile, which new scrutiny runs use unless a reviewer chooses the production profile. Production-profile rules are not handbook-backed.</li>
               <li>Each run stores the rule versions and source hash it used, so later rule changes do not alter past results.</li>
               <li>Scanned pages are read with a local OCR engine (RapidOCR or Tesseract) when one is installed; otherwise they are reported as unreadable.</li>
               <li>The audit log is application-level append-only; it is not a certified tamper-evident record.</li>

@@ -74,8 +74,9 @@ export function ScrutinyRulesPage() {
         description="Configurable, deterministic rules used by preliminary scrutiny. Parameters are validated data, never executable code."
       />
       <Alert tone="info">
-        Integrity checks are generic consistency checks, not regulatory requirements. APH EoA rules are sourced from
-        the AICTE Approval Process Handbook and carry full citations.
+        Rules marked <strong>demo-only</strong> are prototype expectations that have not been verified against the AICTE
+        Approval Process Handbook. Integrity checks are generic consistency checks, not regulatory requirements. APH EoA
+        rules cite the pinned handbook; see Regulatory source for their classification.
       </Alert>
       {!isAdmin && (
         <p className="rounded-control border border-line bg-surface-muted p-2 text-sm text-ink">
@@ -114,6 +115,7 @@ export function ScrutinyRulesPage() {
                     </details>
                   </td>
                   <td className={`${TABLE.td} text-xs`}>
+                    {r.is_demo_only && <Pill className="mb-1 bg-warning-bg text-warning-800 ring-warning-line">Demo-only</Pill>}
                     <div>{VERIFICATION_TEXT[r.source_verification_status]}</div>
                     <div className="text-ink-subtle">{r.source}</div>
                     {r.source_reference && <div className="text-ink-subtle">{r.source_reference}</div>}

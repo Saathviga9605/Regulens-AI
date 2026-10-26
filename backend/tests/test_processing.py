@@ -153,6 +153,17 @@ def test_processing_not_found_and_not_processed(client, code) -> None:
     response = client.get(f"/api/v1/documents/{doc['id']}/processing")
     assert response.status_code == 404 and response.json()["error"]["code"] == "not_processed"
     assert client.get(f"/api/v1/documents/{doc['id']}/pages").status_code == 404
+    assert client.get("/api/v1/documents/nope/processing").json()["error"]["code"] == "not_found"
+
+
+def test_processing_status_after_processing_and_without_sign_in(client, code, anon, no_ocr) -> None:
+    doc = upload(client, code, demo.build_pdf(demo.OCC_A, title="occ")).json()
+    assert process(client, doc["id"]).status_code == 200
+    stored = client.get(f"/api/v1/documents/{doc['id']}/processing")
+    assert stored.status_code == 200 and stored.json()["document_id"] == doc["id"]
+    # unauthenticated callers are refused before the document is even looked up
+    for path in (f"/api/v1/documents/{doc['id']}/processing", "/api/v1/documents/nope/processing"):
+        assert anon.get(path).status_code == 401
 
 
 # --- caching -------------------------------------------------------------------------------------

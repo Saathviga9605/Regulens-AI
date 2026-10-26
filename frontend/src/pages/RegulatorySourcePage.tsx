@@ -56,7 +56,9 @@ export function RegulatorySourcePage() {
           </Card>
 
           <Card title={`Handbook-cited rules — profile ${data.aph_profile.profile_id} v${data.aph_profile.version}`}
-            description="These rules run only when this profile is selected for a scrutiny run; it is not the default.">
+            description={data.aph_profile.default
+              ? "This profile is the default for new scrutiny runs; reviewers can still choose the production rules."
+              : "These rules run only when this profile is selected for a scrutiny run; it is not the default."}>
             <ul className="space-y-5">
               {data.aph_profile.rules.map((r) => (
                 <li key={r.rule_id} className="space-y-2 border-b border-line pb-4 last:border-0 last:pb-0" data-testid={`aph-rule-${r.rule_id}`}>
@@ -77,7 +79,7 @@ export function RegulatorySourcePage() {
             </ul>
           </Card>
 
-          <Card title="Default-profile rules" description="None of these cite the handbook; their classification says what they are.">
+          <Card title="Production-profile rules" description="None of these cite the handbook; their classification says what they are.">
             <div className={TABLE.wrap}>
               <table className={TABLE.table}>
                 <thead><tr>

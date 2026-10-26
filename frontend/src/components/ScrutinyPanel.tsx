@@ -203,7 +203,9 @@ function FindingDetailView({ applicationCode, findingId, onReviewed, isLatestRun
                 </blockquote>
               </div>
             )}
-            
+            {f.rule.is_demo_only && (
+              <p className="mt-1 font-semibold text-warning-800">DEMO-ONLY RULE — not a verified AICTE requirement.</p>
+            )}
           </div>
         ) : f.detector && <p className="text-xs text-ink-subtle">Detector: {f.detector}</p>}
       </section>

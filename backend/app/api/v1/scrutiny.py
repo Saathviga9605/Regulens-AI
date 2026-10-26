@@ -220,7 +220,8 @@ def regulatory_source(db: Session = Depends(get_db)) -> dict:
                                          "bytes", "sha256", "pdf_page_count", "verification",
                                          "unresolved_references", "version_policy")},
             "aph_profile": {"profile_id": aph_demo_ruleset.PROFILE_ID, "version": aph_demo_ruleset.PROFILE_VERSION,
-                            "default": False, "rules": aph},
+                            "default": RunRequest.model_fields["ruleset_profile"].default == aph_demo_ruleset.PROFILE_ID,
+                            "rules": aph},
             "production_rules": production}
 
 

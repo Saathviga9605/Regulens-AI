@@ -205,8 +205,9 @@ committed (reuse terms not assessed). Verify a local copy with `python -m app.cl
 | R02 Building document (one of OC / CC / Building License / Form D) | Annexure-2 §2.1(iii) | Partially verified — cites Clause 7.17, which could not be located (unresolved) | `aph_eoa_demo` v2 |
 | R08 Structural Stability Certificate (> 30 years) | Annexure-2 §2.1(iv) | Partially verified — reference date not given by the handbook | `aph_eoa_demo` v2 |
 
-The handbook-cited rules run only when the `aph_eoa_demo` profile is selected; it is not the default. The default
-profile's rules do **not** cite the handbook and are classified *demo-only* or *integrity check*. Not every enabled
+The handbook-cited rules belong to the `aph_eoa_demo` profile, which is the default for new scrutiny runs; the
+`production` profile can still be chosen per run. Production-profile rules do **not** cite the handbook and are
+classified *demo-only* or *integrity check*. Not every enabled
 rule is handbook-backed. The in-app **Regulatory source** page shows all of this from the backend registry, offline.
 
 ---
@@ -380,7 +381,7 @@ See [docs/security.md](docs/security.md).
 
 ## Limitations
 
-- Default-profile rules are **demo-only** or integrity checks; only three rules (APH profile) cite the pinned
+- Production-profile rules are **demo-only** or integrity checks; only three rules (APH profile) cite the pinned
   handbook, and all three involve stated interpretation.
 - Issuer verification is **simulated**; no issuing authority is contacted.
 - Field extraction is rule-based and covers explicitly labelled values in English; unusual layouts may be missed.

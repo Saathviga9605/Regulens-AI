@@ -29,3 +29,19 @@ def test_system_info_returns_safe_metadata(client: TestClient, settings) -> None
     assert str(settings.sqlite_path).lower() not in text
     for forbidden in ("secret", "password", "token", "sqlite:///"):
         assert forbidden not in text
+
+
+def test_capability_text_matches_implementation(client: TestClient) -> None:
+    body = client.get("/api/v1/system/info").json()
+    implemented = " ".join(body["implemented_capabilities"]).lower()
+    planned = " ".join(body["planned_capabilities"]).lower()
+    # built features are no longer advertised as planned
+    for done in ("upload", "ocr", "extraction", "audit", "report"):
+        assert done in implemented and done not in planned
+    # no overclaiming: issuer checks are simulated or manual, APH rules are not approved or fully verified
+    assert "simulated" in implemented and "not_connected" in implemented
+    assert "live issuer verification" in planned and "live" not in implemented
+    assert "partially verified" in implemented and "formal approval pending" in implemented
+    assert "formally approved" not in implemented and "fully verified" not in implemented
+    assert "synthetic" in planned  # real-photo evaluation not done
+    assert "connection status" not in implemented  # removed from the dashboard in D11
